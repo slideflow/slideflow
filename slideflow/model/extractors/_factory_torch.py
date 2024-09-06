@@ -296,35 +296,36 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         }
 
 
-class TorchImagenetLayerExtractor(BaseFeatureExtractor):
+class TorchImagenetLayerExtractor(TorchFeatureExtractor):
     """Feature extractor that calculates layer activations for
     imagenet-pretrained PyTorch models."""
 
-    def __init__(self, model_name, tile_px, device=None, **kwargs):
-        super().__init__(backend='torch')
+    def __init__(self, model_name: str, tile_px: int, device='cuda', **kwargs):
+        from slideflow.model import torch_utils
+        from slideflow.model.torch import ModelParams, Features
 
-        from ..torch import ModelParams, Features
-        from .. import torch_utils
-        from torchvision import transforms
+        # Handle keyword arguments
+        _model_kwarg_names = ['layers', 'include_preds', 'apply_softmax', 'pooling', 'load_method']
+        extractor_kw = {k:v for k,v in kwargs.items() if k not in _model_kwarg_names}
+        self.model_kw = {k:v for k,v in kwargs.items() if k in _model_kwarg_names}
 
-        self.device = torch_utils.get_device(device)
+        # Build the imagenet-pretrained model
+        device = torch_utils.get_device(device)   
         _hp = ModelParams(tile_px=tile_px, model=model_name, include_top=False, hidden_layers=0)
-        model = _hp.build_model(num_classes=1, pretrain='imagenet').to(self.device)
-        self.model_name = model_name
-        self.ftrs = Features.from_model(model, tile_px=tile_px, **kwargs)
-        self.tag = model_name + "_" + '-'.join(self.ftrs.layers)
-        self.num_features = self.ftrs.num_features
-        self._tile_px = tile_px
+        model = _hp.build_model(num_classes=1, pretrain='imagenet').to(device)
+        self.ftrs = Features.from_model(model, tile_px=tile_px, **self.model_kw)
 
-        # Normalization for Imagenet pretrained models
-        # as described here: https://pytorch.org/vision/0.11/models.html
-        all_transforms = [
-            transforms.Lambda(lambda x: x / 255.),
-            transforms.Normalize(
-                mean=(0.485, 0.456, 0.406),
-                std=(0.229, 0.224, 0.225))
-        ]
-        self.transform = transforms.Compose(all_transforms)
+        super().__init__(**extractor_kw)
+
+        # Set attributes
+        self.device = device
+        self.tag = model_name + "_" + '-'.join(self.ftrs.layers)
+        self.model_name = model_name
+        self._tile_px = tile_px
+        self.num_features = self.ftrs.num_features
+
+        # Build transforms & preprocessing
+        self.transform = self.build_transform(img_size=tile_px)
         self.preprocess_kwargs = dict(standardize=False)
 
     @property
@@ -343,6 +344,18 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
     def channels_last(self, value):
         self.ftrs.channels_last = value
 
+    @property
+    def tile_px(self):
+        return self._tile_px
+
+    def model(self, *args, **kwargs):
+        """Run model inference."""
+        return self.ftrs._predict(*args, **kwargs)
+
+    def _process_output(self, output):
+        """Pass through model output."""
+        return output
+
     def __repr__(self):
         return str(self)
 
@@ -353,22 +366,6 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
             self.num_features,
         )
 
-    def __call__(self, obj, **kwargs):
-        """Generate features for a batch of images or a WSI."""
-        if isinstance(obj, sf.WSI):
-            # Returns masked array of features
-            return features_from_slide(self, obj, **kwargs)
-        elif kwargs:
-            raise ValueError(
-                f"{self.__class__.__name__} does not accept keyword arguments "
-                "when extracting features from a batch of images."
-            )
-        else:
-            import torch
-            assert obj.dtype == torch.uint8
-            obj = self.transform(obj).to(self.device)
-            return self.ftrs._predict(obj)
-
     def dump_config(self):
         """Return a dictionary of configuration parameters.
 
@@ -376,12 +373,9 @@ class TorchImagenetLayerExtractor(BaseFeatureExtractor):
         feature extractor, using ``slideflow.build_feature_extractor()``.
 
         """
-        return {
-            'class': 'slideflow.model.extractors.TorchImagenetLayerExtractor',
-            'kwargs': {
-                'model_name': self.model_name,
-                'tile_px': self._tile_px,
-                'layers': self.ftrs.layers,
-                'pooling': self.ftrs._pooling,
-            }
-        }
+        return self._dump_config(
+            class_name='slideflow.model.extractors.TorchImagenetLayerExtractor',
+            model_name=self.model_name,
+            tile_px=self._tile_px,
+            **self.model_kw
+        )
