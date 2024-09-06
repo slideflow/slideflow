@@ -763,7 +763,8 @@ class DatasetFeatures:
                 log.warning(
                     "Feature extraction configuration does not match the "
                     "configuration used to generate the existing bags at "
-                    f"{outdir}. Current configuration will not be saved."
+                    f"{outdir}. Current configuration will not be saved. "
+                    f"Current configuration:\n{config}"
                 )
         else:
             sf.util.write_json(config, join(outdir, 'bags_config.json'))
