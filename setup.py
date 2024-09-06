@@ -49,6 +49,7 @@ setuptools.setup(
             'studio/gui/icons/success.png',
             'studio/gui/icons/warn.png',
             'studio/gui/icons/search.png',
+            'studio/gui/icons/filter.png',
             'studio/gui/splash.png',
             'studio/gui/logo_dark_outline.png',
             'studio/gui/buttons/button_extensions_highlighted.png',
