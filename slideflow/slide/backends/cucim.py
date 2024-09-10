@@ -34,14 +34,19 @@ def get_cucim_reader(path: str, *args, **kwargs):
     return _cuCIMReader(path, *args, **kwargs)
 
 
-def cucim2numpy(img: Union["CuImage", "cp.ndarray"]) -> np.ndarray:
+def cucim2numpy(img: Union["CuImage", "cp.ndarray", "np.ndarray"]) -> np.ndarray:
     """Convert a cuCIM image to a numpy array."""
     from cucim import CuImage
-    import cupy as cp
     if isinstance(img, CuImage):
         np_img = np.asarray(img)
-    elif isinstance(img, cp.ndarray):
-        np_img = img.get()
+    elif isinstance(img, np.ndarray):
+        np_img = img
+    else:
+        import cupy as cp
+        if isinstance(img, cp.ndarray):
+            np_img = img.get()
+        else:
+            raise ValueError(f"Unsupported image type: {type(img)}")
     return ((img_as_float32(np_img)) * 255).astype(np.uint8)
 
 
@@ -61,7 +66,7 @@ def cucim_padded_crop(
     size: Tuple[int, int],
     level: int,
     **kwargs
-) -> Union["CuImage", "cp.ndarray"]:
+) -> Union["CuImage", "np.ndarray"]:
     """Read a region from the image, padding missing data.
 
     Args:
@@ -74,32 +79,30 @@ def cucim_padded_crop(
 
     Returns:
         Original image (``CuImage``) if the region is within bounds, otherwise
-        a padded region (``cp.ndarray``).
+        a padded region (``np.ndarray``).
 
     """
-    # Delayed import to avoid multiprocessing issues
-    import cupy as cp
-
     x, y = location
     width, height = size
+    slide_height, slide_width = img.shape[0], img.shape[1]
     bg = [255]
     # Note that for cucim images, the shape is (height, width, channels).
     # First, return the original image if the region is within bounds.
-    if (x >= 0 and y >= 0 and x + width <= img.shape[1] and y + height <= img.shape[0]):
+    if (x >= 0 and y >= 0 and x + width <= slide_width and y + height <= slide_height):
         return img.read_region(location=(x, y), size=(width, height), level=level, **kwargs)
     # Otherwise, pad the missing region with white.
     # First, find the region that is within bounds.
     x1, y1 = max(0, x), max(0, y)
-    x2, y2 = min(img.shape[1], x + width), min(img.shape[0], y + height)
+    x2, y2 = min(slide_width, x + width), min(slide_height, y + height)
     # Read the region within bounds.
     region = img.read_region(location=(x1, y1), size=(x2 - x1, y2 - y1), level=level, **kwargs)
-    # Convert to a cupy array.
-    region_cp = cp.asarray(region)
-    # Use cp.pad to pad the region.
-    pad_width = ((max(0, -y), max(0, y + height - img.shape[0])),
-                 (max(0, -x), max(0, x + width - img.shape[1])),
+    # Convert to a numpy array.
+    region_cp = np.asarray(region)
+    # Use np.pad to pad the region.
+    pad_width = ((max(0, -y), max(0, y + height - slide_height)),
+                 (max(0, -x), max(0, x + width - slide_width)),
                  (0, 0))
-    region_cp = cp.pad(region_cp, pad_width, mode='constant', constant_values=bg)
+    region_cp = np.pad(region_cp, pad_width, mode='constant', constant_values=bg)
     return region_cp
 
 
@@ -137,20 +140,23 @@ def tile_worker(
                 args.downsample_level,
                 (args.extract_px, args.extract_px)
             )
-        # Perform whitespace filtering [Libvips]
-        if args.whitespace_fraction < 1:
-            ws_fraction = np.mean((np.mean(cucim2numpy(filter_region), axis=-1) > args.whitespace_threshold))
-            if (ws_fraction > args.whitespace_fraction
-               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
-                return None
+        try:
+            # Perform whitespace filtering [cucim]
+            if args.whitespace_fraction < 1:
+                ws_fraction = np.mean((np.mean(cucim2numpy(filter_region), axis=-1) > args.whitespace_threshold))
+                if (ws_fraction > args.whitespace_fraction
+                and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
+                    return None
 
-        # Perform grayspace filtering [Libvips]
-        if args.grayspace_fraction < 1:
-            hsv_region = rgb2hsv(np.asarray(filter_region))
-            gs_fraction = np.mean(hsv_region[:, :, 1] < args.grayspace_threshold)
-            if (gs_fraction > args.grayspace_fraction
-               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
-                return None
+            # Perform grayspace filtering [cucim]
+            if args.grayspace_fraction < 1:
+                hsv_region = rgb2hsv(np.asarray(filter_region))
+                gs_fraction = np.mean(hsv_region[:, :, 1] < args.grayspace_threshold)
+                if (gs_fraction > args.grayspace_fraction
+                and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
+                    return None
+        except IndexError:
+            return None
 
     # Prepare return dict with WS/GS fraction
     return_dict = {'loc': [x_coord, y_coord]}  # type: Dict[str, Any]
@@ -179,6 +185,9 @@ def tile_worker(
         args.downsample_level,
         (args.extract_px, args.extract_px)
     )
+    # If the region is None (out of bounds), return None
+    if region is None:
+        return None
 
     # cuCIM resize
     if not __cv2_resize__:
@@ -396,7 +405,7 @@ class _cuCIMReader:
         flatten: bool = False,
         resize_factor: Optional[float] = None,
         pad_missing: Optional[bool] = None
-    ) -> Union["CuImage", np.ndarray, str]:
+    ) -> Optional[Union["CuImage", np.ndarray, str]]:
         """Extracts a region from the image at the given downsample level.
 
         Args:
@@ -421,6 +430,7 @@ class _cuCIMReader:
 
         Returns:
             Image in the specified format.
+
         """
         # Define region kwargs
         region_kwargs = dict(
@@ -431,11 +441,19 @@ class _cuCIMReader:
         )
         # Pad missing data, if enabled
         if ((pad_missing is not None and pad_missing)
-           or (pad_missing is None and self.pad_missing)):
-            region = cucim_padded_crop(self.reader, **region_kwargs)
+        or (pad_missing is None and self.pad_missing)):
+            try:
+                region = cucim_padded_crop(self.reader, **region_kwargs)
+            except ValueError as e:
+                log.warning(f"Error reading region via padded crop with kwargs=({region_kwargs}): {e}")
+                return None
         else:
             # If padding is disabled, this will raise a ValueError.
-            region = self.reader.read_region(**region_kwargs)
+            try:
+                region = self.reader.read_region(**region_kwargs)
+            except ValueError as e:
+                log.warning(f"Error reading region with kwargs=({region_kwargs}): {e}")
+                return None
 
         # Resize using the same interpolation strategy as the Libvips backend (cv2).
         if resize_factor:

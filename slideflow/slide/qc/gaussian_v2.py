@@ -112,7 +112,8 @@ class GaussianV2(_StridedQC_V2):
             stride_div=stride_div,
             verbose=False,
             use_edge_tiles=True,
-            roi_method='ignore'
+            roi_method='ignore',
+            roi_filter_method=wsi.roi_filter_method
         )
         return qc_wsi, mpp
 

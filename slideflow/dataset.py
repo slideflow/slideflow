@@ -2206,7 +2206,7 @@ class Dataset:
         pb.add_task(
             "Speed: ",
             progress_type="speed",
-            total=self.num_tiles
+            total=dataset.num_tiles
         )
         slide_task = pb.add_task(
             "Generating...",

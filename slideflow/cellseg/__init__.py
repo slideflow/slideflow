@@ -11,6 +11,7 @@ import slideflow as sf
 import zarr
 import torch
 import shapely.affinity as sa
+
 from queue import Queue
 from numcodecs import Blosc
 from matplotlib.colors import to_rgb
@@ -18,9 +19,10 @@ from tqdm import tqdm
 from typing import Tuple, Union, Callable, Optional, Iterable, TYPE_CHECKING, List
 from functools import partial
 from PIL import Image, ImageDraw
-from cellpose.utils import outlines_list
 from cellpose.models import Cellpose
 from cellpose import transforms, plot, dynamics
+
+from slideflow.segment.utils import outlines_list
 from slideflow.slide.utils import draw_roi
 from slideflow.util import batch_generator, log
 from slideflow.model import torch_utils

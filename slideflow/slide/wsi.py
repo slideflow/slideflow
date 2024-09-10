@@ -67,6 +67,7 @@ class WSI:
         mpp: Optional[float] = None,
         simplify_roi_tolerance: Optional[float] = None,
         artifact_labels: Optional[List[str]] = None,
+        disable_grid: bool = False,
         **reader_kwargs: Any
     ) -> None:
         """Loads slide and ROI(s).
@@ -167,6 +168,7 @@ class WSI:
         self.__slide = None
         self._mpp_override = mpp
         self._reader_kwargs = reader_kwargs
+        self._disable_grid = disable_grid
         self.grid: np.ndarray
         self.artifact_labels = artifact_labels # type: Optional[List[str]]
         if self.artifact_labels is None:
@@ -363,7 +365,10 @@ class WSI:
                 has_segmentation=False,
             )
         )
-        return image_dict['image']
+        if image_dict is not None:
+            return image_dict['image']
+        else:
+            return None
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -384,8 +389,8 @@ class WSI:
         rois: List["ROI"],
         x_offset: float = 0,
         y_offset: float = 0,
-        xfact: float = 1.,
-        yfact: float = 1.,
+        xfact: Optional[float] = None,
+        yfact: Optional[float] = None,
         *,
         grid_scale: int = 1,
         invert: bool = False
@@ -412,6 +417,15 @@ class WSI:
                 return _roi.invert(*self.dimensions).poly
             else:
                 return _roi.poly
+
+        # Calculate scaling factors if not provided.
+        if xfact is None and yfact is None:
+            xfact = self.grid.shape[0] / self.dimensions[0]
+            yfact = self.grid.shape[1] / self.dimensions[1]
+        elif xfact is None:
+            xfact = yfact
+        elif yfact is None:
+            yfact = xfact
 
         # Convert ROIs to polygons.
         polys = list(map(_get_poly, rois))
@@ -451,13 +465,29 @@ class WSI:
         Returns:
             np.ndarray: Rasterized polygons.
         """
+        # Coverage size of the tile extraction grid, in base dimensions
+        covered_x = int(self.full_stride * (self.grid.shape[0] - 1) + self.full_extract_px)  # type: ignore
+        covered_y = int(self.full_stride * (self.grid.shape[1] - 1) + self.full_extract_px)  # type: ignore
+
+        # Proportion of the grid covered by the ROIs
+        proportion_covered_x = 1 if grid_scale == 1 else (covered_x / self.dimensions[0])
+        proportion_covered_y = 1 if grid_scale == 1 else (covered_y / self.dimensions[1])
+
+        # Scaling factors for the grid
+        if grid_scale != 1:
+            grid_scale_x = grid_scale / proportion_covered_x
+            grid_scale_y = grid_scale / proportion_covered_y
+        else:
+            grid_scale_x = grid_scale
+            grid_scale_y = grid_scale
+
         # Rasterize polygons for ROIs individually, to keep track of
         # which ROI each tile belongs to, then merge.
         roi_grid = np.stack([
             rasterio.features.rasterize(
                 [poly],
-                out_shape=(self.grid.shape[1] * grid_scale,
-                           self.grid.shape[0] * grid_scale),
+                out_shape=(int(np.round(self.grid.shape[1] * grid_scale_y)),
+                           int(np.round(self.grid.shape[0] * grid_scale_x))),
                 all_touched=False).astype(bool).astype(int) * (i + 1)
             for i, poly in enumerate(polys)
         ], axis=0)
@@ -505,6 +535,13 @@ class WSI:
 
         """
 
+        # Bypass this step if the grid has been disabled.
+        if self._disable_grid:
+            self.grid = np.ones((1, 1), dtype=bool)
+            self.coord = np.array([])
+            self.estimated_num_tiles = 0
+            return
+
         # First, remove any existing ROI QC Masks, as these will be recalculated
         # when the coordinate grid is rebuilt.
         self.remove_roi_qc()
@@ -550,22 +587,14 @@ class WSI:
         roi_by_center = (self.roi_filter_method == 'center')
         if self.has_rois():
 
-            # Full extraction size and stride
-            full_extract = self.tile_um / self.mpp
-            stride = full_extract / self.stride_div
-
-            # Coverage size of the extracted image tiles
-            xtrim = int(stride * (self.grid.shape[0]))  # type: ignore
-            ytrim = int(stride * (self.grid.shape[1]))  # type: ignore
+            # Coverage size of the tile extraction grid, in base dimensions
+            covered_x = int(self.full_stride * (self.grid.shape[0] - 1) + self.full_extract_px)  # type: ignore
+            covered_y = int(self.full_stride * (self.grid.shape[1] - 1) + self.full_extract_px)  # type: ignore
 
             # Degree to which the ROIs will need to be scaled
             # to match the extracted image tile grid
-            xfact = self.grid.shape[0] / xtrim
-            yfact = self.grid.shape[1] / ytrim
-
-            # Offset to align the ROI polygons with the image tile grid
-            x_offset = - (full_extract/2 - stride/2)
-            y_offset = - (full_extract/2 - stride/2)
+            xfact = self.grid.shape[0] / covered_x
+            yfact = self.grid.shape[1] / covered_y
 
             # Separate ROIs by whether they are artifact or not
             rois = self.get_rois(ignore_artifact=True)
@@ -573,8 +602,6 @@ class WSI:
 
             # Prepare ROI rasterization arguments
             rasterize_kw = dict(
-                x_offset=x_offset,
-                y_offset=y_offset,
                 xfact=xfact,
                 yfact=yfact,
                 grid_scale=(1 if roi_by_center else 50),
@@ -734,6 +761,16 @@ class WSI:
     def dimensions(self) -> Tuple[int, int]:
         """Dimensions of highest-magnification level (width, height)"""
         return self.slide.dimensions
+
+    @property
+    def height(self) -> int:
+        """Height of highest-magnification level."""
+        return self.dimensions[1]
+
+    @property
+    def width(self) -> int:
+        """Width of highest-magnification level."""
+        return self.dimensions[0]
 
     @property
     def levels(self) -> Dict:
@@ -1406,7 +1443,11 @@ class WSI:
         # Return an image of the applied mask.
         return Image.fromarray(img_as_ubyte(self.qc_mask))
 
-    def apply_segmentation(self, segmentation: "sf.cellseg.Segmentation") -> None:
+    def apply_segmentation(
+        self,
+        segmentation: "sf.cellseg.Segmentation",
+        apply_rois: bool = True
+    ) -> None:
         """Apply cell segmentation to the slide.
 
         This sets the coordinates to the centroids of the segmentation.
@@ -1414,10 +1455,11 @@ class WSI:
         Args:
             segmentation (slideflow.cellseg.Segmentation): Segmentation object
                 to apply.
+            apply_rois (bool): Whether to apply ROIs to the segmentation.
 
         """
         # Filter out masks outside of ROIs, if present.
-        if self.has_rois():
+        if self.has_rois() and apply_rois:
             log.debug(f"Applying {len(self.rois)} ROIs to segmentation.")
             rois = self.get_rois(ignore_artifact=True)
             segmentation.apply_rois(1, [r.poly for r in rois])
@@ -1940,6 +1982,49 @@ class WSI:
             if roi.name == name:
                 return roi
         return None
+
+    def get_roi_label_grid(
+        self,
+        label_map: Optional[Dict[str, int]] = None,
+        **kwargs
+    ) -> Tuple[np.ndarray, np.ndarray, Dict[str, int]]:
+        """Build a grid of class labels for each ROI in the slide.
+
+        Args:
+            label_map (dict): Mapping of ROI labels to class indices. If None,
+                will create a new mapping. Defaults to None.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray, Dict[str, int]]: Tuple of:
+                - label_grid: Grid of class labels for each ROI.
+                - roi_grid: Grid of ROI IDs.
+                - label_map: Mapping of ROI labels to class indices.
+
+        Raises:
+            ValueError: If no ROIs are found in the slide.
+
+        """
+        if not self.has_rois():
+            raise ValueError("No ROIs found in slide.")
+
+        # First, get unique ROI IDs
+        roi_grid = self._rasterize_rois_to_grid(self.rois, **kwargs).T
+
+        # Get class labels for each ROI
+        # Start with a dict mapping labels to indices
+        if label_map is None:
+            unique_labels = np.unique([r.label for r in self.rois])
+            label_map = {label: i+1 for i, label in enumerate(unique_labels)}
+
+        # Then a dictionary mapping ROI IDs to labels
+        roi_label_map = {i: label_map[roi.label] for i, roi in enumerate(self.rois)}
+
+        # Finally, a grid of labels
+        label_grid = np.zeros_like(roi_grid, dtype=np.uint8)
+        for i in range(len(self.rois)):
+            label_grid[roi_grid == i+1] = roi_label_map[i]
+
+        return label_grid, roi_grid, label_map
 
     def get_tile_coord(self, anchor='topleft') -> np.ndarray:
         """Get a coordinate grid of all tiles, restricted to those that pass QC

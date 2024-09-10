@@ -27,7 +27,6 @@ SOFTWARE.
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from lifelines.utils.btree import _BTree
 
 # ---------------------------------------------------------------------------------------------------------------------
 
