@@ -17,4 +17,4 @@ slideflow.log
 .DS_Store
 scripts/slideflow_test
 scripts/cufile.log
-scripts/dataset.json
+scripts/datasets.json
