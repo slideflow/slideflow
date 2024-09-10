@@ -460,7 +460,7 @@ class CycleGanStainTranslator:
         :param img: image to translate, in RGB format.
         :return: translated image, in RGB format.
         """
-        with torch.no_grad():
+        with torch.inference_mode():
             mt = self.he_to_mt(img, as_tensor=True)
             he = self.mt_to_he(mt, as_tensor=True)
             if he.shape != img.shape:
@@ -487,7 +487,7 @@ class CycleGanStainTranslator:
             img = self.to_tensor(img)
         whc = is_whc(img)
         with autocast(self._device_type, mixed_precision=self.mixed_precision):
-            with torch.no_grad():
+            with torch.inference_mode():
                 img = self.normalize(as_cwh(img).float()).to(self.he2mt.device)
                 mt = self.he2mt(img)
                 mt = torch.clamp((mt + 1) / 2.0 * 255, 0, 255).to(torch.uint8)
@@ -514,7 +514,7 @@ class CycleGanStainTranslator:
             img = self.to_tensor(img)
         whc = is_whc(img)
         with autocast(self._device_type, mixed_precision=self.mixed_precision):
-            with torch.no_grad():
+            with torch.inference_mode():
                 img = self.normalize(as_cwh(img).float()).to(self.mt2he.device)
                 he = self.mt2he(img)
                 he = torch.clamp((he + 1) / 2.0 * 255, 0, 255).to(torch.uint8)

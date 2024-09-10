@@ -704,7 +704,7 @@ class SlideMap:
             self.data['label'] = uq_labels
 
     def label_by_preds(self, index: int) -> None:
-        """Displays each point with label equal to the prediction value (linear from 0-1)
+        """Displays each point with label equal to the prediction value (from 0-1)
 
         Args:
             index (int): Logit index.
@@ -984,8 +984,10 @@ class SlideMap:
         """
         import matplotlib.pyplot as plt
 
-        self.plot(**kwargs)
-        plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+        with sf.util.matplotlib_backend('Agg'):
+            self.plot(**kwargs)
+            plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+            plt.close()
         log.info(f"Saved 2D UMAP to [green]{filename}")
 
     def save_3d(
@@ -1012,8 +1014,10 @@ class SlideMap:
         """
         import matplotlib.pyplot as plt
 
-        self.plot_3d(**kwargs)
-        plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+        with sf.util.matplotlib_backend('Agg'):
+            self.plot_3d(**kwargs)
+            plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+            plt.close()
         log.info(f"Saved 3D UMAP to [green]{filename}")
 
     def save_coordinates(self, path: str) -> None:

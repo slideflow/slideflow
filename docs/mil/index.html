@@ -6,25 +6,25 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Multiple-Instance Learning (MIL) &mdash; slideflow 2.3.0 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>Multiple-Instance Learning (MIL) &mdash; slideflow 3.0.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -33,13 +33,11 @@
     <link rel="index" title="Index" href="../genindex/" />
     <link rel="search" title="Search" href="../search/" />
     <link rel="next" title="Self-Supervised Learning (SSL)" href="../ssl/" />
-    <link rel="prev" title="Uncertainty Quantification" href="../uq/" />
-  <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
+    <link rel="prev" title="Generating Features" href="../features/" />
 
-  
+
+
+
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -62,16 +60,7 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-
-    gtag('js', new Date());
-
-    gtag('config', 'G-43E5QNVXH2');
-  </script>
+  <script defer data-domain="slideflow.dev" src="https://plausible.io/js/script.js"></script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -90,7 +79,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -102,9 +91,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +104,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -140,15 +129,15 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -161,6 +150,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +167,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -219,8 +210,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -228,7 +219,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -247,30 +238,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
       <li>Multiple-Instance Learning (MIL)</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
-            
+
+
             <a href="../_sources/mil.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
-          
-        
+
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -282,228 +273,57 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <section id="multiple-instance-learning-mil">
 <span id="mil"></span><h1>Multiple-Instance Learning (MIL)<a class="headerlink" href="#multiple-instance-learning-mil" title="Permalink to this heading">¶</a></h1>
 <p>In addition to standard tile-based neural networks, Slideflow also supports training multiple-instance learning (MIL) models. Several architectures are available, including <a class="reference external" href="https://github.com/AMLab-Amsterdam/AttentionDeepMIL">attention-based MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;Attention_MIL&quot;</span></code>), <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a> (<code class="docutils literal notranslate"><span class="pre">&quot;CLAM_SB&quot;,</span></code> <code class="docutils literal notranslate"><span class="pre">&quot;CLAM_MB&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc_mc&quot;</span></code>), <a class="reference external" href="https://github.com/szc19990412/TransMIL">TransMIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;TransMIL&quot;</span></code>), and <a class="reference external" href="https://github.com/peng-lab/HistoBistro">HistoBistro Transformer</a> (<code class="docutils literal notranslate"><span class="pre">&quot;bistro.transformer&quot;</span></code>). Custom architectures can also be trained. MIL training requires PyTorch.</p>
 <p>Skip to <a class="reference internal" href="../tutorial8/#tutorial8"><span class="std std-ref">Tutorial 8: Multiple-Instance Learning</span></a> for a complete example of MIL training.</p>
+<p>See <a class="reference internal" href="../mil_module/#mil-api"><span class="std std-ref">slideflow.mil</span></a> for more information on the MIL API.</p>
 <section id="generating-features">
-<h2>Generating features<a class="headerlink" href="#generating-features" title="Permalink to this heading">¶</a></h2>
-<p>The first step in MIL model development is generating features from image tiles. Many types of feature extractors can be used, including imagenet-pretrained models, models finetuned in Slideflow, histology-specific pretrained feature extractors (such as CTransPath or RetCCL), or fine-tuned SSL models.  In all cases, feature extractors are built with <a class="reference internal" href="../model/#slideflow.model.build_feature_extractor" title="slideflow.model.build_feature_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.build_feature_extractor()</span></code></a>, and features are generated for a dataset using either with <a class="reference internal" href="../posthoc/#activations"><span class="std std-ref">slideflow.DatasetFeatures.to_torch()</span></a> or <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a>.</p>
-<section id="pretrained-feature-extractor">
-<h3>Pretrained Feature Extractor<a class="headerlink" href="#pretrained-feature-extractor" title="Permalink to this heading">¶</a></h3>
-<p>Slideflow includes several pathology-specific pretrained feature extractors:</p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://github.com/Xiyue-Wang/TransPath">CTransPath</a></p></li>
-<li><p><a class="reference external" href="https://github.com/Xiyue-Wang/RetCCL">RetCCL</a></p></li>
-<li><p><a class="reference external" href="https://github.com/owkin/HistoSSLscaling">HistoSSL</a></p></li>
-<li><p><a class="reference external" href="https://github.com/PathologyFoundation/plip">PLIP</a></p></li>
-</ul>
-<p>Use <a class="reference internal" href="../model/#slideflow.model.build_feature_extractor" title="slideflow.model.build_feature_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.build_feature_extractor()</span></code></a> to build one of these feature extractors by name. Weights for these pretrained networks will be automatically downloaded.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ctranspath</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;ctranspath&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="imagenet-features">
-<h3>ImageNet Features<a class="headerlink" href="#imagenet-features" title="Permalink to this heading">¶</a></h3>
-<p>To calculate features from an ImageNet-pretrained network, first build an imagenet feature extractor with <a class="reference internal" href="../model/#slideflow.model.build_feature_extractor" title="slideflow.model.build_feature_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.build_feature_extractor()</span></code></a>. The first argument should be the name of an architecture followed by <code class="docutils literal notranslate"><span class="pre">_imagenet</span></code>, and the expected tile size should be passed to the keyword argument <code class="docutils literal notranslate"><span class="pre">tile_px</span></code>. You can optionally specify the layer from which to generate features with the <code class="docutils literal notranslate"><span class="pre">layers</span></code> argument; if not provided, it will default to calculating features from post-convolutional layer activations. For example, to build a ResNet50 feature extractor for images at 299 x 299 pixels:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
-
-<span class="n">resnet50</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
-    <span class="s1">&#39;resnet50_imagenet&#39;</span><span class="p">,</span>
-    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>This will calculate features using activations from the post-convolutional layer. You can also concatenate activations from multiple neural network layers and apply pooling for layers with 2D output shapes.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">resnet50</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
-    <span class="s1">&#39;resnet50_imagenet&#39;</span><span class="p">,</span>
-    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;conv1_relu&#39;</span><span class="p">,</span> <span class="s1">&#39;conv3_block1_2_relu&#39;</span><span class="p">],</span>
-    <span class="n">pooling</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span>
-    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>If a model architecture is available in both the Tensorflow and PyTorch backends, Slideflow will default to using the active backend. You can manually set the feature extractor backend using <code class="docutils literal notranslate"><span class="pre">backend</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a PyTorch feature extractor</span>
-<span class="n">extractor</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
-    <span class="s1">&#39;resnet50_imagenet&#39;</span><span class="p">,</span>
-    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;layer2.0.conv1&#39;</span><span class="p">,</span> <span class="s1">&#39;layer3.1.conv2&#39;</span><span class="p">],</span>
-    <span class="n">pooling</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span>
-    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
-    <span class="n">backend</span><span class="o">=</span><span class="s1">&#39;torch&#39;</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>You can view all available feature extractors with <a class="reference internal" href="../model/#slideflow.model.list_extractors" title="slideflow.model.list_extractors"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.list_extractors()</span></code></a>.</p>
-</section>
-<section id="features-from-finetuned-model">
-<h3>Features from Finetuned Model<a class="headerlink" href="#features-from-finetuned-model" title="Permalink to this heading">¶</a></h3>
-<p>You can also calculate features from any model trained in Slideflow. The first argument to <code class="docutils literal notranslate"><span class="pre">build_feature_extractor()</span></code> should be the path of the trained model.  You can optionally specify the layer at which to calculate activations using the <code class="docutils literal notranslate"><span class="pre">layers</span></code> keyword argument. If not specified, activations are calculated at the post-convolutional layer.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Calculate features from trained model.</span>
-<span class="n">features</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
-    <span class="s1">&#39;/path/to/model&#39;</span><span class="p">,</span>
-    <span class="n">layers</span><span class="o">=</span><span class="s1">&#39;sepconv3_bn&#39;</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="self-supervised-learning">
-<h3>Self-Supervised Learning<a class="headerlink" href="#self-supervised-learning" title="Permalink to this heading">¶</a></h3>
-<p>Finally, you can also generate features from a trained <a class="reference internal" href="../ssl/#simclr-ssl"><span class="std std-ref">self-supervised learning</span></a> model (either <a class="reference external" href="https://github.com/jamesdolezal/simclr">SimCLR</a> or <a class="reference external" href="https://github.com/jamesdolezal/dinov2">DinoV2</a>).</p>
-<p>For SimCLR models, use <code class="docutils literal notranslate"><span class="pre">'simclr'</span></code> as the first argument to <code class="docutils literal notranslate"><span class="pre">build_feature_extractor()</span></code>, and pass the path to a saved model (or saved checkpoint file) via the keyword argument <code class="docutils literal notranslate"><span class="pre">ckpt</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">simclr</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
-    <span class="s1">&#39;simclr&#39;</span><span class="p">,</span>
-    <span class="n">ckpt</span><span class="o">=</span><span class="s1">&#39;/path/to/simclr.ckpt&#39;</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>For DinoV2 models, use <code class="docutils literal notranslate"><span class="pre">'dinov2'</span></code> as the first argument, and pass the model configuration YAML file to <code class="docutils literal notranslate"><span class="pre">cfg</span></code> and the teacher checkpoint weights to <code class="docutils literal notranslate"><span class="pre">weights</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dinov2</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span>
-    <span class="s1">&#39;dinov2&#39;</span><span class="p">,</span>
-    <span class="n">weights</span><span class="o">=</span><span class="s1">&#39;/path/to/teacher_checkpoint.pth&#39;</span><span class="p">,</span>
-    <span class="n">cfg</span><span class="o">=</span><span class="s1">&#39;/path/to/config.yaml&#39;</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="exporting-features">
-<span id="bags"></span><h3>Exporting Features<a class="headerlink" href="#exporting-features" title="Permalink to this heading">¶</a></h3>
-<p>Once you have prepared a feature extractor, features can be generated for a dataset and exported to disk for later use. Pass a feature extractor to the first argument of <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a>, with a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> as the second argument.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load a project and dataset.</span>
-<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
-<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
-
-<span class="c1"># Create a feature extractor.</span>
-<span class="n">ctranspath</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;ctranspath&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">)</span>
-
-<span class="c1"># Calculate &amp; export feature bags.</span>
-<span class="n">P</span><span class="o">.</span><span class="n">generate_feature_bags</span><span class="p">(</span><span class="n">ctranspath</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>If you are generating features from a SimCLR model trained with stain normalization,
-you should specify the stain normalizer using the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> argument to <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a> or <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a>.</p>
-</div>
-<p>Features are calculated for slides in batches, keeping memory usage low. By default, features are saved to disk in a directory named <code class="docutils literal notranslate"><span class="pre">pt_files</span></code> within the project directory, but you can override the destination directory using the <code class="docutils literal notranslate"><span class="pre">outdir</span></code> argument.</p>
-<p>Alternatively, you can calculate features for a dataset using <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> and the <code class="docutils literal notranslate"><span class="pre">.to_torch()</span></code> method.  This will calculate features for your entire dataset at once, which may require a large amount of memory. The first argument should be the feature extractor, and the second argument should be a <a class="reference internal" href="../dataset/#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Calculate features for the entire dataset.</span>
-<span class="n">features</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span><span class="n">ctranspath</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
-
-<span class="c1"># Export feature bags.</span>
-<span class="n">features</span><span class="o">.</span><span class="n">to_torch</span><span class="p">(</span><span class="s1">&#39;/path/to/bag_directory/&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Using <a class="reference internal" href="../dataset_features/#slideflow.DatasetFeatures" title="slideflow.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code></a> directly may result in a large amount of memory usage, particularly for sizable datasets. When generating feature bags for training MIL models, it is recommended to use <a class="reference internal" href="../project/#slideflow.Project.generate_feature_bags" title="slideflow.Project.generate_feature_bags"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_feature_bags()</span></code></a> instead.</p>
-</div>
-<p>Feature “bags” are PyTorch tensors of features for all images in a slide, saved to disk as <code class="docutils literal notranslate"><span class="pre">.pt</span></code> files. These bags are used to train MIL models. Bags can be manually loaded and inspected using <code class="xref py py-func docutils literal notranslate"><span class="pre">torch.load()</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">torch</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">bag</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;/path/to/bag.pt&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">bag</span><span class="o">.</span><span class="n">shape</span>
-<span class="go">torch.Size([2310, 768])</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">bag</span><span class="o">.</span><span class="n">dtype</span>
-<span class="go">torch.float32</span>
-</pre></div>
-</div>
-<p>When image features are exported for a dataset, the feature extractor configuration is saved to <code class="docutils literal notranslate"><span class="pre">bags_config.json</span></code> in the same directory as the exported features. This configuration file can be used to rebuild the feature extractor. An example file is shown below.</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w"> </span><span class="nt">&quot;extractor&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;class&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;slideflow.model.extractors.ctranspath.CTransPathFeatures&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;kwargs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">   </span><span class="nt">&quot;center_crop&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="w"> </span><span class="p">},</span>
-<span class="w"> </span><span class="nt">&quot;normalizer&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;macenko&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;fit&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">   </span><span class="nt">&quot;stain_matrix_target&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">[</span>
-<span class="w">     </span><span class="mf">0.5062568187713623</span><span class="p">,</span>
-<span class="w">     </span><span class="mf">0.22186939418315887</span>
-<span class="w">    </span><span class="p">],</span>
-<span class="w">    </span><span class="p">[</span>
-<span class="w">     </span><span class="mf">0.7532230615615845</span><span class="p">,</span>
-<span class="w">     </span><span class="mf">0.8652154803276062</span>
-<span class="w">    </span><span class="p">],</span>
-<span class="w">    </span><span class="p">[</span>
-<span class="w">     </span><span class="mf">0.4069173336029053</span><span class="p">,</span>
-<span class="w">     </span><span class="mf">0.42241501808166504</span>
-<span class="w">    </span><span class="p">]</span>
-<span class="w">   </span><span class="p">],</span>
-<span class="w">   </span><span class="nt">&quot;target_concentrations&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="mf">1.7656903266906738</span><span class="p">,</span>
-<span class="w">    </span><span class="mf">1.2797492742538452</span>
-<span class="w">   </span><span class="p">]</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="w"> </span><span class="p">},</span>
-<span class="w"> </span><span class="nt">&quot;num_features&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2048</span><span class="p">,</span>
-<span class="w"> </span><span class="nt">&quot;tile_px&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">299</span><span class="p">,</span>
-<span class="w"> </span><span class="nt">&quot;tile_um&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">302</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p>The feature extractor can be manually rebuilt using <a class="reference internal" href="../model/#slideflow.model.rebuild_extractor" title="slideflow.model.rebuild_extractor"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.rebuild_extractor()</span></code></a>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">rebuild_extractor</span>
-
-<span class="c1"># Recreate the feature extractor</span>
-<span class="c1"># and stain normalizer, if applicable</span>
-<span class="n">extractor</span><span class="p">,</span> <span class="n">normalizer</span> <span class="o">=</span> <span class="n">rebuild_extractor</span><span class="p">(</span><span class="s1">&#39;/path/to/bags_config.json&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="license-citation">
-<h3>License &amp; Citation<a class="headerlink" href="#license-citation" title="Permalink to this heading">¶</a></h3>
-<p>Licensing and citation information for the pretrained feature extractors is accessible with the <code class="docutils literal notranslate"><span class="pre">.license</span></code> and <code class="docutils literal notranslate"><span class="pre">.citation</span></code> attributes.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ctranspath</span><span class="o">.</span><span class="n">license</span>
-<span class="go">&#39;GNU General Public License v3.0&#39;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">ctranspath</span><span class="o">.</span><span class="n">citation</span><span class="p">)</span>
-
-<span class="go">@{wang2022,</span>
-<span class="go">  title={Transformer-based Unsupervised Contrastive Learning for Histopathological Image Classification},</span>
-<span class="go">  author={Wang, Xiyue and Yang, Sen and Zhang, Jun and Wang, Minghui and Zhang, Jing  and Yang, Wei and Huang, Junzhou  and Han, Xiao},</span>
-<span class="go">  journal={Medical Image Analysis},</span>
-<span class="go">  year={2022},</span>
-<span class="go">  publisher={Elsevier}</span>
-<span class="go">}</span>
-</pre></div>
-</div>
-</section>
+<h2>Generating Features<a class="headerlink" href="#generating-features" title="Permalink to this heading">¶</a></h2>
+<p>The first step in MIL model development is generating features from image tiles, as discussed in the <a class="reference internal" href="../features/#features"><span class="std std-ref">Generating Features</span></a> section. Features from whole-slide images are exported as “bags” of features, where each bag contains a set of features from a single slide. Each bag is a PyTorch tensor saved in <code class="docutils literal notranslate"><span class="pre">*.pt</span></code> format. Bags are saved in a directory, and the directory path is passed to the MIL model during training and evaluation.</p>
 </section>
 <section id="training">
 <h2>Training<a class="headerlink" href="#training" title="Permalink to this heading">¶</a></h2>
 <section id="model-configuration">
 <h3>Model Configuration<a class="headerlink" href="#model-configuration" title="Permalink to this heading">¶</a></h3>
-<p>To train an MIL model on exported features, first prepare an MIL configuration using <a class="reference internal" href="../mil_module/#slideflow.mil.mil_config" title="slideflow.mil.mil_config"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.mil.mil_config()</span></code></a>.</p>
-<p>The first argument to this function is the model architecture (which can be a name or a custom <code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code> model), and the remaining arguments are used to configure the training process (including learning rate and epochs).</p>
-<p>By default, training is executed using <a class="reference external" href="https://docs.fast.ai/">FastAI</a> with <a class="reference external" href="https://arxiv.org/pdf/1803.09820.pdf%E5%92%8CSylvain">1cycle learning rate scheduling</a>. Available models out-of-the-box include <a class="reference external" href="https://github.com/AMLab-Amsterdam/AttentionDeepMIL">attention-based MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;Attention_MIL&quot;</span></code>), <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a> (<code class="docutils literal notranslate"><span class="pre">&quot;CLAM_SB&quot;,</span></code> <code class="docutils literal notranslate"><span class="pre">&quot;CLAM_MB&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc_mc&quot;</span></code>), <a class="reference external" href="https://github.com/szc19990412/TransMIL">transformer MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;TransMIL&quot;</span></code>), and <a class="reference external" href="https://github.com/peng-lab/HistoBistro">HistoBistro Transformer</a> (<code class="docutils literal notranslate"><span class="pre">&quot;bistro.transformer&quot;</span></code>).</p>
+<p>To train an MIL model using exported features, first prepare an MIL configuration using <a class="reference internal" href="../mil_module/#slideflow.mil.mil_config" title="slideflow.mil.mil_config"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.mil.mil_config()</span></code></a>.</p>
+<p>The first argument to this function is the model architecture (which can be a name or a custom <code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code> model), and the remaining arguments are used to configure the training process, such as learning rate and number of epochs. Training is executed using <a class="reference external" href="https://docs.fast.ai/">FastAI</a> with <a class="reference external" href="https://arxiv.org/pdf/1803.09820.pdf%E5%92%8CSylvain">1cycle learning rate scheduling</a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow.mil</span> <span class="kn">import</span> <span class="n">mil_config</span>
 
 <span class="n">config</span> <span class="o">=</span> <span class="n">mil_config</span><span class="p">(</span><span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Custom MIL models can also be trained with this API. Import a custom MIL model as a PyTorch module, and pass this as the first argument to <a class="reference internal" href="../mil_module/#slideflow.mil.mil_config" title="slideflow.mil.mil_config"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.mil.mil_config()</span></code></a>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="kn">from</span> <span class="nn">slideflow.mil</span> <span class="kn">import</span> <span class="n">mil_config</span>
-<span class="kn">from</span> <span class="nn">my_module</span> <span class="kn">import</span> <span class="n">CustomMIL</span>
-
-<span class="n">config</span> <span class="o">=</span> <span class="n">mil_config</span><span class="p">(</span><span class="n">CustomMIL</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+<p>Available models out-of-the-box include <a class="reference external" href="https://github.com/AMLab-Amsterdam/AttentionDeepMIL">attention-based MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;Attention_MIL&quot;</span></code>), <a class="reference external" href="https://github.com/szc19990412/TransMIL">transformer MIL</a> (<code class="docutils literal notranslate"><span class="pre">&quot;TransMIL&quot;</span></code>), and <a class="reference external" href="https://github.com/peng-lab/HistoBistro">HistoBistro Transformer</a> (<code class="docutils literal notranslate"><span class="pre">&quot;bistro.transformer&quot;</span></code>). <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a> (<code class="docutils literal notranslate"><span class="pre">&quot;CLAM_SB&quot;,</span></code> <code class="docutils literal notranslate"><span class="pre">&quot;CLAM_MB&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;MIL_fc_mc&quot;</span></code>) models are available through <code class="docutils literal notranslate"><span class="pre">slideflow-gpl</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>slideflow-gpl
 </pre></div>
 </div>
+<p>Custom MIL models can also be trained with this API, as discussed <a class="reference external" href="#custom_mil">below</a>.</p>
 </section>
-<section id="legacy-clam-trainer">
-<h3>Legacy CLAM Trainer<a class="headerlink" href="#legacy-clam-trainer" title="Permalink to this heading">¶</a></h3>
-<p>In addition to the FastAI trainer, CLAM models can be trained using the <a class="reference external" href="https://github.com/mahmoodlab/CLAM">original</a> CLAM training loop. This trainer has been modified, cleaned, and included as a submodule in Slideflow. This legacy trainer can be used for CLAM models by setting <code class="docutils literal notranslate"><span class="pre">trainer='clam'</span></code> for an MIL configuration:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">mil_config</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">trainer</span><span class="o">=</span><span class="s1">&#39;clam&#39;</span><span class="p">)</span>
+<section id="classification-regression">
+<h3>Classification &amp; Regression<a class="headerlink" href="#classification-regression" title="Permalink to this heading">¶</a></h3>
+<p>MIL models can be trained for both classification and regression tasks. The type of outcome is determined through the loss function, which defaults to <code class="docutils literal notranslate"><span class="pre">&quot;cross_entropy&quot;</span></code>. To train a model for regression, set the loss function to one of the following regression losses, and ensure that your outcome labels are continuous. You can also train to multiple outcomes by passing a list of outcome names.</p>
+<ul class="simple">
+<li><p><strong>“mse”</strong> (<code class="docutils literal notranslate"><span class="pre">nn.CrossEntropyLoss</span></code>): Mean squared error.</p></li>
+<li><p><strong>“mae”</strong> (<code class="docutils literal notranslate"><span class="pre">nn.L1Loss</span></code>): Mean absolute error.</p></li>
+<li><p><strong>“huber”</strong> (<code class="docutils literal notranslate"><span class="pre">nn.SmoothL1Loss</span></code>): Huber loss.</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Prepare a regression-compatible MIL configuration</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">mil_config</span><span class="p">(</span><span class="s1">&#39;attention_mil&#39;</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;mse&#39;</span><span class="p">)</span>
+
+<span class="c1"># Train the model</span>
+<span class="n">project</span><span class="o">.</span><span class="n">train_mil</span><span class="p">(</span>
+    <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="n">outcomes</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;age&#39;</span><span class="p">,</span> <span class="s1">&#39;grade&#39;</span><span class="p">]</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -600,24 +420,80 @@ you should specify the stain normalizer using the <code class="docutils literal 
 <p>You can use any number of modalities, and the feature extractors for each modality can be different. For example, you could train a multimodal model using features from a custom SimCLR model at 5x and features from a pretrained CTransPath model at 20x.</p>
 <p>The feature extractors used for each modality, as specified in the <code class="docutils literal notranslate"><span class="pre">bags_config.json</span></code> files in the bag directories, will be logged in the final <code class="docutils literal notranslate"><span class="pre">mil_params.json</span></code> file. Multimodal MIL models can be interactively viewed in <a class="reference internal" href="../studio/#studio"><span class="std std-ref">Slideflow Studio</span></a>, allowing you to visualize the attention weights for each modality separately.</p>
 </section>
+<section id="custom-architectures">
+<span id="custom-mil"></span><h3>Custom Architectures<a class="headerlink" href="#custom-architectures" title="Permalink to this heading">¶</a></h3>
+<p>Training custom MIL models is straightforward with Slideflow, particularly if your model can adhere to a few simple guidelines:</p>
+<ul class="simple">
+<li><p>Initialized with <code class="docutils literal notranslate"><span class="pre">(num_feats,</span> <span class="pre">num_outputs)</span></code> (e.g., <code class="docutils literal notranslate"><span class="pre">Attention_MIL(768,</span> <span class="pre">2)</span></code>)</p></li>
+<li><p>Input is feature bags with shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tiles,</span> <span class="pre">num_feats)</span></code>. If the model needs a “lens” input, then the model attribute <code class="docutils literal notranslate"><span class="pre">use_lens</span></code> should be True.</p></li>
+<li><p>Has a <code class="docutils literal notranslate"><span class="pre">relocate()</span></code> function that moves the model to detected device/GPU</p></li>
+<li><dl class="simple">
+<dt>Ability to get attention through one of two methods:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">forward()</span></code> function includes an optional <code class="docutils literal notranslate"><span class="pre">return_attention</span></code> argument, which if True returns attention scores after model output</p></li>
+<li><p>Has a <code class="docutils literal notranslate"><span class="pre">calculate_attention()</span></code> function that returns attention scores</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>If the above applies to your model, you can train it simply by passing it as the first argument to <a class="reference internal" href="../mil_module/#slideflow.mil.mil_config" title="slideflow.mil.mil_config"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.mil.mil_config()</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">slideflow.mil</span> <span class="kn">import</span> <span class="n">mil_config</span>
+<span class="kn">from</span> <span class="nn">my_module</span> <span class="kn">import</span> <span class="n">CustomMIL</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">mil_config</span><span class="p">(</span><span class="n">CustomMIL</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For larger projects, or if you are designing a plugin/extension for Slideflow, custom models can be registered to facilitate easy creation. If your model adheres to the above guidelines, you can register it for use with the following:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.mil</span> <span class="kn">import</span> <span class="n">register_model</span>
+
+<span class="nd">@register_model</span>
+<span class="k">def</span> <span class="nf">my_model</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">MyModelClass</span>
+</pre></div>
+</div>
+<p>You can then use your model when creating an MIL configuration:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">mil</span><span class="o">.</span><span class="n">mil_config</span><span class="p">(</span><span class="s1">&#39;my_model&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If the above guidelines do <em>not</em> apply to your model, or if you want to customize model logic or functionality, you can supply a custom MIL configuration class that will supervise model building and dataset preparation. Your custom configuration class should inherit <code class="docutils literal notranslate"><span class="pre">slideflow.mil.MILModelConfig</span></code>, and methods in this class can be overloaded to provide additional functionality. For example, to create an MIL configuration that uses a custom loss and custom metrics:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.mil</span> <span class="kn">import</span> <span class="n">MILModelConfig</span>
+
+<span class="k">class</span> <span class="nc">MyModelConfig</span><span class="p">(</span><span class="n">MILModelConfig</span><span class="p">):</span>
+
+<span class="nd">@property</span>
+<span class="k">def</span> <span class="nf">loss_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">my_custom_loss</span>
+
+<span class="k">def</span> <span class="nf">get_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">my_metric1</span><span class="p">,</span> <span class="n">my_metric2</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>When registering your model, you should specify that it should use your custom configuration:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@register_model</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">MyModelConfig</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">my_model</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">MyModelClass</span>
+</pre></div>
+</div>
+<p>For an example of how to utilize model registration and configuration customization, see our <a class="reference external" href="https://github.com/slideflow/slideflow-gpl/blob/main/slideflow_gpl/clam/config.py">CLAM implementation</a> available through <code class="docutils literal notranslate"><span class="pre">slideflow-gpl</span></code>.</p>
+</section>
 </section>
 <section id="evaluation">
 <h2>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this heading">¶</a></h2>
-<p>To evaluate a saved MIL model on an external dataset, first extract features from a dataset, then use <a class="reference internal" href="../project/#slideflow.Project.evaluate_mil" title="slideflow.Project.evaluate_mil"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.evaluate_mil()</span></code></a>:</p>
+<p>To evaluate a saved MIL model on an external dataset, first extract features from a dataset, then use <a class="reference internal" href="../project/#slideflow.Project.evaluate_mil" title="slideflow.Project.evaluate_mil"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.evaluate_mil()</span></code></a>, which displays evaluation metrics and returns predictions as a DataFrame.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">build_feature_extractor</span>
 
 <span class="c1"># Prepare a project and dataset</span>
 <span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
 <span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
 
 <span class="c1"># Generate features using CTransPath</span>
-<span class="n">ctranspath</span> <span class="o">=</span> <span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;ctranspath&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">)</span>
+<span class="n">ctranspath</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">build_feature_extractor</span><span class="p">(</span><span class="s1">&#39;ctranspath&#39;</span><span class="p">,</span> <span class="n">resize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">features</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DatasetFeatures</span><span class="p">(</span><span class="n">ctranspath</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">)</span>
 <span class="n">features</span><span class="o">.</span><span class="n">to_torch</span><span class="p">(</span><span class="s1">&#39;/path/to/bag_directory&#39;</span><span class="p">)</span>
 
 <span class="c1"># Evaluate a saved MIL model</span>
-<span class="n">P</span><span class="o">.</span><span class="n">evaluate_mil</span><span class="p">(</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">evaluate_mil</span><span class="p">(</span>
     <span class="s1">&#39;/path/to/saved_model&#39;</span>
     <span class="n">outcomes</span><span class="o">=</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">,</span>
     <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
@@ -627,6 +503,29 @@ you should specify the stain normalizer using the <code class="docutils literal 
 </div>
 <p>As with training, attention heatmaps can be generated for attention-based MIL models with the argument <code class="docutils literal notranslate"><span class="pre">attention_heatmaps=True</span></code>, and these can be customized using <code class="docutils literal notranslate"><span class="pre">cmap</span></code> and <code class="docutils literal notranslate"><span class="pre">interpolation</span></code> arguments.</p>
 <img alt="../_images/att_heatmap.jpg" src="../_images/att_heatmap.jpg" />
+</section>
+<section id="generating-predictions">
+<h2>Generating Predictions<a class="headerlink" href="#generating-predictions" title="Permalink to this heading">¶</a></h2>
+<p>In addition to generating slide-level predictions during training and evaluation, you can also generate tile-level predictions and attention scores for a dataset using <a class="reference internal" href="../mil_module/#slideflow.mil.get_mil_tile_predictions" title="slideflow.mil.get_mil_tile_predictions"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.mil.get_mil_tile_predictions()</span></code></a>. This function returns a DataFrame containing tile-level predictions and attention.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.mil</span> <span class="kn">import</span> <span class="n">get_mil_tile_predictions</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">df</span> <span class="o">=</span> <span class="n">get_mil_tile_predictions</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">bags</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">df</span>
+<span class="go">                        slide  loc_x  loc_y  ...   y_pred3   y_pred4   y_pred5</span>
+<span class="go">0       TCGA-4V-A9QI-01Z-0...   2210   7349  ...  0.181155  0.468446  0.070175</span>
+<span class="go">1       TCGA-4V-A9QI-01Z-0...   5795   1971  ...  0.243721  0.131991  0.009169</span>
+<span class="go">2       TCGA-4V-A9QI-01Z-0...   6273   5437  ...  0.096196  0.583367  0.090258</span>
+<span class="go">3       TCGA-4V-A9QI-01Z-0...   2330   3047  ...  0.056426  0.264386  0.300199</span>
+<span class="go">4       TCGA-4V-A9QI-01Z-0...   3644   3525  ...  0.134535  0.534353  0.013619</span>
+<span class="go">...                       ...    ...    ...  ...       ...       ...       ...</span>
+<span class="go">391809  TCGA-4X-A9FA-01Z-0...   6034   3352  ...  0.004119  0.003636  0.005673</span>
+<span class="go">391810  TCGA-4X-A9FA-01Z-0...   6643   1401  ...  0.012790  0.010269  0.011726</span>
+<span class="go">391811  TCGA-4X-A9FA-01Z-0...   5546   2011  ...  0.009777  0.013556  0.025255</span>
+<span class="go">391812  TCGA-4X-A9FA-01Z-0...   6277   2864  ...  0.026638  0.018499  0.031061</span>
+<span class="go">391813  TCGA-4X-A9FA-01Z-0...   4083   4205  ...  0.009875  0.009582  0.022125</span>
+
+<span class="go">[391814 rows x 15 columns]</span>
+</pre></div>
+</div>
 </section>
 <section id="single-slide-inference">
 <h2>Single-Slide Inference<a class="headerlink" href="#single-slide-inference" title="Permalink to this heading">¶</a></h2>
@@ -650,33 +549,33 @@ you should specify the stain normalizer using the <code class="docutils literal 
 </div>
 <p>The returned attention values will be a masked <code class="docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> with the same shape as the slide tile extraction grid. Unused tiles will have masked attention values.</p>
 </section>
-<section id="visualizing-attention-heatmaps">
-<h2>Visualizing Attention Heatmaps<a class="headerlink" href="#visualizing-attention-heatmaps" title="Permalink to this heading">¶</a></h2>
-<p>Attention heatmaps can be interactively visualized in Slideflow Studio by enabling the Multiple-Instance Learning extension (new in Slideflow 2.1.0). This extension is discussed in more detail in the <a class="reference internal" href="../studio/#extensions"><span class="std std-ref">Extensions</span></a> section.</p>
+<section id="visualizing-predictions">
+<h2>Visualizing Predictions<a class="headerlink" href="#visualizing-predictions" title="Permalink to this heading">¶</a></h2>
+<p>Heatmaps of attention and tile-level predictions can be interactively visualized in Slideflow Studio by enabling the Multiple-Instance Learning extension (new in Slideflow 2.1.0). This extension is discussed in more detail in the <a class="reference internal" href="../studio/#extensions"><span class="std std-ref">Extensions</span></a> section.</p>
 </section>
 </section>
 
 
              </article>
-             
+
             </div>
             <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="../ssl/" class="btn btn-neutral float-right" title="Self-Supervised Learning (SSL)" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
-      
-      
-        <a href="../uq/" class="btn btn-neutral" title="Uncertainty Quantification" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-      
-    </div>
-  
 
-  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="../ssl/" class="btn btn-neutral float-right" title="Self-Supervised Learning (SSL)" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="../features/" class="btn btn-neutral" title="Generating Features" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -684,11 +583,11 @@ you should specify the stain normalizer using the <code class="docutils literal 
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -700,25 +599,19 @@ you should specify the stain normalizer using the <code class="docutils literal 
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
 <li><a class="reference internal" href="#">Multiple-Instance Learning (MIL)</a><ul>
-<li><a class="reference internal" href="#generating-features">Generating features</a><ul>
-<li><a class="reference internal" href="#pretrained-feature-extractor">Pretrained Feature Extractor</a></li>
-<li><a class="reference internal" href="#imagenet-features">ImageNet Features</a></li>
-<li><a class="reference internal" href="#features-from-finetuned-model">Features from Finetuned Model</a></li>
-<li><a class="reference internal" href="#self-supervised-learning">Self-Supervised Learning</a></li>
-<li><a class="reference internal" href="#exporting-features">Exporting Features</a></li>
-<li><a class="reference internal" href="#license-citation">License &amp; Citation</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#generating-features">Generating Features</a></li>
 <li><a class="reference internal" href="#training">Training</a><ul>
 <li><a class="reference internal" href="#model-configuration">Model Configuration</a></li>
-<li><a class="reference internal" href="#legacy-clam-trainer">Legacy CLAM Trainer</a></li>
+<li><a class="reference internal" href="#classification-regression">Classification &amp; Regression</a></li>
 <li><a class="reference internal" href="#training-an-mil-model">Training an MIL Model</a></li>
 <li><a class="reference internal" href="#multi-magnification-mil">Multi-Magnification MIL</a></li>
+<li><a class="reference internal" href="#custom-architectures">Custom Architectures</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#evaluation">Evaluation</a></li>
+<li><a class="reference internal" href="#generating-predictions">Generating Predictions</a></li>
 <li><a class="reference internal" href="#single-slide-inference">Single-Slide Inference</a></li>
-<li><a class="reference internal" href="#visualizing-attention-heatmaps">Visualizing Attention Heatmaps</a></li>
+<li><a class="reference internal" href="#visualizing-predictions">Visualizing Predictions</a></li>
 </ul>
 </li>
 </ul>
@@ -729,19 +622,19 @@ you should specify the stain normalizer using the <code class="docutils literal 
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
-     
 
-  
+
+
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -752,7 +645,7 @@ you should specify the stain normalizer using the <code class="docutils literal 
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 
@@ -782,7 +675,7 @@ you should specify the stain normalizer using the <code class="docutils literal 
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

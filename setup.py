@@ -1,8 +1,24 @@
 import versioneer
 import setuptools
+import pkg_resources
+
+
+# Check for existing OpenCV installation
+opencv_pkg = None
+try:
+    pkg_resources.get_distribution("opencv-python-headless")
+    opencv_pkg = "opencv-python-headless"
+except pkg_resources.DistributionNotFound:
+    try:
+        pkg_resources.get_distribution("opencv-python")
+        opencv_pkg = "opencv-python"
+    except pkg_resources.DistributionNotFound:
+        opencv_pkg = "opencv-python-headless"  # Default to headless if neither is installed
+
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
+
 
 setuptools.setup(
     name="slideflow",
@@ -13,7 +29,7 @@ setuptools.setup(
     description="Deep learning tools for digital histology",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/jamesdolezal/slideflow",
+    url="https://github.com/slideflow/slideflow",
     packages=setuptools.find_packages(),
     scripts=['scripts/slideflow-studio'],
     classifiers=[
@@ -71,6 +87,8 @@ setuptools.setup(
             'studio/gui/buttons/button_gear_highlighted.png',
             'studio/gui/buttons/button_model_loaded.png',
             'studio/gui/buttons/button_model_highlighted.png',
+            'studio/gui/buttons/button_segment.png',
+            'studio/gui/buttons/button_segment_highlighted.png',
             'studio/gui/buttons/small_button_verified.png',
             'studio/gui/buttons/button_model.png',
             'studio/gui/buttons/button_folder.png',
@@ -109,28 +127,24 @@ setuptools.setup(
         'scikit-learn',
         'matplotlib>=3.2',
         'imageio',
-        'opencv-python-headless',
+        opencv_pkg,
         'shapely',
         'umap-learn',
-        'seaborn<0.12',
-        'pandas<2',
+        'seaborn<0.14',
+        'pandas',
         'pyvips',
         'fpdf2',
-        'lifelines',
         'scikit-image',
         'tqdm',
         'click',
         'protobuf<3.21',
         'tensorboard',
         'crc32c',
-        'h5py',
         'numpy',
         'tabulate',
 		'rasterio',
         'smac==1.4.0',
         'ConfigSpace',
-        'pyarrow',
-        'ninja',
         'rich',
         'pillow>=6.0.0',
         'imgui>=2.0.0',
@@ -163,7 +177,8 @@ setuptools.setup(
         'dev': [
             'sphinx',
             'sphinx-markdown-tables',
-            'sphinxcontrib-video'
+            'sphinxcontrib-video',
+            'pygments-csv-lexer'
         ],
         'cucim': [
             'cucim'
@@ -177,13 +192,14 @@ setuptools.setup(
             'sphinx',
             'sphinx-markdown-tables',
             'sphinxcontrib-video',
+            'pygments-csv-lexer',
             'torch',
             'torchvision',
             'fastai',
             'pretrainedmodels',
             'tensorflow>=2.7,<2.12',
             'tensorflow_probability<0.20',
-            'tensorflow_datasets'
+            'tensorflow_datasets',
         ]
     },
 )

@@ -14,7 +14,7 @@ __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
 __version__ = get_versions()['version']
 __gitcommit__ = get_versions()['full-revisionid']
-__github__ = 'https://github.com/jamesdolezal/slideflow'
+__github__ = 'https://github.com/slideflow/slideflow'
 
 # Configure deep learning and slide backends
 from ._backend import backend, slide_backend
@@ -23,7 +23,7 @@ from ._backend import backend, slide_backend
 from slideflow.util import getLoggingLevel, log, setLoggingLevel, about
 
 ...
-from slideflow import io, model, norm, stats
+from slideflow import io, model, norm, stats, gan
 from slideflow.dataset import Dataset
 from slideflow.heatmap import Heatmap
 from slideflow.model import DatasetFeatures, ModelParams
@@ -40,3 +40,4 @@ from slideflow.project import load as load_project
 from slideflow.slide import WSI
 from slideflow.stats import SlideMap
 from slideflow.tfrecord import TFRecord, tfrecord_loader, multi_tfrecord_loader
+from slideflow.plugin import load_plugins

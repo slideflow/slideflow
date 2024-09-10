@@ -108,6 +108,10 @@ class DatasetFeatures:
                 sorting. Defaults to True.
             progress (bool): Show a progress bar during feature calculation.
                 Defaults to True.
+            transform (Callable, optional): Custom transform to apply to
+                images. Applied before standardization. If the feature extractor
+                is a PyTorch model, the transform should be a torchvision
+                transform.
             verbose (bool): Show verbose logging output. Defaults to True.
 
         Examples
@@ -116,10 +120,9 @@ class DatasetFeatures:
                 .. code-block:: python
 
                     import slideflow as sf
-                    from slideflow.model import build_feature_extractor
 
                     # Create a feature extractor
-                    retccl = build_feature_extractor('retccl', tile_px=299)
+                    retccl = sf.build_feature_extractor('retccl', resize=True)
 
                     # Load a dataset
                     P = sf.load_project(...)
@@ -132,10 +135,10 @@ class DatasetFeatures:
 
                 .. code-block:: python
 
-                    from slideflow.model import build_feature_extractor
+                    import slideflow as sf
 
                     # Create a feature extractor from the saved model.
-                    extractor = build_feature_extractor(
+                    extractor = sf.build_feature_extractor(
                         '/path/to/trained_model.zip',
                         layers=['postconv']
                     )
@@ -1263,6 +1266,7 @@ class _FeatureGenerator:
         device: Optional[str] = None,
         num_workers: Optional[int] = None,
         augment: Optional[Union[bool, str]] = None,
+        transform: Optional[Callable] = None,
         **kwargs
     ) -> None:
         """Initializes FeatureGenerator.
@@ -1305,6 +1309,10 @@ class _FeatureGenerator:
             num_workers (int, optional): Number of workers to use for feature
                 extraction. Only used for PyTorch feature extractors. Defaults
                 to None.
+            transform (Callable, optional): Custom transform to apply to
+                images. Applied before standardization. If the feature extractor
+                is a PyTorch model, the transform should be a torchvision
+                transform.
 
         """
         self.model = model
@@ -1314,6 +1322,7 @@ class _FeatureGenerator:
         self.simclr_args = None
         self.num_workers = num_workers
         self.augment = augment
+        self.transform = transform
 
         # Check if location information is stored in TFRecords
         self.tfrecords_have_loc = self.dataset.tfrecords_have_locations()
@@ -1357,10 +1366,10 @@ class _FeatureGenerator:
     def _calculate_feature_batch(self, batch_img):
         """Calculate features from a batch of images."""
 
-        # If a PyTorch generator, wrap in no_grad() and perform on CUDA
+        # If a PyTorch generator, wrap in inference_mode() and perform on CUDA
         if self.is_torch():
             import torch
-            with torch.no_grad():
+            with torch.inference_mode():
                 batch_img = batch_img.to(self.device)
                 if self.has_torch_gpu_normalizer():
                     batch_img = self.normalizer.preprocess(
@@ -1443,6 +1452,7 @@ class _FeatureGenerator:
             'infinite': False,
             'batch_size': self.batch_size,
             'augment': self.augment,
+            'transform': self.transform,
             'incl_slidenames': True,
             'incl_loc': True,
         }
@@ -1765,6 +1775,8 @@ def _export_bags(
         except errors.DatasetFilterError:
             _dataset = dataset
         _dataset = _dataset.filter(filters={'slide': slide_batch})
+        if not len(_dataset.tfrecords()):
+            continue
         df = sf.DatasetFeatures(model, _dataset, pb=pb, **dts_kwargs)
         df.to_torch(outdir, verbose=False)
         pb.advance(slide_task, len(slide_batch))
@@ -1778,10 +1790,16 @@ def _distributed_export(
     pb: Any,
     outdir: str,
     slide_task: int = 0,
-    dts_kwargs: Any = None
+    dts_kwargs: Any = None,
+    mixed_precision: Optional[bool] = None,
+    channels_last: Optional[bool] = None
 ) -> None:
     """Distributed export across multiple GPUs."""
     model = sf.model.extractors.build_extractor_from_cfg(model_cfg, device=f'cuda:{device}')
+    if mixed_precision is not None:
+        model.mixed_precision = mixed_precision
+    if channels_last is not None:
+        model.channels_last = channels_last
     return _export_bags(
         model,
         dataset,

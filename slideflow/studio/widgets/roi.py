@@ -46,6 +46,7 @@ class ROIWidget:
         # Internals
         self._showed_toast_for_freehand = False
         self._showed_toast_for_polygon  = False
+        self._showed_toast_for_point    = False
         self._showed_toast_for_subtract = False
         self._showed_toast_for_edit     = False
         self._late_render               = []
@@ -148,6 +149,8 @@ class ROIWidget:
             new_annotation, annotation_name = self.annotator.capture()
         elif self.capture_type == 'polygon':
             new_annotation, annotation_name = self.annotator.capture_polygon()
+        elif self.capture_type == 'point':
+            new_annotation, annotation_name = self.annotator.capture_point()
         else:
             raise ValueError(f"Invalid capture type '{self.capture_type}'.")
 
@@ -169,6 +172,8 @@ class ROIWidget:
                 viz.viewer.refresh_view()
                 # Show a label popup if the user has just created a new ROI.
                 self._show_roi_label_menu = roi_idx
+                # Update the ROI colors
+                self.refresh_roi_colors()
 
     def _process_subtract(self) -> None:
         """Process a subtracting ROI."""
@@ -977,6 +982,7 @@ class ROIWidget:
 
     def toggle_add_roi(self, kind: str = 'freehand') -> None:
         """Toggle ROI capture mode."""
+        print("setting roi method", kind)
         if self.capturing and kind != self.capture_type:
             self.disable_roi_capture()
             self.enable_roi_capture(kind)
@@ -1004,6 +1010,12 @@ class ROIWidget:
                 message = f'Capturing new ROIs (polygon). Right click to add a new vertex, press Enter to finish.'
                 self.roi_toast = self.viz.create_toast(message, icon='info', sticky=False)
                 self._showed_toast_for_polygon = True
+        elif self.capture_type == 'point':
+            self.viz.set_status_message("Adding Point", "Point mode: right click to add a new point.")
+            if not self._showed_toast_for_point:
+                message = f'Capturing new ROIs (point). Right click to add a new point.'
+                self.roi_toast = self.viz.create_toast(message, icon='info', sticky=False)
+                self._showed_toast_for_point = True
 
     def disable_roi_capture(self) -> None:
         """Disable capture of ROIs with right-click and drag."""
@@ -1153,6 +1165,8 @@ class ROIWidget:
             self.toggle_add_roi('freehand')
         elif _clicked and _hover_clicked == 1:
             self.toggle_add_roi('polygon')
+        elif _clicked and _hover_clicked == 2:
+            self.toggle_add_roi('point')
 
         imgui.same_line()
 
@@ -1622,7 +1636,7 @@ class VertexEditor:
             # The ROI is not in view.
             self._last_vertices['outer'] = None
             self._last_box_vertices['outer'] = None
-        if not np.all(self.outer_vertices == self._last_vertices['outer']):
+        if not (self.outer_vertices.shape == self._last_vertices['outer'].shape) or not (np.all(self.outer_vertices == self._last_vertices['outer'])):
             # The ROI has changed since the last calculation.
             self.update_box_vertices(outer=True)  # This updates the ._last_box_vertices.
             self.update_box_vbo(outer=True, box_vertices=self._last_box_vertices)
@@ -1635,6 +1649,7 @@ class VertexEditor:
                 self._last_vertices['holes'][hole_id] = dict()
                 self._last_box_vertices['holes'][hole_id] = dict()
             if ((hole_id not in self._last_vertices['holes']) or
+                (hole_coords.shape != self._last_vertices['holes'][hole_id].shape) or
                 (not np.all(hole_coords == self._last_vertices['holes'][hole_id]))):
                 # The hole has changed since the last calculation.
                 self.update_box_vertices(holes=[hole_id])  # This updates the ._last_box_vertices.

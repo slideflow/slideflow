@@ -6,11 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Tissue Segmentation &mdash; slideflow 2.3.0 documentation</title>
+  <title>Tissue Segmentation &mdash; slideflow 3.0.0 documentation</title>
 
 
 
@@ -34,9 +34,7 @@
     <link rel="search" title="Search" href="../search/" />
     <link rel="next" title="Cell Segmentation" href="../cellseg/" />
     <link rel="prev" title="Saliency Maps" href="../saliency/" />
-  <!-- Google Analytics -->
 
-  <!-- End Google Analytics -->
 
 
 
@@ -62,16 +60,7 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-
-    gtag('js', new Date());
-
-    gtag('config', 'G-43E5QNVXH2');
-  </script>
+  <script defer data-domain="slideflow.dev" src="https://plausible.io/js/script.js"></script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -90,7 +79,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -121,7 +110,7 @@
 
 
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
 
 
@@ -161,6 +150,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +167,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -485,12 +476,7 @@
 </section>
 <section id="deployment-in-studio">
 <h2>Deployment in Studio<a class="headerlink" href="#deployment-in-studio" title="Permalink to this heading">¶</a></h2>
-
-    <video width="100%"  controls autoplay loop>
-    <source src="https://media.githubusercontent.com/media/jamesdolezal/slideflow/master/docs/tissue_seg.mp4" type="video/mp4">
-    Video
-    </video>
-    <div class="line-block">
+<video autoplay="True" width="100%" width="100%" controls="True" preload="auto" loop="True" loop="True"><source src="../_images/tissue_seg.mp4" type="video/mp4"></video><div class="line-block">
 <div class="line"><br /></div>
 </div>
 <p>Segmentation models can be deployed in <a class="reference internal" href="../studio/#studio"><span class="std std-ref">Slideflow Studio</span></a> for live segmentation and QC. To do this, start by training a segmentation model as described above. Then, see the <a class="reference internal" href="../studio/#studio-segmentation"><span class="std std-ref">Tissue segmentation</span></a> documentation for instructions on how to deploy the model for live QC and/or ROI generation.</p>
@@ -657,7 +643,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

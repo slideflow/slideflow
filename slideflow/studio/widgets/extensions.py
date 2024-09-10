@@ -214,6 +214,5 @@ class ExtensionsWidget:
                     self.show_extension_error(str(e), traceback.format_exc())
                     self.mil = False
 
-
         if self._show_err_popup:
             self.draw_error_popup()

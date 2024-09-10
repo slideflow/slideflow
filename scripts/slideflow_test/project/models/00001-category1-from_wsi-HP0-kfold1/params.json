@@ -1,0 +1,79 @@
+{
+ "slideflow_version": "2.3.1+115.g459c35d1.dirty",
+ "project": "TEST_PROJECT",
+ "backend": "torch",
+ "git_commit": "459c35d16dbd605e236f867cd4e59281853af709",
+ "model_name": "category1-from_wsi-HP0",
+ "full_model_name": "category1-from_wsi-HP0-kfold1",
+ "stage": "training",
+ "img_format": null,
+ "tile_px": 71,
+ "tile_um": 1208,
+ "max_tiles": 0,
+ "min_tiles": 0,
+ "model_type": "classification",
+ "outcomes": [
+  "category1"
+ ],
+ "input_features": null,
+ "input_feature_sizes": null,
+ "input_feature_labels": null,
+ "outcome_labels": {
+  "0": "A",
+  "1": "B"
+ },
+ "dataset_config": "slideflow_test/datasets.json",
+ "sources": [
+  "TEST"
+ ],
+ "annotations": "slideflow_test/project/annotations.csv",
+ "validation_strategy": "k-fold",
+ "validation_fraction": null,
+ "validation_k_fold": 3,
+ "k_fold_i": 1,
+ "filters": null,
+ "hp": {
+  "augment": true,
+  "batch_size": 16,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+   1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 1,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0001,
+  "l2_dense": 0.0,
+  "learning_rate": 0.001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "CrossEntropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "mobilenet_v2",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 71,
+  "tile_um": 1208,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": null,
+  "uq": false,
+  "validation_balance": "none"
+ },
+ "training_kwargs": {
+  "from_wsi": true,
+  "pretrain": null,
+  "validate_on_batch": 5,
+  "steps_per_epoch_override": 50,
+  "save_predictions": true
+ }
+}

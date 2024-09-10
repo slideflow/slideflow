@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.heatmap &mdash; slideflow 2.3.0 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.heatmap &mdash; slideflow 3.0.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
@@ -31,12 +31,10 @@
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="../../../genindex/" />
     <link rel="search" title="Search" href="../../../search/" />
-  <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+
+
+
   <script src="../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -59,16 +57,7 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-
-    gtag('js', new Date());
-
-    gtag('config', 'G-43E5QNVXH2');
-  </script>
+  <script defer data-domain="slideflow.dev" src="https://plausible.io/js/script.js"></script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -87,7 +76,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -99,9 +88,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +101,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -137,15 +126,15 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation/">Installation</a></li>
@@ -158,6 +147,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +164,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -216,8 +207,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -225,7 +216,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -244,28 +235,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../../">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../../">Module code</a> &gt;</li>
-        
+
       <li>slideflow.heatmap</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -277,13 +268,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.heatmap</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span>
@@ -313,7 +304,6 @@
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="k">pass</span>
 
-<span class="n">MASK</span> <span class="o">=</span> <span class="o">-</span><span class="mi">99</span>
 <span class="n">Inset</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s2">&quot;Inset&quot;</span><span class="p">,</span> <span class="s2">&quot;x y zoom loc mark1 mark2 axes&quot;</span><span class="p">)</span>
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
@@ -595,12 +585,11 @@
 
         <span class="k">if</span> <span class="n">asynchronous</span><span class="p">:</span>
             <span class="n">it</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span>
-            <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span>
+            <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
                     <span class="n">it</span><span class="o">.</span><span class="n">num_features</span> <span class="o">+</span> <span class="n">it</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">+</span> <span class="n">it</span><span class="o">.</span><span class="n">num_uncertainty</span><span class="p">),</span>
                 <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-            <span class="n">grid</span> <span class="o">*=</span> <span class="n">MASK</span>
             <span class="n">heatmap_thread</span> <span class="o">=</span> <span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">_generate</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">grid</span><span class="p">,))</span>
             <span class="n">heatmap_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">grid</span><span class="p">,</span> <span class="n">heatmap_thread</span>
@@ -632,12 +621,27 @@
         <span class="k">if</span> <span class="n">show_roi</span><span class="p">:</span>
             <span class="n">roi_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">thumb_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">annPolys</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="n">sg</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span><span class="n">annotation</span><span class="o">.</span><span class="n">scaled_area</span><span class="p">(</span><span class="n">roi_scale</span><span class="p">))</span>
+                <span class="n">sg</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span><span class="n">annotation</span><span class="o">.</span><span class="n">scaled_coords</span><span class="p">(</span><span class="n">roi_scale</span><span class="p">))</span>
                 <span class="k">for</span> <span class="n">annotation</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">rois</span>
             <span class="p">]</span>
-            <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">annPolys</span><span class="p">:</span>
-                <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">poly</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span>
-                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">rois</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">hole</span> <span class="ow">in</span> <span class="n">roi</span><span class="o">.</span><span class="n">holes</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="n">annPolys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sg</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span><span class="n">hole</span><span class="o">.</span><span class="n">scaled_coords</span><span class="p">(</span><span class="n">roi_scale</span><span class="p">)))</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">poly</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">annPolys</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">poly</span><span class="o">.</span><span class="n">geom_type</span> <span class="o">==</span> <span class="s1">&#39;Polygon&#39;</span><span class="p">:</span>
+                    <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">poly</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">poly</span><span class="o">.</span><span class="n">geom_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;MultiPolygon&#39;</span><span class="p">,</span> <span class="s1">&#39;GeometryCollection&#39;</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">poly</span><span class="o">.</span><span class="n">geoms</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">geom_type</span> <span class="o">==</span> <span class="s1">&#39;Polygon&#39;</span><span class="p">:</span>
+                            <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span>
+                            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unable to plot ROI </span><span class="si">{}</span><span class="s2"> (geometry=</span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">i</span><span class="p">,</span> <span class="n">poly</span><span class="o">.</span><span class="n">geom_type</span>
+                    <span class="p">))</span>
+
+
 
     <span class="k">def</span> <span class="nf">add_inset</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -794,7 +798,7 @@
         <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_ax</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">plot_thumbnail</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">thumb_kwargs</span><span class="p">)</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">set_facecolor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">callable</span><span class="p">(</span><span class="n">logit_cmap</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">logit_cmap</span><span class="p">):</span>
             <span class="n">map_logit</span> <span class="o">=</span> <span class="n">logit_cmap</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Make heatmap with specific logit predictions mapped</span>
@@ -852,15 +856,11 @@
             <span class="n">vcenter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
             <span class="n">vmax</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
         <span class="p">)</span>
-        <span class="n">masked_uncertainty</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">==</span> <span class="n">MASK</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span>
-        <span class="p">)</span>
         <span class="n">extent</span> <span class="o">=</span> <span class="n">calculate_heatmap_extent</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span>
         <span class="p">)</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span>
-            <span class="n">masked_uncertainty</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">,</span>
             <span class="n">norm</span><span class="o">=</span><span class="n">uqnorm</span><span class="p">,</span>
             <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span>
             <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
@@ -941,15 +941,11 @@
             <span class="n">vcenter</span><span class="o">=</span><span class="n">vcenter</span><span class="p">,</span>
             <span class="n">vmax</span><span class="o">=</span><span class="n">vmax</span>
         <span class="p">)</span>
-        <span class="n">masked_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">class_idx</span><span class="p">]</span> <span class="o">==</span> <span class="n">MASK</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">class_idx</span><span class="p">]</span>
-        <span class="p">)</span>
         <span class="n">extent</span> <span class="o">=</span> <span class="n">calculate_heatmap_extent</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thumb</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span>
         <span class="p">)</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span>
-            <span class="n">masked_arr</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">class_idx</span><span class="p">],</span>
             <span class="n">norm</span><span class="o">=</span><span class="n">divnorm</span><span class="p">,</span>
             <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span>
             <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
@@ -1025,73 +1021,74 @@
 <span class="sd">                Defaults to 1.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+        <span class="k">with</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">matplotlib_backend</span><span class="p">(</span><span class="s1">&#39;Agg&#39;</span><span class="p">):</span>
+            <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">HeatmapError</span><span class="p">(</span>
-                <span class="s2">&quot;Cannot plot Heatmap which is not yet generated; generate with &quot;</span>
-                <span class="s2">&quot;either heatmap.generate() or Heatmap(..., generate=True)&quot;</span>
-            <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">HeatmapError</span><span class="p">(</span>
+                    <span class="s2">&quot;Cannot plot Heatmap which is not yet generated; generate with &quot;</span>
+                    <span class="s2">&quot;either heatmap.generate() or Heatmap(..., generate=True)&quot;</span>
+                <span class="p">)</span>
 
-        <span class="c1"># Save heatmaps in .npz format</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">save_npz</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">.npz&#39;</span><span class="p">))</span>
+            <span class="c1"># Save heatmaps in .npz format</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_npz</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">.npz&#39;</span><span class="p">))</span>
 
-        <span class="k">def</span> <span class="nf">_savefig</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span>
-                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">),</span>
-                <span class="n">bbox_inches</span><span class="o">=</span><span class="n">bbox_inches</span><span class="p">,</span>
-                <span class="o">**</span><span class="n">kwargs</span>
-            <span class="p">)</span>
+            <span class="k">def</span> <span class="nf">_savefig</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">),</span>
+                    <span class="n">bbox_inches</span><span class="o">=</span><span class="n">bbox_inches</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span>
+                <span class="p">)</span>
 
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Saving base figures...&#39;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Saving base figures...&#39;</span><span class="p">)</span>
 
-        <span class="c1"># Prepare matplotlib figure</span>
-        <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_ax</span><span class="p">()</span>
+            <span class="c1"># Prepare matplotlib figure</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_ax</span><span class="p">()</span>
 
-        <span class="n">thumb_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">roi_color</span><span class="o">=</span><span class="n">roi_color</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">)</span>
+            <span class="n">thumb_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">roi_color</span><span class="o">=</span><span class="n">roi_color</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">)</span>
 
-        <span class="c1"># Save base thumbnail as separate figure</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">plot_thumbnail</span><span class="p">(</span><span class="n">show_roi</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">thumb_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-        <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;raw&#39;</span><span class="p">)</span>
+            <span class="c1"># Save base thumbnail as separate figure</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">plot_thumbnail</span><span class="p">(</span><span class="n">show_roi</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">thumb_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+            <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;raw&#39;</span><span class="p">)</span>
 
-        <span class="c1"># Save thumbnail + ROI as separate figure</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">plot_thumbnail</span><span class="p">(</span><span class="n">show_roi</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">thumb_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-        <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;raw+roi&#39;</span><span class="p">)</span>
+            <span class="c1"># Save thumbnail + ROI as separate figure</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">plot_thumbnail</span><span class="p">(</span><span class="n">show_roi</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">thumb_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+            <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;raw+roi&#39;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">logit_cmap</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">plot_with_logit_cmap</span><span class="p">(</span><span class="n">logit_cmap</span><span class="p">,</span> <span class="n">show_roi</span><span class="o">=</span><span class="n">show_roi</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-            <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;custom&#39;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">heatmap_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
-                <span class="n">show_roi</span><span class="o">=</span><span class="n">show_roi</span><span class="p">,</span>
-                <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
-                <span class="o">**</span><span class="n">kwargs</span>
-            <span class="p">)</span>
-            <span class="n">save_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
-                <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span>
-                <span class="n">facecolor</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">get_facecolor</span><span class="p">(),</span>
-                <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;none&#39;</span>
-            <span class="p">)</span>
-            <span class="c1"># Make heatmap plots and sliders for each outcome category</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span><span class="p">):</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Making </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">heatmap_alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">heatmap_kwargs</span><span class="p">)</span>
-                <span class="n">_savefig</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">**</span><span class="n">save_kwargs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">logit_cmap</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">plot_with_logit_cmap</span><span class="p">(</span><span class="n">logit_cmap</span><span class="p">,</span> <span class="n">show_roi</span><span class="o">=</span><span class="n">show_roi</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+                <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;custom&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">heatmap_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">show_roi</span><span class="o">=</span><span class="n">show_roi</span><span class="p">,</span>
+                    <span class="n">interpolation</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span>
+                <span class="p">)</span>
+                <span class="n">save_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span>
+                    <span class="n">facecolor</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">get_facecolor</span><span class="p">(),</span>
+                    <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;none&#39;</span>
+                <span class="p">)</span>
+                <span class="c1"># Make heatmap plots and sliders for each outcome category</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span><span class="p">):</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Making </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">heatmap_alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">heatmap_kwargs</span><span class="p">)</span>
+                    <span class="n">_savefig</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">**</span><span class="n">save_kwargs</span><span class="p">)</span>
 
-                <span class="bp">self</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">heatmap_alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">heatmap_kwargs</span><span class="p">)</span>
-                <span class="n">_savefig</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">-solid&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">save_kwargs</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">heatmap_alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">heatmap_kwargs</span><span class="p">)</span>
+                    <span class="n">_savefig</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">-solid&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">save_kwargs</span><span class="p">)</span>
 
-            <span class="c1"># Uncertainty map</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uq</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Making uncertainty heatmap...&#39;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">plot_uncertainty</span><span class="p">(</span><span class="n">heatmap_alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">heatmap_kwargs</span><span class="p">)</span>
-                <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;UQ&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">save_kwargs</span><span class="p">)</span>
+                <span class="c1"># Uncertainty map</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uq</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Making uncertainty heatmap...&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">plot_uncertainty</span><span class="p">(</span><span class="n">heatmap_alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">heatmap_kwargs</span><span class="p">)</span>
+                    <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;UQ&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">save_kwargs</span><span class="p">)</span>
 
-                <span class="bp">self</span><span class="o">.</span><span class="n">plot_uncertainty</span><span class="p">(</span><span class="n">heatmap_alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">heatmap_kwargs</span><span class="p">)</span>
-                <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;UQ-solid&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">save_kwargs</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">plot_uncertainty</span><span class="p">(</span><span class="n">heatmap_alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">heatmap_kwargs</span><span class="p">)</span>
+                    <span class="n">_savefig</span><span class="p">(</span><span class="s1">&#39;UQ-solid&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">save_kwargs</span><span class="p">)</span>
 
-        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saved heatmaps for [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saved heatmaps for [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">view</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the Heatmap into Slideflow Studio for interactive view.</span>
@@ -1335,16 +1332,16 @@
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -1352,11 +1349,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -1366,26 +1363,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
          <script src="../../../_static/doctools.js"></script>
          <script src="../../../_static/sphinx_highlight.js"></script>
-     
 
-  
+
+
   <script type="text/javascript" src="../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -1396,7 +1393,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 
@@ -1426,7 +1423,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

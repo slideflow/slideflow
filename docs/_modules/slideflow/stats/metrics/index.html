@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.stats.metrics &mdash; slideflow 2.3.0 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.stats.metrics &mdash; slideflow 3.0.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
@@ -31,12 +31,10 @@
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="../../../../genindex/" />
     <link rel="search" title="Search" href="../../../../search/" />
-  <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+
+
+
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -59,16 +57,7 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-
-    gtag('js', new Date());
-
-    gtag('config', 'G-43E5QNVXH2');
-  </script>
+  <script defer data-domain="slideflow.dev" src="https://plausible.io/js/script.js"></script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -87,7 +76,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -99,9 +88,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +101,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -137,15 +126,15 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
@@ -158,6 +147,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +164,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -216,8 +207,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -225,7 +216,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -244,28 +235,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../../../">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../../../">Module code</a> &gt;</li>
-        
+
       <li>slideflow.stats.metrics</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -277,22 +268,20 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
-  <h1>Source code for slideflow.stats.metrics</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Categorical, linear, and CPH metrics for predictions.&quot;&quot;&quot;</span>
 
-<span class="kn">import</span> <span class="nn">math</span>
+  <h1>Source code for slideflow.stats.metrics</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Classification, regression, and survival metrics for predictions.&quot;&quot;&quot;</span>
+
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">lifelines.utils</span> <span class="kn">import</span> <span class="n">concordance_index</span> <span class="k">as</span> <span class="n">c_index</span>
 <span class="kn">from</span> <span class="nn">pandas.core.frame</span> <span class="kn">import</span> <span class="n">DataFrame</span>
 <span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">metrics</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span>
@@ -304,7 +293,9 @@
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span>
+
 <span class="kn">from</span> <span class="nn">.delong</span> <span class="kn">import</span> <span class="n">delong_roc_variance</span>
+<span class="kn">from</span> <span class="nn">.concordance</span> <span class="kn">import</span> <span class="n">concordance_index</span> <span class="k">as</span> <span class="n">c_index</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">neptune.new</span> <span class="k">as</span> <span class="nn">neptune</span>
@@ -367,29 +358,35 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ap</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">average_precision_score</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y_true</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_pred</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">save_roc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-        <span class="n">auroc_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">auroc</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">auroc</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">roc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fpr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tpr</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;AUC = </span><span class="si">{</span><span class="n">auroc_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="n">full_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">)</span>
-        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;results/graphs/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">matplotlib_backend</span><span class="p">(</span><span class="s1">&#39;Agg&#39;</span><span class="p">):</span>
+            <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+            <span class="n">auroc_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">auroc</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">auroc</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">roc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fpr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tpr</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;AUC = </span><span class="si">{</span><span class="n">auroc_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">full_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;results/graphs/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">save_prc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-        <span class="n">ap_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">ap</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ap</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">prc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">precision</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">recall</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;AP = </span><span class="si">{</span><span class="n">ap_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="n">full_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">)</span>
-        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;results/graphs/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">matplotlib_backend</span><span class="p">(</span><span class="s1">&#39;Agg&#39;</span><span class="p">):</span>
+            <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+            <span class="n">ap_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">ap</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ap</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">prc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">precision</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">recall</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;AP = </span><span class="si">{</span><span class="n">ap_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">full_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;results/graphs/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_assert_model_type</span><span class="p">(</span><span class="n">model_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Raises a ValueError if the model type is invalid.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">model_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span> <span class="s1">&#39;linear&#39;</span><span class="p">,</span> <span class="s1">&#39;cph&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">model_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;classification&#39;</span><span class="p">,</span> <span class="s1">&#39;regression&#39;</span><span class="p">,</span> <span class="s1">&#39;survival&#39;</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized model_type </span><span class="si">{</span><span class="n">model_type</span><span class="si">}</span><span class="s2">, must be &quot;</span>
-                         <span class="s2">&quot;categorical, linear, or cph&quot;</span><span class="p">)</span>
+                         <span class="s2">&quot;&#39;classification&#39;, &#39;regression&#39;, or &#39;survival&#39;&quot;</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_generate_tile_roc</span><span class="p">(</span>
@@ -481,11 +478,11 @@
     <span class="k">return</span> <span class="n">results</span>
 
 
-<span class="k">def</span> <span class="nf">categorical_metrics</span><span class="p">(</span>
+<span class="k">def</span> <span class="nf">classification_metrics</span><span class="p">(</span>
     <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tile&#39;</span><span class="p">,</span>
-    <span class="n">data_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+    <span class="n">data_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">neptune_run</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;neptune.Run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates categorical metrics (AUC/AP) from a set of predictions.</span>
@@ -500,7 +497,7 @@
 <span class="sd">        level (str, optional): Group-level for the predictions. Used for</span>
 <span class="sd">            labeling plots. Defaults to &#39;tile&#39;.</span>
 <span class="sd">        data_dir (str, optional): Path to data directory for saving plots.</span>
-<span class="sd">            Defaults to None.</span>
+<span class="sd">            If None, plots are not saved. Defaults to the current directory.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Dict containing metrics, with the keys &#39;auc&#39; and &#39;ap&#39;.</span>
@@ -563,8 +560,9 @@
         <span class="p">]</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">_generate_tile_roc</span><span class="p">,</span> <span class="n">yt_and_yp</span><span class="p">)):</span>
-                <span class="n">fit</span><span class="o">.</span><span class="n">save_roc</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_start</span><span class="si">}{</span><span class="n">outcome</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">_ROC</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="n">fit</span><span class="o">.</span><span class="n">save_prc</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_start</span><span class="si">}{</span><span class="n">outcome</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">_PRC</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">data_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">fit</span><span class="o">.</span><span class="n">save_roc</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_start</span><span class="si">}{</span><span class="n">outcome</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">_ROC</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">fit</span><span class="o">.</span><span class="n">save_prc</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_start</span><span class="si">}{</span><span class="n">outcome</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">_PRC</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="n">all_auc</span><span class="p">[</span><span class="n">outcome</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="n">fit</span><span class="o">.</span><span class="n">auroc</span><span class="p">]</span>
                 <span class="n">all_ap</span><span class="p">[</span><span class="n">outcome</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="n">fit</span><span class="o">.</span><span class="n">ap</span><span class="p">]</span>
                 <span class="n">auroc_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">fit</span><span class="o">.</span><span class="n">auroc</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">auroc</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span>
@@ -610,14 +608,14 @@
     <span class="k">return</span> <span class="n">c_index</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">E</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">cph_metrics</span><span class="p">(</span>
+<span class="k">def</span> <span class="nf">survival_metrics</span><span class="p">(</span>
     <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tile&#39;</span><span class="p">,</span>
     <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">data_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">neptune_run</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;neptune.Run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates CPH metrics (concordance index) from a set of predictions.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates survival metrics (concordance index) from a set of predictions.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        df (pd.DataFrame): Pandas DataFrame containing labels, predictions,</span>
@@ -636,11 +634,11 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        Dict containing metrics, with the key &#39;c_index&#39;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">cph_cols</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;time-y_true&#39;</span><span class="p">,</span> <span class="s1">&#39;time-y_pred&#39;</span><span class="p">,</span> <span class="s1">&#39;event-y_true&#39;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cph_cols</span><span class="p">):</span>
+    <span class="n">survival_cols</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;time-y_true&#39;</span><span class="p">,</span> <span class="s1">&#39;time-y_pred&#39;</span><span class="p">,</span> <span class="s1">&#39;event-y_true&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">survival_cols</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Improperly formatted dataframe to cph_metrics(), &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;must have columns </span><span class="si">{</span><span class="n">cph_cols</span><span class="si">}</span><span class="s2">. Got: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;Improperly formatted dataframe to survival_metrics(), &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;must have columns </span><span class="si">{</span><span class="n">survival_cols</span><span class="si">}</span><span class="s2">. Got: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="p">)</span>
 
     <span class="c1"># Calculate metrics</span>
@@ -670,13 +668,13 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        y_true (list(np.ndarray)): List of y_true numpy arrays, one array for</span>
-<span class="sd">            each outcome. For linear outcomes, the length of the outer</span>
+<span class="sd">            each outcome. For continuous outcomes, the length of the outer</span>
 <span class="sd">            list should be one, and the second shape dimension of the numpy</span>
-<span class="sd">            array should be the number of linear outcomes.</span>
+<span class="sd">            array should be the number of continuous outcomes.</span>
 <span class="sd">        y_pred (list(np.ndarray)): List of y_pred numpy arrays, one array for</span>
-<span class="sd">            each outcome. For linear outcomes, the length of the outer</span>
+<span class="sd">            each outcome. For continuous outcomes, the length of the outer</span>
 <span class="sd">            list should be one, and the second shape dimension of the numpy</span>
-<span class="sd">            array should be the number of linear outcomes.</span>
+<span class="sd">            array should be the number of continuous outcomes.</span>
 <span class="sd">        y_std (list(np.ndarray)): List of uncertainty numpy arrays, formatted</span>
 <span class="sd">            in the same way as y_pred.</span>
 <span class="sd">        tile_to_slides (np.ndarray): Array of slide names for each tile. Length</span>
@@ -765,9 +763,9 @@
 <span class="sd">    Args:</span>
 <span class="sd">        model (str): Path to PyTorch model.</span>
 <span class="sd">        dataset (tf.data.Dataset): PyTorch dataloader.</span>
-<span class="sd">        model_type (str, optional): &#39;categorical&#39;, &#39;linear&#39;, or &#39;cph&#39;.</span>
-<span class="sd">            If multiple linear outcomes are present, y_true is stacked into a</span>
-<span class="sd">            single vector for each image. Defaults to &#39;categorical&#39;.</span>
+<span class="sd">        model_type (str, optional): &#39;classification&#39;, &#39;regression&#39;, or &#39;survival&#39;.</span>
+<span class="sd">            If multiple continuous outcomes are present, y_true is stacked into a</span>
+<span class="sd">            single vector for each image. Defaults to &#39;classification&#39;.</span>
 <span class="sd">        num_tiles (int, optional): Used for progress bar with Tensorflow.</span>
 <span class="sd">            Defaults to 0.</span>
 <span class="sd">        uq_n (int, optional): Number of forward passes to perform</span>
@@ -794,7 +792,7 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        pd.DataFrame, accuracy, loss</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;categorical&#39;</span> <span class="ow">and</span> <span class="n">reduce_method</span> <span class="o">==</span> <span class="s1">&#39;proportion&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;classification&#39;</span> <span class="ow">and</span> <span class="n">reduce_method</span> <span class="o">==</span> <span class="s1">&#39;proportion&#39;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;Reduction method </span><span class="si">{</span><span class="n">reduce_method</span><span class="si">}</span><span class="s1"> incompatible with &#39;</span>
             <span class="sa">f</span><span class="s1">&#39;model_type </span><span class="si">{</span><span class="n">model_type</span><span class="si">}</span><span class="s1">&#39;</span>
@@ -821,7 +819,7 @@
             <span class="n">uq_n</span><span class="o">=</span><span class="n">uq_n</span><span class="p">,</span>
         <span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">outcome_names</span> <span class="ow">or</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;cph&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">outcome_names</span> <span class="ow">or</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;survival&#39;</span><span class="p">:</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">name_columns</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">model_type</span><span class="p">,</span> <span class="n">outcome_names</span><span class="p">)</span>
     <span class="n">dfs</span> <span class="o">=</span> <span class="n">group_reduce</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">reduce_method</span><span class="p">,</span> <span class="n">patients</span><span class="o">=</span><span class="n">patients</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">dfs</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">total_loss</span></div>
@@ -852,7 +850,7 @@
     <span class="c1"># Validation.</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span>
             <span class="s1">&#39;average&#39;</span><span class="p">,</span> <span class="s1">&#39;proportion&#39;</span><span class="p">,</span> <span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;median&#39;</span><span class="p">,</span> <span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span>
-        <span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">callable</span><span class="p">(</span><span class="n">method</span><span class="p">)):</span>
+        <span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">method</span><span class="p">)):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;Unknown method </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">. Expected &#39;average&#39;, &#39;proportion&#39;, &quot;</span>
             <span class="s2">&quot;&#39;mean&#39;, &#39;median&#39;, &#39;sum&#39;, &#39;min&#39;, &#39;max&#39;, or a callable function.&quot;</span>
@@ -910,7 +908,7 @@
         <span class="k">nonlocal</span> <span class="n">groups</span>
         <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;median&#39;</span><span class="p">,</span> <span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">]:</span>
             <span class="k">return</span> <span class="n">_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">as_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">numeric_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">callable</span><span class="p">(</span><span class="n">method</span><span class="p">):</span>
+        <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">method</span><span class="p">):</span>
             <span class="n">_numeric</span> <span class="o">=</span> <span class="n">_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">g</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">groups</span> <span class="k">if</span> <span class="n">g</span> <span class="o">!=</span> <span class="n">group</span><span class="p">])</span>
             <span class="k">return</span> <span class="n">_numeric</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">as_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -925,7 +923,7 @@
     <span class="k">return</span> <span class="n">group_dfs</span></div>
 
 
-<span class="k">def</span> <span class="nf">linear_metrics</span><span class="p">(</span>
+<span class="k">def</span> <span class="nf">regression_metrics</span><span class="p">(</span>
     <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tile&#39;</span><span class="p">,</span>
@@ -959,7 +957,7 @@
     <span class="n">_outcomes_by_true</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="p">[:</span><span class="o">-</span><span class="mi">7</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;-y_true&#39;</span><span class="p">)]</span>
     <span class="k">if</span> <span class="p">((</span><span class="nb">sorted</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">_outcomes_by_true</span><span class="p">))</span>
        <span class="ow">or</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">)):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Improperly formatted dataframe to linear_metrics(); &quot;</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Improperly formatted dataframe to regression_metrics(); &quot;</span>
                          <span class="s2">&quot;could not detect outcome names. Ensure that &quot;</span>
                          <span class="s2">&quot;prediction columns end in &#39;-y_pred&#39; and ground-truth &quot;</span>
                          <span class="s2">&quot;columns end in &#39;-y_true&#39;. Try setting column names &quot;</span>
@@ -1009,7 +1007,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model (tf.keras.Model or torch.nn.Module): Keras/Torch model to eval.</span>
-<span class="sd">        model_type (str): &#39;categorical&#39;, &#39;linear&#39;, or &#39;cph&#39;.</span>
+<span class="sd">        model_type (str): &#39;classification&#39;, &#39;regression&#39;, or &#39;survival&#39;.</span>
 <span class="sd">        patients (dict): Dictionary mapping slidenames to patients.</span>
 <span class="sd">        dataset (tf.data.Dataset or torch.utils.data.DataLoader): Dataset.</span>
 <span class="sd">        num_tiles (int, optional): Number of total tiles expected in dataset.</span>
@@ -1075,12 +1073,12 @@
             <span class="p">)</span> <span class="k">for</span> <span class="n">level</span><span class="p">,</span> <span class="n">_df</span> <span class="ow">in</span> <span class="n">dfs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
         <span class="p">})</span>
 
-    <span class="k">if</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
-        <span class="n">metrics</span> <span class="o">=</span> <span class="n">metrics_by_level</span><span class="p">(</span><span class="n">categorical_metrics</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
-        <span class="n">metrics</span> <span class="o">=</span> <span class="n">metrics_by_level</span><span class="p">(</span><span class="n">linear_metrics</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="n">metrics_by_level</span><span class="p">(</span><span class="n">classification_metrics</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;regression&#39;</span><span class="p">:</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="n">metrics_by_level</span><span class="p">(</span><span class="n">regression_metrics</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">metrics</span> <span class="o">=</span> <span class="n">metrics_by_level</span><span class="p">(</span><span class="n">cph_metrics</span><span class="p">)</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="n">metrics_by_level</span><span class="p">(</span><span class="n">survival_metrics</span><span class="p">)</span>
 
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Metrics generation complete.&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">metrics</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">total_loss</span></div>
@@ -1098,13 +1096,13 @@
 <span class="sd">    Args:</span>
 <span class="sd">        df (DataFrame): DataFrame from sf.stats.df_from_pred(), containing</span>
 <span class="sd">            predictions and labels.</span>
-<span class="sd">        model_type (str): Type of model (&#39;categorical&#39;, &#39;linear&#39;, or &#39;cph&#39;).</span>
+<span class="sd">        model_type (str): Type of model (&#39;classification&#39;, &#39;regression&#39;, or &#39;survival&#39;).</span>
 <span class="sd">        outcome_names (list(str)), optional): Outcome names to apply to the</span>
-<span class="sd">            DataFrame. If this is from a CPH model, the standard names &quot;time&quot;</span>
+<span class="sd">            DataFrame. If this is from a survival model, the standard names &quot;time&quot;</span>
 <span class="sd">            and &quot;event&quot; will be used.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If outcome_names are not supplied and it is not a CPH model.</span>
+<span class="sd">        ValueError: If outcome_names are not supplied and it is not a survival model.</span>
 <span class="sd">        errors.StatsError: If the length of outcome_names is incompatible</span>
 <span class="sd">            with the DataFrame.</span>
 
@@ -1113,14 +1111,14 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">_assert_model_type</span><span class="p">(</span><span class="n">model_type</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">outcome_names</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;cph&#39;</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Must supply outcome names for categorical &quot;</span>
-                         <span class="s2">&quot;or linear models.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">outcome_names</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;survival&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Must supply outcome names for classification &quot;</span>
+                         <span class="s2">&quot;or regression models.&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span>
        <span class="ow">and</span> <span class="n">outcome_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
         <span class="n">outcome_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">outcome_names</span><span class="p">]</span>
 
-    <span class="k">if</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span> <span class="ow">and</span> <span class="n">outcome_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span> <span class="ow">and</span> <span class="n">outcome_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="c1"># Update dataframe column names with outcome names</span>
         <span class="n">outcome_cols_to_replace</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">oi</span><span class="p">,</span> <span class="n">outcome</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">):</span>
@@ -1131,7 +1129,7 @@
             <span class="p">})</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">outcome_cols_to_replace</span><span class="p">)</span>
 
-    <span class="k">elif</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;regression&#39;</span><span class="p">:</span>
         <span class="n">n_outcomes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">([</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;out0-y_pred&#39;</span><span class="p">)])</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">outcome_names</span><span class="p">:</span>
             <span class="n">outcome_names</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;Outcome </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_outcomes</span><span class="p">)]</span>
@@ -1193,9 +1191,9 @@
 <span class="sd">    Args:</span>
 <span class="sd">        model (str): Path to PyTorch model.</span>
 <span class="sd">        dataset (tf.data.Dataset): PyTorch dataloader.</span>
-<span class="sd">        model_type (str, optional): &#39;categorical&#39;, &#39;linear&#39;, or &#39;cph&#39;.</span>
-<span class="sd">            If multiple linear outcomes are present, y_true is stacked into a</span>
-<span class="sd">            single vector for each image. Defaults to &#39;categorical&#39;.</span>
+<span class="sd">        model_type (str, optional): &#39;classification&#39;, &#39;regression&#39;, or &#39;survival&#39;.</span>
+<span class="sd">            If multiple continuous outcomes are present, y_true is stacked into a</span>
+<span class="sd">            single vector for each image. Defaults to &#39;classification&#39;.</span>
 <span class="sd">        num_tiles (int, optional): Used for progress bar with Tensorflow.</span>
 <span class="sd">            Defaults to 0.</span>
 <span class="sd">        uq_n (int, optional): Number of forward passes to perform</span>
@@ -1223,7 +1221,7 @@
 <span class="sd">        &#39;patient&#39;, and values containing DataFrames with tile-, slide-,</span>
 <span class="sd">        and patient-level predictions.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;categorical&#39;</span> <span class="ow">and</span> <span class="n">reduce_method</span> <span class="o">==</span> <span class="s1">&#39;proportion&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;classification&#39;</span> <span class="ow">and</span> <span class="n">reduce_method</span> <span class="o">==</span> <span class="s1">&#39;proportion&#39;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;Reduction method </span><span class="si">{</span><span class="n">reduce_method</span><span class="si">}</span><span class="s1"> incompatible with &#39;</span>
             <span class="sa">f</span><span class="s1">&#39;model_type </span><span class="si">{</span><span class="n">model_type</span><span class="si">}</span><span class="s1">&#39;</span>
@@ -1248,7 +1246,7 @@
             <span class="n">uq</span><span class="o">=</span><span class="n">uq</span><span class="p">,</span>
             <span class="n">uq_n</span><span class="o">=</span><span class="n">uq_n</span><span class="p">,</span>
         <span class="p">)</span>
-    <span class="k">if</span> <span class="n">outcome_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;cph&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">outcome_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;survival&#39;</span><span class="p">:</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">name_columns</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">model_type</span><span class="p">,</span> <span class="n">outcome_names</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">group_reduce</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">reduce_method</span><span class="p">,</span> <span class="n">patients</span><span class="o">=</span><span class="n">patients</span><span class="p">)</span></div>
 
@@ -1271,23 +1269,27 @@
         <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;csv&#39;</span><span class="p">:</span>
             <span class="n">_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">path</span><span class="o">+</span><span class="s1">&#39;.csv&#39;</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;feather&#39;</span><span class="p">:</span>
-            <span class="kn">import</span> <span class="nn">pyarrow.feather</span> <span class="k">as</span> <span class="nn">feather</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="kn">import</span> <span class="nn">pyarrow.feather</span> <span class="k">as</span> <span class="nn">feather</span>
+            <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;Saving to a feather file requires the package `pyarrow`. &quot;</span>
+                                  <span class="s2">&quot;Please install with `pip install pyarrow`&quot;</span><span class="p">)</span>
             <span class="n">feather</span><span class="o">.</span><span class="n">write_feather</span><span class="p">(</span><span class="n">_df</span><span class="p">,</span> <span class="n">path</span><span class="o">+</span><span class="s1">&#39;.feather&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">_df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">path</span><span class="o">+</span><span class="s1">&#39;.parquet.gzip&#39;</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="s1">&#39;gzip&#39;</span><span class="p">)</span>
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -1295,11 +1297,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -1309,26 +1311,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
          <script src="../../../../_static/doctools.js"></script>
          <script src="../../../../_static/sphinx_highlight.js"></script>
-     
 
-  
+
+
   <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -1339,7 +1341,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 
@@ -1369,7 +1371,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

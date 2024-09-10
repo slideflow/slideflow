@@ -34,7 +34,7 @@ class Viewer:
         self._tile_um           = 0
         self._tile_px           = 0
         self._overlay           = None    # type: Optional[np.ndarray]
-        self._overlay_params    = EasyDict()
+        self._overlay_params    = EasyDict(offset=(0, 0), dim=(800, 600))
         self._overlay_alpha_fn  = None
         self._alpha             = None    # type: Optional[Union[Callable, float, int]]
         self._last_alpha        = None    # type: Optional[Union[Callable, float, int]]
@@ -337,7 +337,7 @@ class Viewer:
 
     def render_overlay_tooltip(self, overlay: np.ndarray) -> Optional[str]:
         # If hovering with ALT key, draw a crosshair and pixel value.
-        if self.viz._alt_down:
+        if self.viz is not None and self.viz._alt_down:
             mx, my = self.viz.get_mouse_pos()
             # Draw crosshair
             gl_utils.draw_line(

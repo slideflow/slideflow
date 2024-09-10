@@ -8,7 +8,7 @@ from slideflow import errors
 from slideflow.model import BaseFeatureExtractor
 
 from ._registry import (is_tensorflow_extractor, is_torch_extractor,
-                        _tf_extractors, _torch_extractors)
+                        _tf_extractors, _torch_extractors, _extras_extractors)
 from ._factory_tensorflow import build_tensorflow_feature_extractor
 from ._factory_torch import build_torch_feature_extractor
 
@@ -58,9 +58,9 @@ def build_feature_extractor(
 
             .. code-block:: python
 
-                from slideflow.model import build_feature_extractor
+                import slideflow as sf
 
-                extractor = build_feature_extractor(
+                extractor = sf.build_feature_extractor(
                     'resnet50_imagenet'
                 )
 
@@ -69,9 +69,7 @@ def build_feature_extractor(
 
             .. code-block:: python
 
-                from slideflow.model import build_feature_extractor
-
-                extractor = build_feature_extractor(
+                extractor = sf.build_feature_extractor(
                     'resnet50_imagenet',
                     layers='conv4_block4_2_relu
                 )
@@ -80,9 +78,7 @@ def build_feature_extractor(
 
             .. code-block:: python
 
-                from slideflow.model import build_feature_extractor
-
-                extractor = build_feature_extractor('ctranspath')
+                extractor = sf.build_feature_extractor('ctranspath')
 
         Use an extractor to calculate layer activations for an entire dataset.
 
@@ -95,7 +91,7 @@ def build_feature_extractor(
                 dataset = P.dataset(...)
 
                 # Create a feature extractor
-                resnet = sf.model.build_feature_extractor(
+                resnet = sf.build_feature_extractor(
                     'resnet50_imagenet'
                 )
 
@@ -110,15 +106,14 @@ def build_feature_extractor(
             .. code-block:: python
 
                 import slideflow as sf
-                from slideflow.model import build_feature_extractor
 
                 # Load a slide
                 wsi = sf.WSI(...)
 
                 # Create a feature extractor
-                retccl = build_feature_extractor(
+                retccl = sf.build_feature_extractor(
                     'retccl',
-                    tile_px=299
+                    resize=True
                 )
 
                 # Create a feature map, a 2D array of shape
@@ -173,6 +168,11 @@ def build_feature_extractor(
         return build_tensorflow_feature_extractor(name, **kwargs)
     elif is_torch_extractor(name):
         return build_torch_feature_extractor(name, **kwargs)
+    elif name in _extras_extractors:
+        raise errors.InvalidFeatureExtractor(
+            "{} requires the package {}, please install with 'pip install {}'".format(
+                name, _extras_extractors[name], _extras_extractors[name]
+        ))
     else:
         raise errors.InvalidFeatureExtractor(f"Unrecognized feature extractor: {name}")
 
@@ -244,10 +244,18 @@ def rebuild_extractor(
     extractor_name = bags_config['extractor']['class'].split('.')
     extractor_class = extractor_name[-1]
     extractor_kwargs = bags_config['extractor']['kwargs']
-    module = importlib.import_module('.'.join(extractor_name[:-1]))
     try:
+        module = importlib.import_module('.'.join(extractor_name[:-1]))
         extractor = getattr(module, extractor_class)(**extractor_kwargs)
     except Exception:
+        submodule_name = extractor_name[-2]
+        if submodule_name in _extras_extractors:
+            raise errors.InvalidFeatureExtractor(
+                "{} requires the package {}, please install with 'pip install {}'".format(
+                    submodule_name, 
+                    _extras_extractors[submodule_name], 
+                    _extras_extractors[submodule_name]
+            ))
         if allow_errors:
             return None
         else:

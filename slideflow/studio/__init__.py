@@ -113,9 +113,10 @@ class Studio(ImguiWindow):
         self._message           = None
         self._pred_message      = None
         self.low_memory         = low_memory
-        self._suspend_mouse_input = False
-        self._suspend_keyboard_input = False
-        self._status_message    = None
+        self._suspend_mouse_input       = False
+        self._suspend_keyboard_input    = False
+        self._status_message            = None
+        self._force_enable_tile_preview = False
 
         # Interface.
         self._show_about                = False
@@ -237,6 +238,11 @@ class Studio(ImguiWindow):
         cy -= self.offset_y
         return (self.viewer is not None
                 and self.viewer.is_in_view(cx, cy))
+
+    @property
+    def tile_preview_enabled(self):
+        """Show a tile preview when right clicking."""
+        return self._model_path or self._force_enable_tile_preview
 
     # --- Internals -----------------------------------------------------------
 
@@ -436,7 +442,7 @@ class Studio(ImguiWindow):
             self.viewer.render_overlay_tooltip(self.overlay_original)
 
         # Calculate location for model display.
-        if (self._model_path
+        if (self.tile_preview_enabled
             and inp.clicking
             and not inp.dragging
             and self.viewer.is_in_view(inp.cx, inp.cy)):
@@ -445,7 +451,7 @@ class Studio(ImguiWindow):
             self.x = wsi_x - (self.viewer.full_extract_px/2)
             self.y = wsi_y - (self.viewer.full_extract_px/2)
 
-        # Update box location.
+        # Show box around location that a tile is being extracted for preview.
         if self.x is not None and self.y is not None:
             if inp.clicking or inp.dragging or inp.wheel or window_changed:
                 self.box_x, self.box_y = self.viewer.wsi_coords_to_display_coords(self.x, self.y)
@@ -683,7 +689,7 @@ class Studio(ImguiWindow):
                 raw_img_w = 0 if not has_raw_image else self._tex_img.shape[0] * self.tile_zoom
                 norm_img_w = 0 if not has_norm_image else self._norm_tex_img.shape[0] * self.tile_zoom
                 height = self.font_size * 2 + max(raw_img_w, norm_img_w)
-                width = raw_img_w + norm_img_w + self.spacing
+                width = raw_img_w + norm_img_w + self.spacing*2
 
             imgui.set_next_window_size(width, height)
 
@@ -840,7 +846,7 @@ class Studio(ImguiWindow):
             dy=int(dy * self.pixel_ratio)
         )
 
-    def _reload_and_return_wsi(
+    def _load_and_return_wsi(
         self,
         path: Optional[str] = None,
         stride: Optional[int] = None,
@@ -849,7 +855,7 @@ class Studio(ImguiWindow):
         tile_um: Optional[Union[str, int]] = None,
         **kwargs
     ) -> Optional[sf.WSI]:
-        """Reload and return a Whole-Slide Image, with modified parameters.
+        """Load and return a Whole-Slide Image, with modified parameters.
 
         Args:
             path (str, optional): Path to the slide to reload. If not provided,
@@ -946,9 +952,9 @@ class Studio(ImguiWindow):
                 wsi.process_rois()
             return wsi
 
-    def _reload_wsi(
+    def reload_wsi(
         self,
-        path: Optional[str] = None,
+        slide: Optional[Union[str, sf.WSI]] = None,
         stride: Optional[int] = None,
         use_rois: bool = True,
         tile_px: Optional[int] = None,
@@ -958,8 +964,9 @@ class Studio(ImguiWindow):
         """Reload the currently loaded Whole-Slide Image.
 
         Args:
-            path (str, optional): Path to the slide to reload. If not provided,
-                will reload the currently loaded slide.
+            path (str or sf.WSI, optional): Slide to reload. May be a path
+                or a sf.WSI object. If not provided, will reload the 
+                currently loaded slide.
             stride (int, optional): Stride to use for the loaded slide. If not
                 provided, will use the stride value from the currently loaded
                 slide.
@@ -969,9 +976,13 @@ class Studio(ImguiWindow):
             bool: True if slide loaded successfully, False otherwise.
 
         """
-        wsi = self._reload_and_return_wsi(
-            path, stride, use_rois, tile_px, tile_um, **kwargs
-        )
+        if isinstance(slide, sf.WSI):
+            wsi = slide
+        else:
+            wsi = self._load_and_return_wsi(
+                slide, stride, use_rois, tile_px, tile_um, **kwargs
+            )
+
         if wsi:
             self.wsi = wsi
             old_viewer = self.viewer
@@ -1595,7 +1606,7 @@ class Studio(ImguiWindow):
                 pred_str = prediction_to_string(
                     predictions=self._predictions,
                     outcomes=self._model_config['outcome_labels'],
-                    is_categorical=(self._model_config['model_type'] == 'categorical')
+                    is_classification=(self._model_config['model_type'] == 'classification')
                 )
                 self._render_prediction_message(pred_str)
 
@@ -2032,9 +2043,9 @@ class Sidebar:
         self.viz                = viz
         self.expanded           = False
         self.selected           = None
-        self._buttonbar_width    = 72
-        self._navbutton_width    = 70
-        self._imagebutton_width  = 64
+        self._buttonbar_width   = 63
+        self._navbutton_width   = 61
+        self._imagebutton_width = 56
         self._button_tex        = dict()
         self._pane_w_div        = 15
         self.navbuttons         = ['project', 'slide', 'model', 'heatmap']
@@ -2147,6 +2158,8 @@ class Sidebar:
             if name == self.selected or self.selected is None or not self.expanded:
                 self.expanded = not self.expanded
             self.selected = name
+
+        # Add a line next to the selected/active widget.
         if self.selected == name:
             draw_list = imgui.get_window_draw_list()
             draw_list.add_line(2, viz.menu_bar_height+start_px, 2, viz.menu_bar_height+start_px+self.navbutton_width, imgui.get_color_u32_rgba(1,1,1,1), 2)
@@ -2170,6 +2183,10 @@ class Sidebar:
         self._draw_navbar_button('circle_lightning', buttonbar_height + viz.menu_bar_height - self.navbutton_width*3 - viz.status_bar_height)
         self._draw_navbar_button('extensions', buttonbar_height + viz.menu_bar_height - self.navbutton_width*2 - viz.status_bar_height)
         self._draw_navbar_button('gear', buttonbar_height + viz.menu_bar_height - self.navbutton_width - viz.status_bar_height)
+
+        # Draw border along the right of the buttons
+        #draw_list = imgui.get_window_draw_list()
+        #draw_list.add_line(self.navbutton_width-1, viz.menu_bar_height, self.navbutton_width-1, buttonbar_height+viz.menu_bar_height+5, imgui.get_color_u32_rgba(*self.viz.theme.item_hover), 1)
 
         imgui.end()
 

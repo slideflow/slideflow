@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.studio &mdash; slideflow 2.3.0 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.studio &mdash; slideflow 3.0.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
@@ -31,12 +31,10 @@
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="../../../genindex/" />
     <link rel="search" title="Search" href="../../../search/" />
-  <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+
+
+
   <script src="../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -59,16 +57,7 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-
-    gtag('js', new Date());
-
-    gtag('config', 'G-43E5QNVXH2');
-  </script>
+  <script defer data-domain="slideflow.dev" src="https://plausible.io/js/script.js"></script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -87,7 +76,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -99,9 +88,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +101,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -137,15 +126,15 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation/">Installation</a></li>
@@ -158,6 +147,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +164,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -216,8 +207,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -225,7 +216,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -244,28 +235,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../../">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../../">Module code</a> &gt;</li>
-        
+
       <li>slideflow.studio</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -277,13 +268,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.studio</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">time</span>
@@ -294,7 +285,7 @@
 <span class="kn">import</span> <span class="nn">glfw</span>
 <span class="kn">import</span> <span class="nn">OpenGL.GL</span> <span class="k">as</span> <span class="nn">gl</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">abspath</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
 <span class="kn">from</span> <span class="nn">tkinter</span> <span class="kn">import</span> <span class="n">Tk</span>
@@ -313,7 +304,7 @@
     <span class="n">ProjectWidget</span><span class="p">,</span> <span class="n">SlideWidget</span><span class="p">,</span> <span class="n">ModelWidget</span><span class="p">,</span> <span class="n">HeatmapWidget</span><span class="p">,</span> <span class="n">PerformanceWidget</span><span class="p">,</span>
     <span class="n">CaptureWidget</span><span class="p">,</span> <span class="n">SettingsWidget</span><span class="p">,</span> <span class="n">ExtensionsWidget</span><span class="p">,</span> <span class="n">Widget</span>
 <span class="p">)</span>
-<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">EasyDict</span><span class="p">,</span> <span class="n">prediction_to_string</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">EasyDict</span><span class="p">,</span> <span class="n">prediction_to_string</span><span class="p">,</span> <span class="n">StatusMessage</span>
 <span class="kn">from</span> <span class="nn">._renderer</span> <span class="kn">import</span> <span class="n">Renderer</span>
 <span class="kn">from</span> <span class="nn">._render_manager</span> <span class="kn">import</span> <span class="n">AsyncRenderManager</span><span class="p">,</span> <span class="n">Renderer</span><span class="p">,</span> <span class="n">CapturedException</span>
 
@@ -400,6 +391,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_message</span>           <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pred_message</span>      <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">low_memory</span>         <span class="o">=</span> <span class="n">low_memory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_mouse_input</span>       <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_keyboard_input</span>    <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_status_message</span>            <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_force_enable_tile_preview</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="c1"># Interface.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_show_about</span>                <span class="o">=</span> <span class="kc">False</span>
@@ -512,6 +507,20 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">status_bar_height</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mouse_is_over_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Mouse is currently over the main viewer.&quot;&quot;&quot;</span>
+        <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="n">imgui</span><span class="o">.</span><span class="n">get_mouse_pos</span><span class="p">()</span>
+        <span class="n">cx</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span>
+        <span class="n">cy</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">is_in_view</span><span class="p">(</span><span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tile_preview_enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Show a tile preview when right clicking.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_path</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_force_enable_tile_preview</span>
 
     <span class="c1"># --- Internals -----------------------------------------------------------</span>
 
@@ -711,7 +720,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">render_overlay_tooltip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">overlay_original</span><span class="p">)</span>
 
         <span class="c1"># Calculate location for model display.</span>
-        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_path</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_preview_enabled</span>
             <span class="ow">and</span> <span class="n">inp</span><span class="o">.</span><span class="n">clicking</span>
             <span class="ow">and</span> <span class="ow">not</span> <span class="n">inp</span><span class="o">.</span><span class="n">dragging</span>
             <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">is_in_view</span><span class="p">(</span><span class="n">inp</span><span class="o">.</span><span class="n">cx</span><span class="p">,</span> <span class="n">inp</span><span class="o">.</span><span class="n">cy</span><span class="p">)):</span>
@@ -720,7 +729,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">wsi_x</span> <span class="o">-</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">wsi_y</span> <span class="o">-</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
 
-        <span class="c1"># Update box location.</span>
+        <span class="c1"># Show box around location that a tile is being extracted for preview.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">inp</span><span class="o">.</span><span class="n">clicking</span> <span class="ow">or</span> <span class="n">inp</span><span class="o">.</span><span class="n">dragging</span> <span class="ow">or</span> <span class="n">inp</span><span class="o">.</span><span class="n">wheel</span> <span class="ow">or</span> <span class="n">window_changed</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">box_x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">box_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">wsi_coords_to_display_coords</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
@@ -743,6 +752,9 @@
         <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_main_menu_bar</span><span class="p">():</span>
             <span class="c1"># --- File --------------------------------------------------------</span>
             <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_menu</span><span class="p">(</span><span class="s1">&#39;File&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;New Project...&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+N&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">project_widget</span><span class="o">.</span><span class="n">new_project</span><span class="p">()</span>
+                <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Open Project...&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+P&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">ask_load_project</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Open Slide...&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+O&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
@@ -793,7 +805,7 @@
             <span class="c1"># --- View --------------------------------------------------------</span>
             <span class="n">has_wsi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="p">,</span> <span class="n">SlideViewer</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_menu</span><span class="p">(</span><span class="s1">&#39;View&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Fullscreen&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+F&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Fullscreen&#39;</span><span class="p">,</span> <span class="s1">&#39;Alt+Enter&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">toggle_fullscreen</span><span class="p">()</span>
                 <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
 
@@ -911,6 +923,10 @@
             <span class="n">imgui</span><span class="o">.</span><span class="n">same_line</span><span class="p">()</span>
             <span class="n">imgui</span><span class="o">.</span><span class="n">text_colored</span><span class="p">(</span><span class="s2">&quot;Low memory mode&quot;</span><span class="p">,</span> <span class="mf">0.99</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.42</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
+        <span class="c1"># Status messages</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status_message</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_status_message</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+
         <span class="c1"># Location / MPP</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="p">,</span> <span class="s1">&#39;mpp&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">mouse_x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">imgui_utils</span><span class="o">.</span><span class="n">right_aligned_text</span><span class="p">(</span><span class="s1">&#39;x=</span><span class="si">{:&lt;8}</span><span class="s1"> y=</span><span class="si">{:&lt;8}</span><span class="s1"> mpp=</span><span class="si">{:.3f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
@@ -951,7 +967,7 @@
                 <span class="n">raw_img_w</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_raw_image</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tex_img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_zoom</span>
                 <span class="n">norm_img_w</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_norm_image</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm_tex_img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_zoom</span>
                 <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="nb">max</span><span class="p">(</span><span class="n">raw_img_w</span><span class="p">,</span> <span class="n">norm_img_w</span><span class="p">)</span>
-                <span class="n">width</span> <span class="o">=</span> <span class="n">raw_img_w</span> <span class="o">+</span> <span class="n">norm_img_w</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span>
+                <span class="n">width</span> <span class="o">=</span> <span class="n">raw_img_w</span> <span class="o">+</span> <span class="n">norm_img_w</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span><span class="o">*</span><span class="mi">2</span>
 
             <span class="n">imgui</span><span class="o">.</span><span class="n">set_next_window_size</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
 
@@ -998,6 +1014,12 @@
     <span class="k">def</span> <span class="nf">_glfw_key_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_window</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">_scancode</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">_mods</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Callback for handling keyboard input.&quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_glfw_key_callback</span><span class="p">(</span><span class="n">_window</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">_scancode</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">_mods</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_keyboard_input</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_N</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">project_widget</span><span class="o">.</span><span class="n">new_project</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shift_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_T</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_Q</span><span class="p">:</span>
@@ -1024,9 +1046,42 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">reset_tile_zoom</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">keyboard_callback</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">action</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">project_widget</span><span class="o">.</span><span class="n">keyboard_callback</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">action</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="s1">&#39;keyboard_callback&#39;</span><span class="p">):</span>
                 <span class="n">widget</span><span class="o">.</span><span class="n">keyboard_callback</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">action</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Studio.suspend_mouse_input_handling"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.suspend_mouse_input_handling">[docs]</a>    <span class="k">def</span> <span class="nf">suspend_mouse_input_handling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Suspend mouse input handling.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_mouse_input</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Studio.resume_mouse_input_handling"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.resume_mouse_input_handling">[docs]</a>    <span class="k">def</span> <span class="nf">resume_mouse_input_handling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resume mouse input handling.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_mouse_input</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="Studio.suspend_keyboard_input"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.suspend_keyboard_input">[docs]</a>    <span class="k">def</span> <span class="nf">suspend_keyboard_input</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Suspend keyboard input handling.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_keyboard_input</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Studio.resume_keyboard_input"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.resume_keyboard_input">[docs]</a>    <span class="k">def</span> <span class="nf">resume_keyboard_input</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resume keyboard input handling.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_keyboard_input</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="Studio.mouse_input_is_suspended"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.mouse_input_is_suspended">[docs]</a>    <span class="k">def</span> <span class="nf">mouse_input_is_suspended</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if mouse input handling is suspended.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_mouse_input</span></div>
+
+<div class="viewcode-block" id="Studio.is_mouse_down"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.is_mouse_down">[docs]</a>    <span class="k">def</span> <span class="nf">is_mouse_down</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mouse_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the mouse is currently down.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_mouse_input</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">imgui</span><span class="o">.</span><span class="n">is_mouse_down</span><span class="p">(</span><span class="n">mouse_idx</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Studio.is_mouse_released"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.is_mouse_released">[docs]</a>    <span class="k">def</span> <span class="nf">is_mouse_released</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mouse_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the mouse was released.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_mouse_input</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">imgui</span><span class="o">.</span><span class="n">is_mouse_released</span><span class="p">(</span><span class="n">mouse_idx</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_handle_user_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle user input to support clicking/dragging the main viewer.&quot;&quot;&quot;</span>
@@ -1053,6 +1108,12 @@
             <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span><span class="p">,</span>
             <span class="n">width</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">content_width</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span><span class="p">,</span>
             <span class="n">height</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">content_height</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span><span class="p">)</span>
+
+        <span class="c1"># Suspend mouse input handling if the user is interacting with a widget.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suspend_mouse_input</span><span class="p">:</span>
+            <span class="n">clicking</span><span class="p">,</span> <span class="n">dragging</span><span class="p">,</span> <span class="n">wheel</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="mi">0</span>
+            <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+
         <span class="k">return</span> <span class="n">EasyDict</span><span class="p">(</span>
             <span class="n">clicking</span><span class="o">=</span><span class="n">clicking</span><span class="p">,</span>
             <span class="n">dragging</span><span class="o">=</span><span class="n">dragging</span><span class="p">,</span>
@@ -1063,7 +1124,7 @@
             <span class="n">dy</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">dy</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_ratio</span><span class="p">)</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_reload_and_return_wsi</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">_load_and_return_wsi</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">stride</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1072,7 +1133,7 @@
         <span class="n">tile_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reload and return a Whole-Slide Image, with modified parameters.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load and return a Whole-Slide Image, with modified parameters.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            path (str, optional): Path to the slide to reload. If not provided,</span>
@@ -1099,6 +1160,12 @@
         <span class="k">elif</span> <span class="n">stride</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">stride</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="o">.</span><span class="n">stride_div</span>
 
+        <span class="c1"># ROI filter method.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">roi_filter_method</span> <span class="o">=</span> <span class="s1">&#39;center&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">roi_filter_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="o">.</span><span class="n">roi_filter_method</span>
+
         <span class="c1"># ROIs.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">path</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
             <span class="n">roi_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="o">.</span><span class="n">roi_method</span>
@@ -1121,7 +1188,7 @@
             <span class="n">tile_um</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="k">else</span> <span class="mi">512</span><span class="p">)</span>
 
         <span class="c1"># Pass through QC mask if the slide is already loaded.</span>
-        <span class="n">qc_mask</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="o">.</span><span class="n">qc_mask</span>
+        <span class="n">qc_mask</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="o">.</span><span class="n">get_qc_mask</span><span class="p">(</span><span class="n">roi</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span>
@@ -1140,6 +1207,8 @@
                 <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="n">mpp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">manual_mpp</span><span class="p">,</span>
                 <span class="n">use_bounds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings_widget</span><span class="o">.</span><span class="n">use_bounds</span><span class="p">,</span>
+                <span class="n">roi_filter_method</span><span class="o">=</span><span class="n">roi_filter_method</span><span class="p">,</span>
+                <span class="n">simplify_roi_tolerance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings_widget</span><span class="o">.</span><span class="n">simplify_tolerance</span><span class="p">,</span>
                 <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">sf</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">IncompatibleBackendError</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">create_toast</span><span class="p">(</span>
@@ -1161,9 +1230,9 @@
                 <span class="n">wsi</span><span class="o">.</span><span class="n">process_rois</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">wsi</span>
 
-    <span class="k">def</span> <span class="nf">_reload_wsi</span><span class="p">(</span>
+<div class="viewcode-block" id="Studio.reload_wsi"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.reload_wsi">[docs]</a>    <span class="k">def</span> <span class="nf">reload_wsi</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">stride</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">use_rois</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">tile_px</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1173,8 +1242,9 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Reload the currently loaded Whole-Slide Image.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            path (str, optional): Path to the slide to reload. If not provided,</span>
-<span class="sd">                will reload the currently loaded slide.</span>
+<span class="sd">            path (str or sf.WSI, optional): Slide to reload. May be a path</span>
+<span class="sd">                or a sf.WSI object. If not provided, will reload the </span>
+<span class="sd">                currently loaded slide.</span>
 <span class="sd">            stride (int, optional): Stride to use for the loaded slide. If not</span>
 <span class="sd">                provided, will use the stride value from the currently loaded</span>
 <span class="sd">                slide.</span>
@@ -1184,9 +1254,13 @@
 <span class="sd">            bool: True if slide loaded successfully, False otherwise.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">wsi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reload_and_return_wsi</span><span class="p">(</span>
-            <span class="n">path</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">use_rois</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
-        <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">):</span>
+            <span class="n">wsi</span> <span class="o">=</span> <span class="n">slide</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">wsi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_and_return_wsi</span><span class="p">(</span>
+                <span class="n">slide</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">use_rois</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+
         <span class="k">if</span> <span class="n">wsi</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="o">=</span> <span class="n">wsi</span>
             <span class="n">old_viewer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span>
@@ -1197,7 +1271,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">show_scale</span> <span class="o">=</span> <span class="n">old_viewer</span><span class="o">.</span><span class="n">show_scale</span>
             <span class="k">return</span> <span class="kc">True</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
 
     <span class="k">def</span> <span class="nf">_render_prediction_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Render a prediction string to below the tile bounding box.</span>
@@ -1361,7 +1435,6 @@
         <span class="n">imgui</span><span class="o">.</span><span class="n">pop_style_color</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">expanded</span></div>
 
-
 <div class="viewcode-block" id="Studio.header"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.header">[docs]</a>    <span class="k">def</span> <span class="nf">header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Render a header using the active theme.</span>
 
@@ -1523,14 +1596,14 @@
 
 <div class="viewcode-block" id="Studio.ask_load_slide"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.ask_load_slide">[docs]</a>    <span class="k">def</span> <span class="nf">ask_load_slide</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Prompt user for location of a slide and load.&quot;&quot;&quot;</span>
-        <span class="n">slide_path</span> <span class="o">=</span> <span class="n">askopenfilename</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Load slide...&quot;</span><span class="p">,</span> <span class="n">filetypes</span><span class="o">=</span><span class="p">[(</span><span class="s2">&quot;Aperio ScanScope&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;*.svs&quot;</span><span class="p">,</span> <span class="s2">&quot;*.svslide&quot;</span><span class="p">)),</span>
+        <span class="n">slide_path</span> <span class="o">=</span> <span class="n">askopenfilename</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Load slide...&quot;</span><span class="p">,</span> <span class="n">filetypes</span><span class="o">=</span><span class="p">[(</span><span class="s2">&quot;All files&quot;</span><span class="p">,</span> <span class="s2">&quot;.*&quot;</span><span class="p">),</span>
+                                                                       <span class="p">(</span><span class="s2">&quot;Aperio ScanScope&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;*.svs&quot;</span><span class="p">,</span> <span class="s2">&quot;*.svslide&quot;</span><span class="p">)),</span>
                                                                        <span class="p">(</span><span class="s2">&quot;Hamamatsu&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;*.ndpi&quot;</span><span class="p">,</span> <span class="s2">&quot;*.vms&quot;</span><span class="p">,</span> <span class="s2">&quot;*.vmu&quot;</span><span class="p">)),</span>
                                                                        <span class="p">(</span><span class="s2">&quot;Leica&quot;</span><span class="p">,</span> <span class="s2">&quot;*.scn&quot;</span><span class="p">),</span>
                                                                        <span class="p">(</span><span class="s2">&quot;MIRAX&quot;</span><span class="p">,</span> <span class="s2">&quot;*.mrxs&quot;</span><span class="p">),</span>
                                                                        <span class="p">(</span><span class="s2">&quot;Roche, Ventana&quot;</span><span class="p">,</span> <span class="s2">&quot;*.bif&quot;</span><span class="p">),</span>
                                                                        <span class="p">(</span><span class="s2">&quot;Pyramid TIFF&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;*.tiff&quot;</span><span class="p">,</span> <span class="s2">&quot;*.tif&quot;</span><span class="p">)),</span>
-                                                                       <span class="p">(</span><span class="s2">&quot;JPEG&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;*.jpeg&quot;</span><span class="p">)),</span>
-                                                                       <span class="p">(</span><span class="s2">&quot;All files&quot;</span><span class="p">,</span> <span class="s2">&quot;.*&quot;</span><span class="p">)])</span>
+                                                                       <span class="p">(</span><span class="s2">&quot;JPEG&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;*.jpeg&quot;</span><span class="p">))])</span>
         <span class="k">if</span> <span class="n">slide_path</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">load_slide</span><span class="p">(</span><span class="n">slide_path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
@@ -1811,7 +1884,7 @@
                 <span class="n">pred_str</span> <span class="o">=</span> <span class="n">prediction_to_string</span><span class="p">(</span>
                     <span class="n">predictions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_predictions</span><span class="p">,</span>
                     <span class="n">outcomes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span><span class="p">[</span><span class="s1">&#39;outcome_labels&#39;</span><span class="p">],</span>
-                    <span class="n">is_categorical</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">)</span>
+                    <span class="n">is_classification</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">)</span>
                 <span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_render_prediction_message</span><span class="p">(</span><span class="n">pred_str</span><span class="p">)</span>
 
@@ -1825,10 +1898,8 @@
 
 <div class="viewcode-block" id="Studio.get_default_widgets"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.get_default_widgets">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">get_default_widgets</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a list of the default non-mandatory widgets.&quot;&quot;&quot;</span>
-
-        <span class="kn">from</span> <span class="nn">.widgets</span> <span class="kn">import</span> <span class="n">MosaicWidget</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">MosaicWidget</span><span class="p">]</span></div>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a list of the default non-mandatory extension widgets.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[]</span></div>
 
 <div class="viewcode-block" id="Studio.get_renderer"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.get_renderer">[docs]</a>    <span class="k">def</span> <span class="nf">get_renderer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Renderer</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check for the given additional renderer in the rendering pipeline.</span>
@@ -1851,6 +1922,21 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_addl_renderers</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="Studio.get_extension"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.get_extension">[docs]</a>    <span class="k">def</span> <span class="nf">get_extension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Widget</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a given widget (extension) by tag.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tag (str): Tag of the widget to search for.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            slideflow.studio.widgets.Widget if found, else None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">w</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="n">tag</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">w</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
 
 <div class="viewcode-block" id="Studio.get_widget"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.get_widget">[docs]</a>    <span class="k">def</span> <span class="nf">get_widget</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Widget</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a given widget by class name.</span>
@@ -2071,6 +2157,32 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Set a message for display.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_message</span> <span class="o">=</span> <span class="n">msg</span></div>
 
+<div class="viewcode-block" id="Studio.set_status_message"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.set_status_message">[docs]</a>    <span class="k">def</span> <span class="nf">set_status_message</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">color</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.7</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">text_color</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">rounding</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the status message to display in the status bar.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">message</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">clear_status_message</span><span class="p">()</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_status_message</span> <span class="o">=</span> <span class="n">StatusMessage</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">message</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+            <span class="n">text_color</span><span class="o">=</span><span class="n">text_color</span><span class="p">,</span>
+            <span class="n">rounding</span><span class="o">=</span><span class="n">rounding</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Studio.clear_status_message"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.clear_status_message">[docs]</a>    <span class="k">def</span> <span class="nf">clear_status_message</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clear the status message from the status bar.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_status_message</span> <span class="o">=</span> <span class="kc">None</span></div>
+
 <div class="viewcode-block" id="Studio.set_prediction_message"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Studio.set_prediction_message">[docs]</a>    <span class="k">def</span> <span class="nf">set_prediction_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the prediction message to display under the tile outline.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pred_message</span> <span class="o">=</span> <span class="n">msg</span></div>
@@ -2209,9 +2321,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">viz</span>                <span class="o">=</span> <span class="n">viz</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expanded</span>           <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">selected</span>           <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_buttonbar_width</span>    <span class="o">=</span> <span class="mi">72</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_navbutton_width</span>    <span class="o">=</span> <span class="mi">70</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_imagebutton_width</span>  <span class="o">=</span> <span class="mi">64</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buttonbar_width</span>   <span class="o">=</span> <span class="mi">63</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_navbutton_width</span>   <span class="o">=</span> <span class="mi">61</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_imagebutton_width</span> <span class="o">=</span> <span class="mi">56</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span>        <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pane_w_div</span>        <span class="o">=</span> <span class="mi">15</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">navbuttons</span>         <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;project&#39;</span><span class="p">,</span> <span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;heatmap&#39;</span><span class="p">]</span>
@@ -2284,15 +2396,18 @@
     <span class="k">def</span> <span class="nf">_load_button_textures</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Reload textures for buttons.&quot;&quot;&quot;</span>
         <span class="n">button_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)),</span> <span class="s1">&#39;gui&#39;</span><span class="p">,</span> <span class="s1">&#39;buttons&#39;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">bname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">navbuttons</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;gear&#39;</span><span class="p">,</span> <span class="s1">&#39;circle_lightning&#39;</span><span class="p">,</span> <span class="s1">&#39;circle_plus&#39;</span><span class="p">,</span> <span class="s1">&#39;pencil&#39;</span><span class="p">,</span> <span class="s1">&#39;folder&#39;</span><span class="p">,</span> <span class="s1">&#39;floppy&#39;</span><span class="p">,</span> <span class="s1">&#39;model_loaded&#39;</span><span class="p">,</span> <span class="s1">&#39;extensions&#39;</span><span class="p">]:</span>
+        <span class="k">for</span> <span class="n">bname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">navbuttons</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;gear&#39;</span><span class="p">,</span> <span class="s1">&#39;circle_lightning&#39;</span><span class="p">,</span> <span class="s1">&#39;circle_plus&#39;</span><span class="p">,</span> <span class="s1">&#39;pencil&#39;</span><span class="p">,</span> <span class="s1">&#39;folder&#39;</span><span class="p">,</span> <span class="s1">&#39;floppy&#39;</span><span class="p">,</span> <span class="s1">&#39;model_loaded&#39;</span><span class="p">,</span> <span class="s1">&#39;extensions&#39;</span><span class="p">,</span> <span class="s1">&#39;add_freehand&#39;</span><span class="p">,</span> <span class="s1">&#39;add_polygon&#39;</span><span class="p">]:</span>
             <span class="k">if</span> <span class="n">bname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span><span class="p">:</span>
                 <span class="k">continue</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span><span class="p">[</span><span class="n">bname</span><span class="p">]</span> <span class="o">=</span> <span class="n">gl_utils</span><span class="o">.</span><span class="n">Texture</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">button_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;button_</span><span class="si">{</span><span class="n">bname</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">)),</span> <span class="n">bilinear</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mipmap</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bname</span><span class="si">}</span><span class="s1">_highlighted&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gl_utils</span><span class="o">.</span><span class="n">Texture</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">button_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;button_</span><span class="si">{</span><span class="n">bname</span><span class="si">}</span><span class="s1">_highlighted.png&#39;</span><span class="p">)),</span> <span class="n">bilinear</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mipmap</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bname</span><span class="si">}</span><span class="s1">_highlighted&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gl_utils</span><span class="o">.</span><span class="n">Texture</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">button_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;button_</span><span class="si">{</span><span class="n">bname</span><span class="si">}</span><span class="s1">_highlighted.png&#39;</span><span class="p">)),</span> <span class="n">bilinear</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mipmap</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+                <span class="k">pass</span>
         <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;vips&#39;</span><span class="p">,</span> <span class="s1">&#39;cucim&#39;</span><span class="p">,</span> <span class="s1">&#39;lowmem&#39;</span><span class="p">,</span> <span class="s1">&#39;ellipsis&#39;</span><span class="p">,</span> <span class="s1">&#39;gear&#39;</span><span class="p">,</span> <span class="s1">&#39;refresh&#39;</span><span class="p">):</span>
             <span class="k">if</span> <span class="sa">f</span><span class="s2">&quot;small_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span><span class="p">:</span>
                 <span class="k">continue</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;small_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gl_utils</span><span class="o">.</span><span class="n">Texture</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">button_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;small_button_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">)),</span> <span class="n">bilinear</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mipmap</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_button_tex</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;small_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gl_utils</span><span class="o">.</span><span class="n">Texture</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">button_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;small_button_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">)),</span> <span class="n">bilinear</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mipmap</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">maxlevel</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_draw_navbar_button</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">start_px</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Draw a navigation bar button.</span>
@@ -2321,6 +2436,8 @@
             <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">expanded</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">expanded</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">expanded</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="n">name</span>
+
+        <span class="c1"># Add a line next to the selected/active widget.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
             <span class="n">draw_list</span> <span class="o">=</span> <span class="n">imgui</span><span class="o">.</span><span class="n">get_window_draw_list</span><span class="p">()</span>
             <span class="n">draw_list</span><span class="o">.</span><span class="n">add_line</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">viz</span><span class="o">.</span><span class="n">menu_bar_height</span><span class="o">+</span><span class="n">start_px</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">viz</span><span class="o">.</span><span class="n">menu_bar_height</span><span class="o">+</span><span class="n">start_px</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">navbutton_width</span><span class="p">,</span> <span class="n">imgui</span><span class="o">.</span><span class="n">get_color_u32_rgba</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
@@ -2344,6 +2461,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_navbar_button</span><span class="p">(</span><span class="s1">&#39;circle_lightning&#39;</span><span class="p">,</span> <span class="n">buttonbar_height</span> <span class="o">+</span> <span class="n">viz</span><span class="o">.</span><span class="n">menu_bar_height</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">navbutton_width</span><span class="o">*</span><span class="mi">3</span> <span class="o">-</span> <span class="n">viz</span><span class="o">.</span><span class="n">status_bar_height</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_navbar_button</span><span class="p">(</span><span class="s1">&#39;extensions&#39;</span><span class="p">,</span> <span class="n">buttonbar_height</span> <span class="o">+</span> <span class="n">viz</span><span class="o">.</span><span class="n">menu_bar_height</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">navbutton_width</span><span class="o">*</span><span class="mi">2</span> <span class="o">-</span> <span class="n">viz</span><span class="o">.</span><span class="n">status_bar_height</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_navbar_button</span><span class="p">(</span><span class="s1">&#39;gear&#39;</span><span class="p">,</span> <span class="n">buttonbar_height</span> <span class="o">+</span> <span class="n">viz</span><span class="o">.</span><span class="n">menu_bar_height</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">navbutton_width</span> <span class="o">-</span> <span class="n">viz</span><span class="o">.</span><span class="n">status_bar_height</span><span class="p">)</span>
+
+        <span class="c1"># Draw border along the right of the buttons</span>
+        <span class="c1">#draw_list = imgui.get_window_draw_list()</span>
+        <span class="c1">#draw_list.add_line(self.navbutton_width-1, viz.menu_bar_height, self.navbutton_width-1, buttonbar_height+viz.menu_bar_height+5, imgui.get_color_u32_rgba(*self.viz.theme.item_hover), 1)</span>
 
         <span class="n">imgui</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
 
@@ -2413,6 +2534,41 @@
         <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_BUTTON_ACTIVE</span><span class="p">,</span> <span class="o">*</span><span class="n">t</span><span class="o">.</span><span class="n">bright_button_active</span><span class="p">)</span>
         <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_BORDER</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_TEXT</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">width</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">sidebar</span><span class="o">.</span><span class="n">content_width</span> <span class="o">-</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">spacing</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">button</span><span class="p">(</span>
+            <span class="n">text</span><span class="p">,</span>
+            <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+            <span class="n">height</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">font_size</span> <span class="o">*</span> <span class="mf">1.7</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">pop_style_color</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="Sidebar.full_button2"><a class="viewcode-back" href="../../../studio_module/#slideflow.studio.Sidebar.full_button2">[docs]</a>    <span class="k">def</span> <span class="nf">full_button2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Render a button that spans the full width of the sidebar.</span>
+
+<span class="sd">        The color of the button is determined through the loaded theme,</span>
+<span class="sd">        ``bright_button2`` properties.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            text (str): Text of the button.</span>
+<span class="sd">            width (int, optional): Width of the button. If not specified,</span>
+<span class="sd">                uses a width that spans the width of the sidebar.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            enabled (bool): Whether the button is enabled.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: Whether the button was clicked.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">theme</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_BUTTON</span><span class="p">,</span> <span class="o">*</span><span class="n">t</span><span class="o">.</span><span class="n">bright_button2</span><span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_BUTTON_HOVERED</span><span class="p">,</span> <span class="o">*</span><span class="n">t</span><span class="o">.</span><span class="n">bright_button2_hovered</span><span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_BUTTON_ACTIVE</span><span class="p">,</span> <span class="o">*</span><span class="n">t</span><span class="o">.</span><span class="n">bright_button2_active</span><span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_TEXT</span><span class="p">,</span> <span class="o">*</span><span class="n">t</span><span class="o">.</span><span class="n">bright_button2_text</span><span class="p">)</span>
+        <span class="n">imgui</span><span class="o">.</span><span class="n">push_style_color</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">COLOR_BORDER</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">width</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">sidebar</span><span class="o">.</span><span class="n">content_width</span> <span class="o">-</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">spacing</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">button</span><span class="p">(</span>
@@ -2528,16 +2684,16 @@
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -2545,11 +2701,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -2559,26 +2715,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
          <script src="../../../_static/doctools.js"></script>
          <script src="../../../_static/sphinx_highlight.js"></script>
-     
 
-  
+
+
   <script type="text/javascript" src="../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -2589,7 +2745,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 
@@ -2619,7 +2775,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

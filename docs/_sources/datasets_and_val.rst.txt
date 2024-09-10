@@ -234,11 +234,11 @@ The default validation strategy is three-fold cross-validation (``strategy='k-fo
     # using 5-fold cross-validation, with this being
     # the first cross-fold.
     train_dataset, test_dataset = dataset.split(
-        model_type='categorical', # Categorical labels
-        labels='subtype',         # Label to balance between datasets
-        k_fold=5,                 # Total number of crossfolds
-        k_fold_iter=1,            # Cross-fold iteration
-        splits='splits.json'      # Where to save/load crossfold splits
+        model_type='classification', # Categorical labels
+        labels='subtype',            # Label to balance between datasets
+        k_fold=5,                    # Total number of crossfolds
+        k_fold_iter=1,               # Cross-fold iteration
+        splits='splits.json'         # Where to save/load crossfold splits
     )
 
 You can also use :meth:`Dataset.kfold_split` to iterate through cross-fold splits:

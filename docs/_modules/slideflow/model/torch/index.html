@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.model.torch &mdash; slideflow 2.3.0 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.model.torch &mdash; slideflow 3.0.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
@@ -31,12 +31,10 @@
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="../../../../genindex/" />
     <link rel="search" title="Search" href="../../../../search/" />
-  <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+
+
+
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -59,16 +57,7 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-
-    gtag('js', new Date());
-
-    gtag('config', 'G-43E5QNVXH2');
-  </script>
+  <script defer data-domain="slideflow.dev" src="https://plausible.io/js/script.js"></script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -87,7 +76,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -99,9 +88,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +101,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -137,15 +126,15 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
@@ -158,6 +147,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +164,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -216,8 +207,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -225,7 +216,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -244,30 +235,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../../../">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../../../">Module code</a> &gt;</li>
-        
+
           <li><a href="../">slideflow.model</a> &gt;</li>
-        
+
       <li>slideflow.model.torch</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -279,13 +270,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.model.torch</h1><div class="highlight"><pre>
 <span></span><span class="sd">&#39;&#39;&#39;PyTorch backend for the slideflow.model submodule.&#39;&#39;&#39;</span>
 
@@ -494,7 +485,7 @@
         <span class="k">return</span> <span class="n">out</span>  <span class="c1"># , x</span>
 
 
-<span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
+<div class="viewcode-block" id="ModelParams"><a class="viewcode-back" href="../../../../model_params/#slideflow.model.ModelParams">[docs]</a><span class="k">class</span> <span class="nc">ModelParams</span><span class="p">(</span><span class="n">_base</span><span class="o">.</span><span class="n">_ModelParams</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a set of hyperparameters.&quot;&quot;&quot;</span>
 
     <span class="n">ModelDict</span> <span class="o">=</span> <span class="p">{</span>
@@ -531,7 +522,7 @@
             <span class="s1">&#39;Rprop&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Rprop</span><span class="p">,</span>
             <span class="s1">&#39;SGD&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">SGD</span>
         <span class="p">}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">LinearLossDict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">RegressionLossDict</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;L1&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">L1Loss</span><span class="p">,</span>
             <span class="s1">&#39;MSE&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">MSELoss</span><span class="p">,</span>
             <span class="s1">&#39;NLL&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">NLLLoss</span><span class="p">,</span>  <span class="c1"># negative log likelihood</span>
@@ -674,32 +665,32 @@
         <span class="k">return</span> <span class="n">model</span>
 
     <span class="k">def</span> <span class="nf">model_type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns &#39;linear&#39;, &#39;categorical&#39;, or &#39;cph&#39;, reflecting the loss.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns &#39;regression&#39;, &#39;classification&#39;, or &#39;survival&#39;, reflecting the loss.&quot;&quot;&quot;</span>
         <span class="c1">#check if loss is custom_[type] and returns type</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;custom&#39;</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="p">[</span><span class="mi">7</span><span class="p">:]</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">==</span> <span class="s1">&#39;NLL&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;cph&#39;</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">LinearLossDict</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;linear&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;survival&#39;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">RegressionLossDict</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;regression&#39;</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;categorical&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;classification&#39;</span></div>
 
 
-<span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
+<div class="viewcode-block" id="Trainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.Trainer">[docs]</a><span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Base trainer class containing functionality for model building, input</span>
 <span class="sd">    processing, training, and evaluation.</span>
 
 <span class="sd">    This base class requires categorical outcome(s). Additional outcome types</span>
-<span class="sd">    are supported by :class:`slideflow.model.LinearTrainer` and</span>
-<span class="sd">    :class:`slideflow.model.CPHTrainer`.</span>
+<span class="sd">    are supported by :class:`slideflow.model.RegressionTrainer` and</span>
+<span class="sd">    :class:`slideflow.model.SurvivalTrainer`.</span>
 
 <span class="sd">    Slide-level (e.g. clinical) features can be used as additional model input</span>
 <span class="sd">    by providing slide labels in the slide annotations dictionary, under</span>
 <span class="sd">    the key &#39;input&#39;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;categorical&#39;</span>
+    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;classification&#39;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -721,7 +712,10 @@
         <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;weights&#39;</span><span class="p">,</span>
         <span class="n">custom_objects</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pin_memory</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Sets base configuration, preparing model inputs and outputs.</span>
 
@@ -769,6 +763,12 @@
 <span class="sd">                applied to validation data. If a dict is provided and either</span>
 <span class="sd">                &#39;train&#39; or &#39;val&#39; is None, no transform will be applied to</span>
 <span class="sd">                that data. Defaults to None.</span>
+<span class="sd">            pin_memory (bool): Set the ``pin_memory`` attribute for dataloaders.</span>
+<span class="sd">                Defaults to True.</span>
+<span class="sd">            num_workers (int): Set the number of workers for dataloaders.</span>
+<span class="sd">                Defaults to 4.</span>
+<span class="sd">            chunk_size (int): Set the chunk size for TFRecord reading.</span>
+<span class="sd">                Defaults to 8.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hp</span> <span class="o">=</span> <span class="n">hp</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">outdir</span> <span class="o">=</span> <span class="n">outdir</span>
@@ -783,6 +783,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">modules</span><span class="o">.</span><span class="n">loss</span><span class="o">.</span><span class="n">_Loss</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_tensorboard</span><span class="p">:</span> <span class="nb">bool</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">writer</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[torch.utils.tensorboard.SummaryWriter]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pin_memory</span> <span class="o">=</span> <span class="n">pin_memory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">=</span> <span class="n">num_workers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span> <span class="o">=</span> <span class="n">chunk_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reset_training_params</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="n">custom_objects</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -857,7 +860,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">num_outcomes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
             <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
             <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -871,8 +874,8 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get category assignments for categorical outcome labels.</span>
 
 <span class="sd">        Dataframes with integer labels are assumed to be categorical if</span>
-<span class="sd">        if hp.model_type is &#39;categorical&#39;.</span>
-<span class="sd">        Dataframes with float labels are assumed to be linear.</span>
+<span class="sd">        if hp.model_type is &#39;classification&#39;.</span>
+<span class="sd">        Dataframes with float labels are assumed to be continuous.</span>
 <span class="sd">        Dataframes with other labels are assumed to be categorical, and will</span>
 <span class="sd">        be assigned an integer label based on the order of unique values.</span>
 
@@ -881,7 +884,7 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected DataFrame with &#39;label&#39; column.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected DataFrame with &#39;label&#39; column.&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">is_integer_dtype</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span> <span class="ow">or</span> <span class="n">is_float_dtype</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]):</span>
                 <span class="k">return</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())}</span>
             <span class="k">else</span><span class="p">:</span>
@@ -893,7 +896,6 @@
                 <span class="k">return</span> <span class="n">int_to_str</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">{}</span>
-
 
     <span class="k">def</span> <span class="nf">_process_transforms</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1010,7 +1012,7 @@
         <span class="n">num_records</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]],</span> <span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Reports accuracy of each outcome.&#39;&#39;&#39;</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outcomes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">running_corrects</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected running_corrects to be a dict:&quot;</span>
@@ -1139,7 +1141,7 @@
         <span class="n">label</span><span class="p">:</span> <span class="nb">str</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]]]:</span>
         <span class="n">epoch_metrics</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;loss&#39;</span><span class="p">:</span> <span class="n">loss</span><span class="p">}</span>  <span class="c1"># type: Dict</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
             <span class="n">epoch_metrics</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;accuracy&#39;</span><span class="p">:</span> <span class="n">acc</span><span class="p">})</span>
         <span class="k">return</span> <span class="p">{</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">_metrics&#39;</span><span class="p">:</span> <span class="n">epoch_metrics</span><span class="p">}</span>
 
@@ -1172,7 +1174,7 @@
         <span class="k">def</span> <span class="nf">update_corrects</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">running_corrects</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">running_corrects</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">running_corrects</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_empty_corrects</span><span class="p">()</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
                 <span class="n">labels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_labels_to_device</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_corrects</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">running_corrects</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -1204,7 +1206,7 @@
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
         <span class="n">loss_and_acc</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;loss&#39;</span><span class="p">:</span> <span class="n">loss</span><span class="p">}</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
             <span class="n">loss_and_acc</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;accuracy&#39;</span><span class="p">:</span> <span class="n">acc</span><span class="p">})</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_log_epoch</span><span class="p">(</span>
                 <span class="s1">&#39;val&#39;</span><span class="p">,</span>
@@ -1317,7 +1319,7 @@
         <span class="n">label</span><span class="p">:</span> <span class="nb">str</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">add_scalar</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Loss/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outcomes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">_acc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">acc</span><span class="p">):</span>
@@ -1358,7 +1360,6 @@
                     <span class="n">val</span><span class="o">=</span><span class="n">acc</span><span class="p">,</span>
                     <span class="n">step</span><span class="o">=</span><span class="n">step</span>
                 <span class="p">)</span>
-
 
     <span class="k">def</span> <span class="nf">_log_early_stop_to_neptune</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="c1"># Log early stop to neptune</span>
@@ -1453,7 +1454,7 @@
             <span class="n">val_img</span> <span class="o">=</span> <span class="n">val_img</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
             <span class="n">val_img</span> <span class="o">=</span> <span class="n">val_img</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">memory_format</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">channels_last</span><span class="p">)</span>
 
-            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">inference_mode</span><span class="p">():</span>
                 <span class="n">_mp</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mixed_precision</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">,</span> <span class="s1">&#39;cpu&#39;</span><span class="p">))</span>
                 <span class="k">with</span> <span class="n">autocast</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">mixed_precision</span><span class="o">=</span><span class="n">_mp</span><span class="p">):</span>  <span class="c1"># type: ignore</span>
 
@@ -1473,13 +1474,13 @@
                     <span class="p">)</span>
 
             <span class="n">running_val_loss</span> <span class="o">+=</span> <span class="n">val_batch_loss</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">*</span> <span class="n">val_img</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
                 <span class="n">running_val_correct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_corrects</span><span class="p">(</span>
                     <span class="n">val_outputs</span><span class="p">,</span> <span class="n">val_label</span><span class="p">,</span> <span class="n">running_val_correct</span>  <span class="c1"># type: ignore</span>
                 <span class="p">)</span>
             <span class="n">num_val</span> <span class="o">+=</span> <span class="n">val_img</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">val_loss</span> <span class="o">=</span> <span class="n">running_val_loss</span> <span class="o">/</span> <span class="n">num_val</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
             <span class="n">val_acc</span><span class="p">,</span> <span class="n">val_acc_desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_accuracy</span><span class="p">(</span>
                 <span class="n">running_val_correct</span><span class="p">,</span> <span class="n">num_val</span>  <span class="c1"># type: ignore</span>
             <span class="p">)</span>
@@ -1604,9 +1605,9 @@
             <span class="n">rank</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
             <span class="n">num_replicas</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
             <span class="n">labels</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="k">if</span> <span class="n">incl_labels</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
-            <span class="n">chunk_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
-            <span class="n">pin_memory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">num_workers</span><span class="o">=</span><span class="mi">4</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">from_wsi</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">chunk_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span>
+            <span class="n">pin_memory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pin_memory</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">from_wsi</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
             <span class="n">onehot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">incl_slidenames</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">from_wsi</span><span class="o">=</span><span class="n">from_wsi</span><span class="p">,</span>
@@ -1712,7 +1713,7 @@
 
         <span class="c1"># Record accuracy and loss</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">epoch_records</span> <span class="o">+=</span> <span class="n">images</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">running_corrects</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_corrects</span><span class="p">(</span>
                 <span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">running_corrects</span>
             <span class="p">)</span>
@@ -1755,7 +1756,7 @@
         <span class="n">running_corrects</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]],</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]]:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Updates running accuracy in a manner compatible with &gt;1 outcomes.&#39;&#39;&#39;</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outcomes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">out</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outputs</span><span class="p">):</span>
                 <span class="n">_</span><span class="p">,</span> <span class="n">preds</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
@@ -1771,7 +1772,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Validates early stopping parameters.&quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">early_stop</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">early_stop_method</span> <span class="o">==</span> <span class="s1">&#39;accuracy&#39;</span> <span class="ow">and</span>
-           <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outcomes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">):</span>
+           <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outcomes</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="s2">&quot;Cannot combine &#39;accuracy&#39; early stopping &quot;</span>
                                     <span class="s2">&quot;with multiple categorical outcomes.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">early_stop_method</span> <span class="o">==</span> <span class="s1">&#39;manual&#39;</span>
@@ -2293,7 +2294,7 @@
             <span class="c1"># Update and log epoch metrics ------------------------------------</span>
             <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">running_loss</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">epoch_records</span>
             <span class="n">epoch_metrics</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;train_metrics&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;loss&#39;</span><span class="p">:</span> <span class="n">loss</span><span class="p">}}</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span><span class="p">:</span>
                 <span class="n">acc</span><span class="p">,</span> <span class="n">acc_desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_accuracy</span><span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">running_corrects</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">epoch_records</span>
                 <span class="p">)</span>
@@ -2331,39 +2332,39 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_close_dataloaders</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">results</span>
+        <span class="k">return</span> <span class="n">results</span></div>
 
 
-<span class="k">class</span> <span class="nc">LinearTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
+<div class="viewcode-block" id="RegressionTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.RegressionTrainer">[docs]</a><span class="k">class</span> <span class="nc">RegressionTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extends the base :class:`slideflow.model.Trainer` class to add support</span>
-<span class="sd">    for linear outcomes. Requires that all outcomes be linear, with appropriate</span>
-<span class="sd">    linear loss function. Uses R-squared as the evaluation metric, rather</span>
+<span class="sd">    for continuous outcomes. Requires that all outcomes be continuous, with appropriate</span>
+<span class="sd">    regression loss function. Uses R-squared as the evaluation metric, rather</span>
 <span class="sd">    than AUROC.</span>
 
-<span class="sd">    In this case, for the PyTorch backend, the linear outcomes support is</span>
+<span class="sd">    In this case, for the PyTorch backend, the continuous outcomes support is</span>
 <span class="sd">    already baked into the base Trainer class, so no additional modifications</span>
 <span class="sd">    are required. This class is written to inherit the Trainer class without</span>
 <span class="sd">    modification to maintain consistency with the Tensorflow backend.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;linear&#39;</span>
+    <span class="n">_model_type</span> <span class="o">=</span> <span class="s1">&#39;regression&#39;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
-<span class="k">class</span> <span class="nc">CPHTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
+<div class="viewcode-block" id="SurvivalTrainer"><a class="viewcode-back" href="../../../../model/#slideflow.model.SurvivalTrainer">[docs]</a><span class="k">class</span> <span class="nc">SurvivalTrainer</span><span class="p">(</span><span class="n">Trainer</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Cox proportional hazards (CPH) models are not yet implemented, but are</span>
 <span class="sd">    planned for a future update.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
-<span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
+<div class="viewcode-block" id="Features"><a class="viewcode-back" href="../../../../model/#slideflow.model.Features">[docs]</a><span class="k">class</span> <span class="nc">Features</span><span class="p">(</span><span class="n">BaseFeatureExtractor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Interface for obtaining predictions and features from intermediate layer</span>
 <span class="sd">    activations from Slideflow models.</span>
 
@@ -2435,7 +2436,7 @@
 <span class="sd">            device (:class:`torch.device`, optional): Device for model.</span>
 <span class="sd">                Defaults to torch.device(&#39;cuda&#39;)</span>
 <span class="sd">            apply_softmax (bool): Apply softmax transformation to model output.</span>
-<span class="sd">                Defaults to True for categorical models, False for linear models.</span>
+<span class="sd">                Defaults to True for classification models, False for regression models.</span>
 <span class="sd">            pooling (Callable or str, optional): PyTorch pooling function to use</span>
 <span class="sd">                on feature layers. May be a string (&#39;avg&#39; or &#39;max&#39;) or a</span>
 <span class="sd">                callable PyTorch function.</span>
@@ -2481,7 +2482,7 @@
                 <span class="n">num_classes</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcome_labels&#39;</span><span class="p">])</span>
             <span class="p">)</span>
             <span class="k">if</span> <span class="n">apply_softmax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span> <span class="k">else</span> <span class="kc">False</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;classification&#39;</span> <span class="k">else</span> <span class="kc">False</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using apply_softmax=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
@@ -2634,7 +2635,7 @@
         <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_floating_point</span><span class="p">(</span><span class="n">inp</span><span class="p">),</span> <span class="s2">&quot;Input tensor must be float&quot;</span>
         <span class="n">_mp</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mixed_precision</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">,</span> <span class="s1">&#39;cpu&#39;</span><span class="p">))</span>
         <span class="k">with</span> <span class="n">autocast</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">mixed_precision</span><span class="o">=</span><span class="n">_mp</span><span class="p">):</span>  <span class="c1"># type: ignore</span>
-            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span> <span class="k">if</span> <span class="n">no_grad</span> <span class="k">else</span> <span class="n">no_scope</span><span class="p">():</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">inference_mode</span><span class="p">()</span> <span class="k">if</span> <span class="n">no_grad</span> <span class="k">else</span> <span class="n">no_scope</span><span class="p">():</span>
                 <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels_last</span><span class="p">:</span>
                     <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">memory_format</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">channels_last</span><span class="p">)</span>
@@ -2778,7 +2779,7 @@
                 <span class="s1">&#39;apply_softmax&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_softmax</span><span class="p">,</span>
                 <span class="s1">&#39;pooling&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pooling</span>
             <span class="p">}</span>
-        <span class="p">}</span>
+        <span class="p">}</span></div>
 
 
 <span class="k">class</span> <span class="nc">UncertaintyInterface</span><span class="p">(</span><span class="n">Features</span><span class="p">):</span>
@@ -2844,7 +2845,7 @@
             <span class="n">out_act_drop</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">))]</span>
         <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">):</span>
             <span class="k">with</span> <span class="n">autocast</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">mixed_precision</span><span class="o">=</span><span class="n">_mp</span><span class="p">):</span>  <span class="c1"># type: ignore</span>
-                <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span> <span class="k">if</span> <span class="n">no_grad</span> <span class="k">else</span> <span class="n">no_scope</span><span class="p">():</span>
+                <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">inference_mode</span><span class="p">()</span> <span class="k">if</span> <span class="n">no_grad</span> <span class="k">else</span> <span class="n">no_scope</span><span class="p">():</span>
                     <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels_last</span><span class="p">:</span>
                         <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">memory_format</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">channels_last</span><span class="p">)</span>
@@ -2904,7 +2905,7 @@
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
-<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.torch.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a model trained with Slideflow.</span>
 
 <span class="sd">    Args:</span>
@@ -2915,7 +2916,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">])</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcomes&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcomes&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;regression&#39;</span><span class="p">:</span>
         <span class="n">num_classes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcome_labels&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">num_classes</span> <span class="o">=</span> <span class="p">{</span>
@@ -2935,7 +2936,7 @@
     <span class="k">return</span> <span class="n">model</span></div>
 
 
-<div class="viewcode-block" id="lazy_load_pretrained"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.torch.lazy_load_pretrained">[docs]</a><span class="k">def</span> <span class="nf">lazy_load_pretrained</span><span class="p">(</span>
+<div class="viewcode-block" id="lazy_load_pretrained"><a class="viewcode-back" href="../../../../model_torch/#slideflow.model.lazy_load_pretrained">[docs]</a><span class="k">def</span> <span class="nf">lazy_load_pretrained</span><span class="p">(</span>
     <span class="n">module</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
     <span class="n">to_load</span><span class="p">:</span> <span class="nb">str</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -2969,16 +2970,16 @@
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -2986,11 +2987,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -3000,26 +3001,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
          <script src="../../../../_static/doctools.js"></script>
          <script src="../../../../_static/sphinx_highlight.js"></script>
-     
 
-  
+
+
   <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -3030,7 +3031,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 
@@ -3060,7 +3061,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

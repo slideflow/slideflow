@@ -63,6 +63,10 @@ class MismatchedSlideNamesError(DatasetError):
     pass
 
 
+class IncompatibleTileSizeError(DatasetError):
+    pass
+
+
 # --- Mosaic & Heatmap Errors -------------------------------------------------
 class HeatmapError(Exception):
     pass
@@ -78,11 +82,6 @@ class CoordinateAlignmentError(Exception):
 
 # --- Project errors ----------------------------------------------------------
 class ProjectError(Exception):
-    pass
-
-
-# --- CLAM errors -------------------------------------------------------------
-class CLAMError(Exception):
     pass
 
 

@@ -64,9 +64,9 @@ class SlideViewer(Viewer):
         wsi_ratio = self.dimensions[0] / self.dimensions[1]
         max_w, max_h = self.width, self.height
         if wsi_ratio < self.width / self.height:
-            max_w = int(wsi_ratio * max_h)
+            max_w = int(np.round(wsi_ratio * max_h))
         else:
-            max_h = int(max_w / wsi_ratio)
+            max_h = int(np.round(max_w / wsi_ratio))
         self.view_zoom = max(self.dimensions[0] / max_w,
                              self.dimensions[1] / max_h)
         self.view_params = self._calculate_view_params()
@@ -75,7 +75,10 @@ class SlideViewer(Viewer):
 
         # Calculate scales
         self._um_steps = (1000, 500, 400, 250, 200, 100, 50, 30, 20, 10, 5, 3, 2, 1)
-        max_scale_w = (120 * self.viz.pixel_ratio)
+        if self.viz is not None:
+            max_scale_w = (120 * self.viz.pixel_ratio)
+        else:
+            max_scale_w = 120
         self._mpp_cutoffs = np.array([um / max_scale_w for um in self._um_steps])
 
     @property
@@ -180,6 +183,8 @@ class SlideViewer(Viewer):
         )
 
     def _draw_scale(self, max_w: int, max_h: int):
+        if self.viz is None:
+            return
 
         r = max(self.viz.pixel_ratio, 1)
         origin_x = self.x_offset + (30 * r)
@@ -204,6 +209,9 @@ class SlideViewer(Viewer):
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
     def _draw_thumbnail(self):
+        if self.viz is None:
+            return
+
         viz = self.viz
 
         width = viz.font_size * self.thumb_max_width
@@ -688,6 +696,18 @@ class SlideViewer(Viewer):
         img_format: Optional[str] = None,
         allow_errors: bool = True
     ) -> np.ndarray:
+        """Read a tile from the slide.
+
+        Args:
+            x (int): X-coordinate of the tile (top-left).
+            y (int): Y-coordinate of the tile (top-left).
+
+        Keyword Args:
+            img_format (str, optional): Format to return the image in. If None,
+                returns as PNG. Options are 'jpg', 'jpeg', 'png'.
+            allow_errors (bool, optional): Whether to allow errors when reading
+                tiles outside of the slide bounds.
+        """
 
         # Determine destination format
         if img_format and img_format.lower() not in ('jpg', 'jpeg', 'png'):
@@ -838,7 +858,15 @@ class SlideViewer(Viewer):
             raise NotImplementedError
 
     def update(self, width: int, height: int, x_offset: int, y_offset: int, **kwargs) -> None:
-        """Update the viewer with a new width, height, and offset."""
+        """Update the viewer with a new width, height, and offset.
+
+        Args:
+            width (int): New width of the viewer.
+            height (int): New height of the viewer.
+            x_offset (int): New X offset of the viewer.
+            y_offset (int): New Y offset of the viewer.
+
+        """
         should_refresh = ((width, height, x_offset, y_offset)
                           != (self.width, self.height, self.x_offset, self.y_offset))
         if should_refresh:
@@ -849,15 +877,14 @@ class SlideViewer(Viewer):
         self.y_offset = y_offset
 
         # Update current zoom (affected by window resizing)
-        #self.view_zoom = self.wsi_window_size[0] / self.width
         wsi_width = self.wsi_window_size[0]  # self.dimensions[0]
         wsi_height = self.wsi_window_size[1]  # self.dimensions[1]
         wsi_ratio = wsi_width / wsi_height
         max_w, max_h = self.width, self.height
         if wsi_ratio < self.width / self.height:
-            max_w = int(wsi_ratio * max_h)
+            max_w = int(np.round(wsi_ratio * max_h))
         else:
-            max_h = int(max_w / wsi_ratio)
+            max_h = int(np.round(max_w / wsi_ratio))
         self.view_zoom = max(wsi_width / max_w,
                              wsi_height / max_h)
 

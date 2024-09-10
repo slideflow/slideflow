@@ -115,11 +115,12 @@ import slideflow as sf
 from slideflow import errors
 from slideflow.slide import WSI, ExtractionReport, SlideReport
 from slideflow.util import (log, Labels, _shortname, path_to_name,
-                            tfrecord2idx, TileExtractionProgress)
+                            tfrecord2idx, TileExtractionProgress, MultiprocessProgress)
 
 if TYPE_CHECKING:
     import tensorflow as tf
     import cellpose
+    from slideflow.model import BaseFeatureExtractor
     from slideflow.model import ModelParams
     from torch.utils.data import DataLoader
     from slideflow.norm import StainNormalizer
@@ -185,7 +186,7 @@ def _handle_slide_errors(path: str):
     except (KeyboardInterrupt, SystemExit) as e:
         print('Exiting...')
         raise e
-    
+
 
 def _tile_extractor(
     path: str,
@@ -228,7 +229,7 @@ def _tile_extractor(
             if render_thumb and isinstance(report, SlideReport):
                 _ = report.thumb
             reports.update({path: report})
-    
+
 
 def _buffer_slide(path: str, dest: str) -> str:
     """Buffer a slide to a path."""
@@ -628,10 +629,7 @@ class Dataset:
             )
         # Create labels for each source based on tile size
         if (tile_px is not None) and (tile_um is not None):
-            if isinstance(tile_um, str):
-                label = f"{tile_px}px_{tile_um.lower()}"
-            else:
-                label = f"{tile_px}px_{tile_um}um"
+            label = sf.util.tile_size_label(tile_px, tile_um)
         else:
             label = None
         for source in self.sources:
@@ -966,15 +964,26 @@ class Dataset:
             }
         return ret
 
-    def build_index(self, force: bool = True) -> None:
+    def build_index(
+        self,
+        force: bool = True,
+        *,
+        num_workers: Optional[int] = None
+    ) -> None:
         """Build index files for TFRecords.
 
         Args:
             force (bool): Force re-build existing indices.
 
+        Keyword args:
+            num_workers (int, optional): Number of workers to use for
+                building indices. Defaults to num_cpus, up to maximum of 16.
+
         Returns:
             None
         """
+        if num_workers is None:
+            num_workers = min(sf.util.num_cpu(), 16)
         if force:
             index_to_update = self.tfrecords()
             # Remove existing indices
@@ -994,17 +1003,25 @@ class Dataset:
                     index_to_update.append(tfr)
             if not index_to_update:
                 return
-
-        index_fn = partial(_create_index, force=force)
-        pool = mp.Pool(
-            sf.util.num_cpu(),
-            initializer=sf.util.set_ignore_sigint
-        )
-        for _ in track(pool.imap_unordered(index_fn, index_to_update),
-                       description=f'Updating index files...',
-                       total=len(index_to_update),
-                       transient=True):
-            pass
+        if num_workers == 0:
+            # Single thread.
+            for tfr in track(index_to_update,
+                             description=f'Updating index files...',
+                             total=len(index_to_update),
+                             transient=True):
+                _create_index(tfr, force=force)
+        else:
+            # Multiprocessing.
+            index_fn = partial(_create_index, force=force)
+            pool = mp.Pool(
+                sf.util.num_cpu(),
+                initializer=sf.util.set_ignore_sigint
+            )
+            for _ in track(pool.imap_unordered(index_fn, index_to_update),
+                        description=f'Updating index files...',
+                        total=len(index_to_update),
+                        transient=True):
+                pass
         pool.close()
 
     def cell_segmentation(
@@ -1496,6 +1513,8 @@ class Dataset:
         qc: Optional[Union[str, Callable, List[Callable]]] = None,
         report: bool = True,
         use_edge_tiles: bool = False,
+        artifact_labels: Optional[Union[List[str], str]] = list(),
+        mpp_override: Optional[float] = None,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
         r"""Extract tiles from a group of slides.
@@ -1605,6 +1624,14 @@ class Dataset:
                 Defaults to None.
             use_edge_tiles (bool): Use edge tiles in extraction. Areas
                 outside the slide will be padded white. Defaults to False.
+            artifact_labels (list(str) or str, optional): List of ROI issue labels
+                to treat as artifacts. Whenever this is not None, all the ROIs with
+                referred label will be inverted with ROI.invert().
+                Defaults to an empty list.
+            mpp_override (float, optional): Override the microns-per-pixel
+                for each slide. If None, will auto-detect microns-per-pixel
+                for all slides and raise an error if MPP is not found.
+                Defaults to None.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
@@ -1625,6 +1652,9 @@ class Dataset:
             sources = list(self.sources.keys())
         all_reports = []
         self.verify_annotations_slides()
+
+        if isinstance(artifact_labels, str):
+            artifact_labels = [artifact_labels]
 
         # Log the active slide reading backend
         col = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
@@ -1732,7 +1762,7 @@ class Dataset:
                     progress_type="speed",
                     total=None)
                 slide_task = pb.add_task(
-                    "Extracting...",
+                    f"Extracting ({source})...",
                     progress_type="slide_progress",
                     total=len(slide_list))
 
@@ -1746,7 +1776,9 @@ class Dataset:
                     'roi_filter_method': roi_filter_method,
                     'origin': 'random' if randomize_origin else (0, 0),
                     'pb': pb,
-                    'use_edge_tiles': use_edge_tiles
+                    'use_edge_tiles': use_edge_tiles,
+                    'artifact_labels': artifact_labels,
+                    'mpp': mpp_override
                 }
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,
@@ -2059,6 +2091,195 @@ class Dataset:
         else:
             return matching[0]
 
+    def generate_feature_bags(
+        self,
+        model: Union[str, "BaseFeatureExtractor"],
+        outdir: str,
+        *,
+        force_regenerate: bool = False,
+        batch_size: int = 32,
+        slide_batch_size: int = 16,
+        num_gpus: int = 0,
+        **kwargs: Any
+    ) -> None:
+        """Generate bags of tile-level features for slides for use with MIL models.
+
+        Args:
+            model (str): Path to model from which to generate activations.
+                May provide either this or "pt_files"
+            outdir (str, optional): Save exported activations in .pt format.
+
+        Keyword Args:
+            layers (list): Which model layer(s) generate activations.
+                If ``model`` is a saved model, this defaults to 'postconv'.
+                Not used if ``model`` is pretrained feature extractor.
+                Defaults to None.
+            force_regenerate (bool): Forcibly regenerate activations
+                for all slides even if .pt file exists. Defaults to False.
+            batch_size (int): Batch size during feature calculation.
+                Defaults to 32.
+            slide_batch_size (int): Interleave feature calculation across
+                this many slides. Higher values may improve performance
+                but require more memory. Defaults to 16.
+            num_gpus (int): Number of GPUs to use for feature extraction.
+                Defaults to 0.
+            **kwargs: Additional keyword arguments are passed to
+                :class:`slideflow.DatasetFeatures`.
+
+        """
+        if not sf.util.torch_available:
+            raise RuntimeError(
+                "Pytorch is required for generating feature bags. "
+                "Please install Pytorch and try again."
+            )
+
+        # Interpret model argument.
+        if isinstance(model, str) and sf.model.is_extractor(model):
+            # Model is a architecture name (for Imagenet pretrained model)
+            log.info(f"Building feature extractor: [green]{model}[/]")
+            layer_kw = dict(layers=kwargs['layers']) if 'layers' in kwargs else dict()
+            model = sf.build_feature_extractor(model, **layer_kw)
+
+        elif isinstance(model, str) and exists(model):
+            # Model is a path to a trained slideflow model
+            log.info(f"Using model: [green]{model}[/]")
+
+        elif isinstance(model, str) and not exists(model):
+            # Model is a string but not a path to a saved model
+            raise ValueError(
+                f"'{model}' is neither a path to a saved model nor the name "
+                "of a valid feature extractor (use sf.model.list_extractors() "
+                "for a list of all available feature extractors).")
+
+        elif not isinstance(model, str):
+            # Model is a feature extractor object
+            from slideflow.model.base import BaseFeatureExtractor
+            if not isinstance(model, BaseFeatureExtractor):
+                raise ValueError(
+                    f"'{model}' is neither a path to a saved model nor the name "
+                    "of a valid feature extractor (use sf.model.list_extractors() "
+                    "for a list of all available feature extractors).")
+            log.info(f"Using feature extractor: [green]{model.tag}[/]")
+
+        # Create the pt_files directory
+        if not exists(outdir):
+            os.makedirs(outdir)
+
+        # Detect already generated pt files
+        done = [
+            path_to_name(f) for f in os.listdir(outdir)
+            if sf.util.path_to_ext(join(outdir, f)) == 'pt'
+        ]
+
+        # Work from this dataset.
+        dataset = self
+
+        if not force_regenerate and len(done):
+            all_slides = dataset.slides()
+            slides_to_generate = [s for s in all_slides if s not in done]
+            if len(slides_to_generate) != len(all_slides):
+                to_skip = len(all_slides) - len(slides_to_generate)
+                skip_p = f'{to_skip}/{len(all_slides)}'
+                log.info(f"Skipping {skip_p} finished slides.")
+            if not slides_to_generate:
+                log.warn("No slides for which to generate features.")
+                return outdir
+            dataset = dataset.filter(filters={'slide': slides_to_generate})
+            filtered_slides_to_generate = dataset.slides()
+            log.info(f'Working on {len(filtered_slides_to_generate)} slides')
+
+        # Verify TFRecords are available
+        n_tfrecords = len(dataset.tfrecords())
+        n_slides = len(dataset.slides())
+        if not n_tfrecords:
+            log.warning("Unable to generate features; no TFRecords found.")
+            return outdir
+        elif n_tfrecords < n_slides:
+            log.warning("{} tfrecords missing.".format(n_slides - n_tfrecords))
+
+        # Rebuild any missing index files.
+        # Must be done before the progress bar is started.
+        dataset.build_index(False)
+
+        # Set up progress bar.
+        pb = sf.util.FeatureExtractionProgress()
+        pb.add_task(
+            "Speed: ",
+            progress_type="speed",
+            total=self.num_tiles
+        )
+        slide_task = pb.add_task(
+            "Generating...",
+            progress_type="slide_progress",
+            total=n_slides
+        )
+        pb.start()
+
+        # Prepare keyword arguments.
+        dts_kwargs = dict(
+            include_preds=False,
+            include_uncertainty=False,
+            batch_size=batch_size,
+            verbose=False,
+            progress=False,
+            **kwargs
+        )
+
+        # Set up activations interface.
+        # Calculate features one slide at a time to reduce memory consumption.
+        with sf.util.cleanup_progress(pb):
+            if not num_gpus > 1:
+                sf.model.features._export_bags(
+                    model,
+                    dataset,
+                    slides=dataset.slides(),
+                    slide_batch_size=slide_batch_size,
+                    pb=pb,
+                    outdir=outdir,
+                    slide_task=slide_task,
+                    **dts_kwargs
+                )
+
+            else:
+                if not hasattr(model, 'dump_config'):
+                    raise ValueError(
+                        "Feature extraction with multiple GPUs is only "
+                        "supported for feature extractors with a dump_config() "
+                        "attribute. Please set num_gpus=1 or use a different "
+                        "feature extractor."
+                    )
+                import torch
+                model_cfg = sf.model.extractors.extractor_to_config(model)
+
+                # Mixed precision and channels_last config
+                if hasattr(model, "mixed_precision"):
+                    mixed_precision = model.mixed_precision
+                else:
+                    mixed_precision = None
+                if hasattr(model, "channels_last"):
+                    channels_last = model.channels_last
+                else:
+                    channels_last = None
+
+                with MultiprocessProgress(pb) as mp_pb:
+                    torch.multiprocessing.spawn(
+                        sf.model.features._distributed_export,
+                        args=(
+                            model_cfg,
+                            dataset,
+                            [n.tolist() for n in np.array_split(dataset.slides(),
+                                                                num_gpus)],
+                            slide_batch_size,
+                            mp_pb.tracker,
+                            outdir,
+                            slide_task,
+                            dts_kwargs,
+                            mixed_precision,
+                            channels_last
+                        ),
+                        nprocs=num_gpus
+                    )
+
     def generate_rois(
         self,
         model: str,
@@ -2109,15 +2330,19 @@ class Dataset:
                     continue
 
             # Load the slide and remove any existing auto-loaded ROIs.
-            wsi = sf.WSI(slide, 299, 512, verbose=False)
-            wsi.rois = []
+            log.info("Working on {}...".format(slide))
+            try:
+                wsi = sf.WSI(slide, 299, 512, verbose=False)
+                wsi.rois = []
 
-            # Generate and apply ROIs.
-            segment.generate_rois(wsi, apply=True, **kwargs)
+                # Generate and apply ROIs.
+                segment.generate_rois(wsi, apply=True, **kwargs)
+            except Exception as e:
+                log.error(f"Failed to generate ROIs for {slide}: {e}")
+                continue
 
             # Export ROIs to CSV.
             wsi.export_rois(join(dest, wsi.name + '.csv'))
-
 
     def get_slide_source(self, slide: str) -> str:
         """Return the source of a given slide.
@@ -2299,7 +2524,7 @@ class Dataset:
             A tuple containing
 
                 **dict**: Dictionary mapping slides to outcome labels in
-                numerical format (float for linear outcomes, int of outcome
+                numerical format (float for continuous outcomes, int of outcome
                 label id for categorical outcomes).
 
                 **list**: List of unique labels. For categorical outcomes,
@@ -2578,7 +2803,15 @@ class Dataset:
                     result[slide] = patient
         return result
 
-    def pt_files(self, path, warn_missing=True):
+    def pt_files(self, *args, **kwargs):
+        """Deprecated function. Please use `Dataset.get_bags()`."""
+        warnings.warn(
+            "pt_files() is deprecated. Please use Dataset.get_bags()",
+            DeprecationWarning
+        )
+        return self.get_bags(*args, **kwargs)
+
+    def get_bags(self, path, warn_missing=True):
         """Return list of all \*.pt files with slide names in this dataset.
 
         May return more than one \*.pt file for each slide.
@@ -2914,8 +3147,8 @@ class Dataset:
         directory so future models may use the same split for consistency.
 
         Args:
-            model_type (str): Either 'categorical' or 'linear'. Defaults
-                to 'categorical' if ``labels`` is provided.
+            model_type (str): Either 'classification' or 'regression'. Defaults
+                to 'classification' if ``labels`` is provided.
             labels (dict or str):  Either a dictionary of slides: labels,
                 or an outcome label (``str``). Used for balancing outcome
                 labels in training and validation cohorts. Defaults to None.
@@ -2974,9 +3207,26 @@ class Dataset:
             labels = self.labels(labels)[0]
         if labels is None and model_type is None:
             labels = self.patients()
-            model_type = 'linear'
+            model_type = 'regression'
         elif model_type is None:
-            model_type = 'categorical'
+            model_type = 'classification'
+        if model_type == 'categorical':
+            warnings.warn(
+                "model_type='categorical' is deprecated. Please use "
+                "'classification' instead."
+            )
+            model_type = 'classification'
+        if model_type == 'linear':
+            warnings.warn(
+                "model_type='linear' is deprecated. Please use "
+                "'regression' instead."
+            )
+            model_type = 'regression'
+        if model_type not in ('classification', 'regression'):
+            raise ValueError(
+                f"Invalid model_type {model_type}; must be either "
+                "'classification' or 'regression'"
+            )
 
         # Prepare dataset
         patients = self.patients()
@@ -3146,10 +3396,10 @@ class Dataset:
                             patients_dict,
                             val_k_fold,
                             balance=('outcome_label'
-                                     if model_type == 'categorical'
+                                     if model_type == 'classification'
                                      else None)
                         )
-                    elif model_type == 'categorical':
+                    elif model_type == 'classification':
                         k_fold_patients = split_patients_balanced(
                             patients_dict,
                             val_k_fold,
@@ -3577,7 +3827,7 @@ class Dataset:
         self,
         tfrecord: Union[str, List[str]],
         tile_dict: Dict[int, float],
-        outdir: str,
+        filename: str,
         **kwargs
     ) -> None:
         """Create a tfrecord-based WSI heatmap.
@@ -3589,7 +3839,7 @@ class Dataset:
             tfrecord (str or list(str)): Path(s) to tfrecord(s).
             tile_dict (dict): Dictionary mapping tfrecord indices to a
                 tile-level value for display in heatmap format
-            outdir (str): Path to destination directory.
+            filename (str): Destination filename for heatmap.
 
         """
         slide_paths = {
@@ -3609,7 +3859,7 @@ class Dataset:
                 tile_px=self.tile_px,
                 tile_um=self.tile_um,
                 tile_dict=tile_dict,
-                outdir=outdir,
+                filename=filename,
                 **kwargs
             )
 
@@ -3888,8 +4138,8 @@ class Dataset:
         Args:
             labels (dict, str, or pd.DataFrame, optional): If a dict is provided,
                 expect a dict mapping slide names to outcome labels. If a str,
-                will intepret as categorical annotation header. For linear
-                outcomes, or outcomes with manually assigned labels, pass the
+                will intepret as categorical annotation header. For regression
+                tasks, or outcomes with manually assigned labels, pass the
                 first result of dataset.labels(...). If None, returns slide
                 instead of label.
             batch_size (int): Batch size.
@@ -3924,7 +4174,7 @@ class Dataset:
             max_size (bool, optional): Unused argument present for legacy
                 compatibility; will be removed.
             model_type (str, optional): Used to generate random labels
-                (for StyleGAN2). Not required. Defaults to 'categorical'.
+                (for StyleGAN2). Not required. Defaults to 'classification'.
             num_replicas (int, optional): Number of GPUs or unique instances which
                 will have their own DataLoader. Used to interleave results among
                 workers without duplications. Defaults to 1.

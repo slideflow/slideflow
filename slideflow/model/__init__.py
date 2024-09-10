@@ -21,12 +21,12 @@ from .extractors import (
 # --- Backend-specific imports ------------------------------------------------
 
 if sf.backend() == 'tensorflow':
-    from slideflow.model.tensorflow import (CPHTrainer, Features, load, # noqa F401
-                                            LinearTrainer, ModelParams,
+    from slideflow.model.tensorflow import (SurvivalTrainer, Features, load, # noqa F401
+                                            RegressionTrainer, ModelParams,
                                             Trainer, UncertaintyInterface)
 elif sf.backend() == 'torch':
-    from slideflow.model.torch import (CPHTrainer, Features, load, # noqa F401
-                                       LinearTrainer, ModelParams,
+    from slideflow.model.torch import (SurvivalTrainer, Features, load, # noqa F401
+                                       RegressionTrainer, ModelParams,
                                        Trainer, UncertaintyInterface)
 else:
     raise errors.UnrecognizedBackendError
@@ -132,13 +132,16 @@ def build_trainer(
                 may improve compatibility across hardware & environments.
         custom_objects (dict, Optional): Dictionary mapping names
                 (strings) to custom classes or functions. Defaults to None.
+        num_workers (int): Number of dataloader workers. Only used for PyTorch.
+                Defaults to 4.
+
     """
-    if hp.model_type() == 'categorical':
+    if hp.model_type() == 'classification':
         return Trainer(hp, outdir, labels, **kwargs)
-    if hp.model_type() == 'linear':
-        return LinearTrainer(hp, outdir, labels, **kwargs)
-    if hp.model_type() == 'cph':
-        return CPHTrainer(hp, outdir, labels, **kwargs)
+    if hp.model_type() == 'regression':
+        return RegressionTrainer(hp, outdir, labels, **kwargs)
+    if hp.model_type() == 'survival':
+        return SurvivalTrainer(hp, outdir, labels, **kwargs)
     else:
         raise ValueError(f"Unknown model type: {hp.model_type()}")
 

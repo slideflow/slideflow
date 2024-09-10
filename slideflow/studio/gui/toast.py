@@ -124,7 +124,7 @@ class Toast:
 
         imgui.set_next_window_position(
             viz.content_width - (self.width + padding),
-            viz.content_height - height_offset,
+            viz.content_height - height_offset - viz.status_bar_height,
         )
         imgui.set_next_window_size(self.width, 0)
         imgui.begin(

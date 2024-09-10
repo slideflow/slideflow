@@ -54,7 +54,8 @@ except Exception:
 # --- Global vars -------------------------------------------------------------
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png']
+                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg', 'png',
+                     'ome.tif', 'ome.tiff']
 EMPTY = ['', ' ', None, np.nan]
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
@@ -142,7 +143,13 @@ def addLoggingFileHandler(path):
 
 # Add tqdm-friendly stream handler
 #ch = log_utils.TqdmLoggingHandler()
-ch = RichHandler(markup=True, log_time_format="[%X]", show_path=False, highlighter=NullHighlighter(), rich_tracebacks=True)
+ch = RichHandler(
+    markup=True,
+    log_time_format="[%X]",
+    show_path=False,
+    highlighter=NullHighlighter(),
+    rich_tracebacks=True
+)
 ch.setFormatter(log_utils.LogFormatter())
 if 'SF_LOGGING_LEVEL' in os.environ:
     try:
@@ -172,6 +179,24 @@ class TileExtractionSpeedColumn(progress.ProgressColumn):
         data_speed = f'{int(speed)} img'
         return progress.Text(f"{data_speed}/s", style="progress.data.speed")
 
+
+class LabeledMofNCompleteColumn(progress.MofNCompleteColumn):
+    """Renders a completion column with labels."""
+
+    def __init__(self, unit: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.unit = unit
+
+    def render(self, task: "progress.Task") -> progress.Text:
+        """Show completion status with labels."""
+        if task.total is None:
+            return progress.Text("?", style="progress.spinner")
+        return progress.Text(
+            f"{task.completed}/{task.total} {self.unit}",
+            style="progress.spinner"
+        )
+
+
 class ImgBatchSpeedColumn(progress.ProgressColumn):
     """Renders human readable transfer speed."""
 
@@ -194,7 +219,8 @@ class TileExtractionProgress(Progress):
             if task.fields.get("progress_type") == 'speed':
                 self.columns = (
                     TextColumn("[progress.description]{task.description}"),
-                    TileExtractionSpeedColumn(),)
+                    TileExtractionSpeedColumn()
+                )
             if task.fields.get("progress_type") == 'slide_progress':
                 self.columns = (
                     TextColumn("[progress.description]{task.description}"),
@@ -203,6 +229,27 @@ class TileExtractionProgress(Progress):
                     progress.MofNCompleteColumn(),
                     "●",
                     progress.TimeRemainingColumn(),
+                )
+            yield self.make_tasks_table([task])
+
+
+class FeatureExtractionProgress(Progress):
+    def get_renderables(self):
+        for task in self.tasks:
+            if task.fields.get("progress_type") == 'speed':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    TileExtractionSpeedColumn(),
+                    LabeledMofNCompleteColumn('tiles'),
+                    "●",
+                    progress.TimeRemainingColumn(),
+                )
+            if task.fields.get("progress_type") == 'slide_progress':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    progress.TaskProgressColumn(),
+                    LabeledMofNCompleteColumn('slides')
                 )
             yield self.make_tasks_table([task])
 
@@ -263,8 +310,8 @@ def about(console=None) -> None:
         >>> sf.about()
         ╭=======================╮
         │       Slideflow       │
-        │    Version: 2.1.0     │
-        │  Backend: tensorflow  │
+        │    Version: 3.0.0     │
+        │  Backend: torch       │
         │ Slide Backend: cucim  │
         │ https://slideflow.dev │
         ╰=======================╯
@@ -354,7 +401,7 @@ def get_gdc_manifest() -> pd.DataFrame:
     manifest = join(sf_cache, 'gdc_manifest.tsv')
     if not exists(manifest):
         tar = 'gdc_manifest.tar.xz'
-        r = requests.get(f'https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/datasets/{tar}')
+        r = requests.get(f'https://raw.githubusercontent.com/slideflow/slideflow/1.4.0/datasets/{tar}')
         open(join(sf_cache, tar), 'wb').write(r.content)
         tarfile.open(join(sf_cache, tar)).extractall(sf_cache)
         os.remove(join(sf_cache, tar))
@@ -569,6 +616,81 @@ def to_mag(arg1: str) -> Union[int, float]:
         return float(arg1.lower().split('x')[0])
 
 
+def is_tile_size_compatible(
+    tile_px1: int,
+    tile_um1: Union[str, int],
+    tile_px2: int,
+    tile_um2: Union[str, int]
+) -> bool:
+    """Check whether tile sizes are compatible.
+
+    Compatibility is defined as:
+        - Equal size in pixels
+        - If tile width (tile_um) is defined in microns (int) for both, these must be equal
+        - If tile width (tile_um) is defined as a magnification (str) for both, these must be equal
+        - If one is defined in microns and the other as a magnification, the calculated magnification must be +/- 2.
+
+    Example 1:
+    - tile_px1=299, tile_um1=302
+    - tile_px2=299, tile_um2=304
+    - Incompatible (unequal micron width)
+
+    Example 2:
+    - tile_px1=299, tile_um1=10x
+    - tile_px2=299, tile_um2=9x
+    - Incompatible (unequal magnification)
+
+    Example 3:
+    - tile_px1=299, tile_um1=302
+    - tile_px2=299, tile_um2=10x
+    - Compatible (first has an equivalent magnification of 9.9x, which is +/- 2 compared to 10x)
+
+
+    Args:
+        tile_px1 (int): Tile size (in pixels) of first slide.
+        tile_um1 (int or str): Tile size (in microns) of first slide.
+            Can also be expressed as a magnification level, e.g. ``'10x'``
+        tile_px2 (int): Tile size (in pixels) of second slide.
+        tile_um2 (int or str): Tile size (in microns) of second slide.
+            Can also be expressed as a magnification level, e.g. ``'10x'``
+
+    Returns:
+        bool: Whether the tile sizes are compatible.
+
+    """
+    # Type checks
+    if not isinstance(tile_px1, int):
+        raise ValueError("Expected tile_px1 to be an int, got: {}".format(type(tile_px1)))
+    if not isinstance(tile_um1, (str, int)):
+        raise ValueError("Expected tile_um1 to be a str or int, got: {}".format(type(tile_um1)))
+    if not isinstance(tile_px2, int):
+        raise ValueError("Expected tile_px2 to be an int, got: {}".format(type(tile_px2)))
+    if not isinstance(tile_um2, (str, int)):
+        raise ValueError("Expected tile_um2 to be a str or int, got: {}".format(type(tile_um2)))
+
+    # Enforce equivalent pixel size
+    if tile_px1 != tile_px2:
+        return False
+    # If both are defined as a magnification, check if these are equal
+    if isinstance(tile_um1, str) and isinstance(tile_um2, str):
+        return tile_um1 == tile_um2
+    # If both are defined in microns, check if these are equal
+    if isinstance(tile_um1, int) and isinstance(tile_um2, int):
+        return tile_um1 == tile_um2
+    # If one is defined in microns and the other as magnification,
+    # check if they are compatible.
+    if isinstance(tile_um1, str) and isinstance(tile_um2, int):
+        mag2 = 10 / (tile_um2 / tile_px2)
+        return abs(mag2 - to_mag(tile_um1)) <= 2
+    if isinstance(tile_um1, int) and isinstance(tile_um2, str):
+        mag1 = 10 / (tile_um1 / tile_px1)
+        return abs(mag1 - to_mag(tile_um2)) <= 2
+    else:
+        raise ValueError("Error assessing tile size compatibility between px={}, um={} and px={}, um={}".format(
+            tile_px1, tile_um1, tile_px2, tile_um2
+        ))
+
+
 def multi_warn(arr: List, compare: Callable, msg: Union[Callable, str]) -> int:
     """Logs multiple warning
 
@@ -733,10 +855,25 @@ def load_json(filename: str) -> Any:
         return json.load(data_file)
 
 
+class ValidJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return super().default(obj)
+        except TypeError:
+            return "<unknown>"
+
+
 def write_json(data: Any, filename: str) -> None:
-    """Write data to JSON file."""
+    """Write data to JSON file.
+
+    Args:
+        data (Any): Data to write.
+        filename (str): Path to JSON file.
+
+    """
+    # First, remove any invalid entries that are not serializable
     with open(filename, "w") as data_file:
-        json.dump(data, data_file, indent=1)
+        json.dump(data, data_file, indent=1, cls=ValidJSONEncoder)
 
 
 def log_manifest(
@@ -846,7 +983,9 @@ def get_gan_config(model_path: str) -> Dict:
 def get_model_config(model_path: str) -> Dict:
     """Loads model configuration JSON file."""
 
-    if exists(join(model_path, 'params.json')):
+    if model_path.endswith('params.json'):
+        config = load_json(model_path)
+    elif exists(join(model_path, 'params.json')):
         config = load_json(join(model_path, 'params.json'))
     elif exists(model_path) and exists(join(dirname(model_path), 'params.json')):
         if not (sf.util.torch_available
@@ -867,6 +1006,11 @@ def get_model_config(model_path: str) -> Dict:
     if 'outcome_label_headers' in config:
         log.debug("Replacing outcome_label_headers in params.json -> outcomes")
         config['outcomes'] = config.pop('outcome_label_headers')
+    # Compatibility for pre-3.0
+    if 'model_type' in config and config['model_type'] == 'categorical':
+        config['model_type'] = 'classification'
+    if 'model_type' in config and config['model_type'] == 'linear':
+        config['model_type'] = 'regression'
     return config
 
 
@@ -1015,20 +1159,26 @@ def contains_nested_subdirs(directory: str) -> bool:
 def path_to_name(path: str) -> str:
     '''Returns name of a file, without extension,
     from a given full path string.'''
-    _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    _file = os.path.basename(path)
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return _file
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[:-2])
     else:
-        return '.'.join(_file.split('.')[:-1])
+        return '.'.join(dot_split[:-1])
 
 
 def path_to_ext(path: str) -> str:
     '''Returns extension of a file path string.'''
-    _file = path.split('/')[-1]
-    if len(_file.split('.')) == 1:
+    _file = os.path.basename(path)
+    dot_split = _file.split('.')
+    if len(dot_split) == 1:
         return ''
+    elif len(dot_split) > 2 and '.'.join(dot_split[-2:]) in SUPPORTED_FORMATS:
+        return '.'.join(dot_split[-2:])
     else:
-        return _file.split('.')[-1]
+        return dot_split[-1]
 
 
 def update_results_log(
@@ -1248,13 +1398,13 @@ def location_heatmap(
     slide: str,
     tile_px: int,
     tile_um: Union[int, str],
-    outdir: str,
+    filename: str,
     *,
     interpolation: Optional[str] = 'bicubic',
     cmap: str = 'inferno',
     norm: Optional[str] = None,
     background: str = 'min'
-) -> Dict[str, Dict[str, float]]:
+) -> None:
     """Generate a heatmap for a slide.
 
     Args:
@@ -1266,7 +1416,7 @@ def location_heatmap(
         slide (str): Path to corresponding slide.
         tile_px (int): Tile pixel size.
         tile_um (int, str): Tile micron or magnification size.
-        outdir (str): Directory in which to save heatmap.
+        filename (str): Destination filename for heatmap.
 
     Keyword args:
         interpolation (str, optional): Interpolation strategy for smoothing
@@ -1278,12 +1428,19 @@ def location_heatmap(
             for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
+
     """
+    if not isinstance(values, np.ndarray):
+        raise ValueError(
+            "Error generating heatmap. 'values' should be a numpy array "
+            "with shape (n_tiles, )"
+        )
+    if (len(values.shape) > 1) and (values.shape[1] != 1):
+        raise ValueError(
+            "Error generating heatmap. Expected 'values' to have (n_tiles,) "
+            "but got shape {}".format(values.shape)
+        )
 
-    import matplotlib.pyplot as plt
-    import matplotlib.colors as mcol
-
-    slide_name = sf.util.path_to_name(slide)
     log.info(f'Generating heatmap for [green]{slide}[/]...')
     log.debug(f"Plotting {len(values)} values")
     wsi = sf.WSI(slide, tile_px, tile_um, verbose=False)
@@ -1300,13 +1457,6 @@ def location_heatmap(
         log.debug(f"Inferred stride: {stride}")
         wsi = sf.WSI(slide, tile_px, tile_um, stride_div=stride, verbose=False)
 
-    stats = {
-        slide_name: {
-            'mean': np.mean(values),
-            'median': np.median(values)
-        }
-    }
-
     try:
         masked_grid = map_values_to_slide_grid(
             locations, values, wsi, background=background, interpolation=interpolation
@@ -1319,47 +1469,47 @@ def location_heatmap(
             locations, values, wsi, background=background
         )
 
-    fig = plt.figure(figsize=(18, 16))
-    ax = fig.add_subplot(111)
-    fig.subplots_adjust(bottom=0.25, top=0.95)
-    gca = plt.gca()
-    gca.tick_params(
-        axis='x',
-        top=True,
-        labeltop=True,
-        bottom=False,
-        labelbottom=False
-    )
-    thumb = wsi.thumb(mpp=5)
-    ax.imshow(thumb, zorder=0)
-
-    # Calculate overlay offset
-    extent = sf.heatmap.calculate_heatmap_extent(wsi, thumb, masked_grid)
-
-    # Plot
-    if norm == 'two_slope':
-        norm = mcol.TwoSlopeNorm(
-            vmin=min(-0.01, min(values)),
-            vcenter=0,
-            vmax=max(0.01, max(values))
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcol
+    with matplotlib_backend('Agg'):
+        thumb = wsi.thumb(mpp=5)
+        fig = plt.figure(figsize=(18, 16))
+        ax = fig.add_subplot(111)
+        fig.subplots_adjust(bottom=0.25, top=0.95)
+        gca = plt.gca()
+        gca.tick_params(
+            axis='x',
+            top=True,
+            labeltop=True,
+            bottom=False,
+            labelbottom=False
         )
-    ax.imshow(
-        masked_grid,
-        zorder=10,
-        alpha=0.6,
-        extent=extent,
-        interpolation=interpolation,
-        cmap=cmap,
-        norm=norm
-    )
-    ax.set_xlim(0, thumb.size[0])
-    ax.set_ylim(thumb.size[1], 0)
-    log.debug('Saving figure...')
-    plt.savefig(join(outdir, f'{slide_name}_attn.png'), bbox_inches='tight')
-    plt.close(fig)
-    del wsi
-    del thumb
-    return stats
+        ax.imshow(thumb, zorder=0)
+
+        # Calculate overlay offset
+        extent = sf.heatmap.calculate_heatmap_extent(wsi, thumb, masked_grid)
+
+        # Plot
+        if norm == 'two_slope':
+            norm = mcol.TwoSlopeNorm(
+                vmin=min(-0.01, min(values)),
+                vcenter=0,
+                vmax=max(0.01, max(values))
+            )
+        ax.imshow(
+            masked_grid,
+            zorder=10,
+            alpha=0.6,
+            extent=extent,
+            interpolation=interpolation,
+            cmap=cmap,
+            norm=norm
+        )
+        ax.set_xlim(0, thumb.size[0])
+        ax.set_ylim(thumb.size[1], 0)
+        log.debug('Saving figure...')
+        plt.savefig(filename, bbox_inches='tight')
+        plt.close()
 
 
 def tfrecord_heatmap(
@@ -1368,9 +1518,9 @@ def tfrecord_heatmap(
     tile_px: int,
     tile_um: Union[int, str],
     tile_dict: Dict[int, float],
-    outdir: str,
+    filename: str,
     **kwargs
-) -> Dict[str, Dict[str, float]]:
+) -> None:
     """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
     for heatmap display.
 
@@ -1382,11 +1532,8 @@ def tfrecord_heatmap(
         tile_px (int): Tile width in pixels.
         tile_um (int or str): Tile width in microns (int) or magnification
             (str, e.g. "20x").
-        outdir (str): Path to directory in which to save images.
+        filename (str): Destination filename for heatmap.
 
-    Returns:
-        Dictionary mapping slide names to dict of statistics
-        (mean, median)
     """
     locations = sf.io.get_locations_from_tfrecord(tfrecord)
     if len(tile_dict) != len(locations):
@@ -1401,9 +1548,17 @@ def tfrecord_heatmap(
         slide=slide,
         tile_px=tile_px,
         tile_um=tile_um,
-        outdir=outdir,
+        filename=filename,
         **kwargs
     )
+
+
+def tile_size_label(tile_px: int, tile_um: Union[str, int]) -> str:
+    """Return the string label of the given tile size."""
+    if isinstance(tile_um, str):
+        return f"{tile_px}px_{tile_um.lower()}"
+    else:
+        return f"{tile_px}px_{tile_um}um"
 
 
 def get_valid_model_dir(root: str) -> List:
@@ -1557,6 +1712,17 @@ def cleanup_progress(pb: Optional["Progress"]):
         if pb is not None:
             pb.refresh()
             pb.stop()
+
+
+@contextmanager
+def matplotlib_backend(backend):
+    import matplotlib
+    original_backend = matplotlib.get_backend()
+    try:
+        matplotlib.use(backend)
+        yield
+    finally:
+        matplotlib.use(original_backend)
 
 
 def create_triangles(vertices, hole_vertices=None, hole_points=None):

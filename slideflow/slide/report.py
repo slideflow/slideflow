@@ -182,12 +182,22 @@ class SlideReport:
             return None
 
     def calc_thumb(self) -> None:
-        wsi = sf.WSI(
-            self.path,
-            tile_px=self.tile_px,
-            tile_um=self.tile_um,
-            verbose=False
-        )
+        try:
+            wsi = sf.WSI(
+                self.path,
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
+                verbose=False,
+            )
+        except sf.errors.SlideMissingMPPError:
+            wsi = sf.WSI(
+                self.path,
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
+                verbose=False,
+                mpp=1   # Force MPP to 1 to add support for slides missing MPP.
+                        # The MPP does not need to be accurate for thumbnail generation.
+            )
         self._thumb = wsi.thumb(
             coords=self.thumb_coords,
             rois=self.has_rois,
@@ -199,7 +209,7 @@ class SlideReport:
 
     def _compress(self, img: bytes) -> bytes:
         with io.BytesIO() as output:
-            pil_img = Image.open(io.BytesIO(img))
+            pil_img = Image.open(io.BytesIO(img)).convert('RGB')
             if pil_img.height > 256:
                 pil_img = Image.fromarray(
                     cv2.resize(np.array(pil_img), [256, 256])
@@ -319,16 +329,18 @@ class ExtractionReport:
                 if b is not None and b > self.bb_threshold:
                     self.warn_txt += f'{slide},{b}\n'
 
-            if np.any(n_tiles) and self.num_tiles_chart(n_tiles):
-                with tempfile.NamedTemporaryFile(suffix='.png') as temp:
-                    plt.savefig(temp.name)
-                    pdf.image(temp.name, 107, pdf.y, w=50)
-                    plt.clf()
+            with sf.util.matplotlib_backend('Agg'):
+                if np.any(n_tiles) and self.num_tiles_chart(n_tiles):
+                    with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                        plt.savefig(temp.name)
+                        pdf.image(temp.name, 107, pdf.y, w=50)
+                        plt.close()
 
-            if np.any(bb) and self.blur_chart(bb):
-                with tempfile.NamedTemporaryFile(suffix='.png') as temp:
-                    plt.savefig(temp.name)
-                    pdf.image(temp.name, 155, pdf.y, w=50)
+                if np.any(bb) and self.blur_chart(bb):
+                    with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                        plt.savefig(temp.name)
+                        pdf.image(temp.name, 155, pdf.y, w=50)
+                        plt.close()
 
             # Bounding box
             pdf.set_x(20)
@@ -450,11 +462,12 @@ class ExtractionReport:
         import matplotlib.pyplot as plt
         import seaborn as sns
         if np.any(num_tiles):
-            plt.rc('font', size=14)
-            sns.histplot(num_tiles, bins=20)
-            plt.title('Number of tiles extracted')
-            plt.ylabel('Number of slides', fontsize=16, fontname='Arial')
-            plt.xlabel('Tiles extracted', fontsize=16, fontname='Arial')
+            with sf.util.matplotlib_backend('Agg'):
+                plt.rc('font', size=14)
+                sns.histplot(num_tiles, bins=20)
+                plt.title('Number of tiles extracted')
+                plt.ylabel('Number of slides', fontsize=16, fontname='Arial')
+                plt.xlabel('Tiles extracted', fontsize=16, fontname='Arial')
             return True
         else:
             return False
@@ -471,12 +484,14 @@ class ExtractionReport:
             with np.errstate(divide='ignore'):
                 log_b = np.log(blur_arr)
             log_b = log_b[np.isfinite(log_b)]
-            plt.rc('font', size=14)
-            sns.histplot(log_b, bins=20)
-            plt.title('Quality Control: Blur Burden'+warn_txt)
-            plt.ylabel('Count', fontsize=16, fontname='Arial')
-            plt.xlabel('log(blur burden)', fontsize=16, fontname='Arial')
-            plt.axvline(x=-3, color='r', linestyle='--')
+
+            with sf.util.matplotlib_backend('Agg'):
+                plt.rc('font', size=14)
+                sns.histplot(log_b, bins=20)
+                plt.title('Quality Control: Blur Burden'+warn_txt)
+                plt.ylabel('Count', fontsize=16, fontname='Arial')
+                plt.xlabel('log(blur burden)', fontsize=16, fontname='Arial')
+                plt.axvline(x=-3, color='r', linestyle='--')
             return True
         else:
             return False

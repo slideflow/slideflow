@@ -240,7 +240,6 @@ Deployment in Studio
 --------------------
 
 .. video:: tissue_seg.mp4
-    :width: 100%
     :autoplay:
 
 |

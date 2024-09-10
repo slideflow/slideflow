@@ -9,12 +9,7 @@ from os.path import join, dirname, exists
 from slideflow import log, errors
 from slideflow.util import log, path_to_name
 
-from ._params import (
-    _TrainerConfig
-)
-from .models.mil_fc import MIL_fc, MIL_fc_mc
-from .models.att_mil import Attention_MIL
-from .models.transmil import TransMIL
+from ._params import TrainerConfig
 from .utils import load_model_weights
 
 # -----------------------------------------------------------------------------
@@ -31,7 +26,7 @@ class MILFeatures:
         bags: Union[np.ndarray, List[str], str],
         *,
         slides: Optional[list] = None,
-        config: Optional[_TrainerConfig] = None,
+        config: Optional[TrainerConfig] = None,
         dataset: Optional["sf.Dataset"] = None,
         attention_pooling: Optional[str] = 'avg',
         device: Optional[Any] = None
@@ -72,7 +67,13 @@ class MILFeatures:
         # --- Prepare model ---------------------------------------------------
         if model is not None:
             # Load or build the model.
-            self.model, self.use_lens = self._load_model(model, config)
+            if isinstance(model, str):
+                self.model, self.config = load_model_weights(model, config)
+            elif config is None:
+                raise ValueError("Model config required for model initialization when a torch Module is provided as a model.")
+            else:
+                self.model = model
+                self.config = config
             self.set_device(device)
             self.model.to(self.device)  # type: ignore
 
@@ -92,7 +93,7 @@ class MILFeatures:
             self.locations = self._get_bag_locations(bags)  # type: ignore
         else:
             self.model = None  # type: ignore
-            self.use_lens = None  # type: ignore
+            self.config = None
             self.device = None
             self.num_features = None
             self.predictions = None
@@ -119,7 +120,7 @@ class MILFeatures:
 
         """
         if isinstance(bags, str) and dataset is not None:
-            return dataset.pt_files(bags)
+            return dataset.get_bags(bags)
         elif isinstance(bags, str) and slides:
             return np.array([
                 join(bags, f) for f in os.listdir(bags)
@@ -162,49 +163,14 @@ class MILFeatures:
             locations[slide] = np.load(bag_index)['arr_0']
         return locations
 
-    def _load_model(
-        self,
-        model: Union[str, "torch.nn.Module"],
-        config: Optional[_TrainerConfig]
-    ) -> Tuple[Callable, bool]:
-        """Loads in model from Callable or path to model weights and config.
-
-        Returns model and use_lens spec for generating model args in
-        _get_mil_activations.
-
-        Args:
-            model (str): Path to model from which to calculate activations.
-            config (:class:`TrainerConfig`): Trainer for MIL model,
-
-        Returns:
-            model (Callable): Model from which to calculate activations.
-            use_lens (bool): Spec used for generating model args in
-                _get_mil_activations.
-
-        """
-        if isinstance(model, str):
-            model, config = load_model_weights(model, config)
-            if isinstance(model, Attention_MIL) or isinstance(model, TransMIL):
-                use_lens = config.model_config.use_lens
-            else:
-                use_lens = False
-        else:
-            use_lens = isinstance(model, Attention_MIL)
-        return model, use_lens  # type: ignore
-
     def _get_mil_activations(self, bags: Union[np.ndarray, List[str]]):
         """Loads in model from Callable and calculates predictions,
         attentions, and activations weights.
 
         Args:
-            model (Callable): Model from which to calculate activations.
             bags (list): List of feature bags,
-            attention_pooling (str): pooling strategy for MIL model layers,
-            use_lens (bool): Spec used for generating model args in
-                _get_mil_activations, generate activations.
-            device (Any): device backend for torch tensors
-        """
 
+        """
         # If initialized using classmethod ``MILFeatures.from_df()``:
         if not self.model:
             return None, None, None, None
@@ -219,10 +185,10 @@ class MILFeatures:
             loaded = torch.load(bag).to(self.device)
             loaded = torch.unsqueeze(loaded, dim=0)
 
-            with torch.no_grad():
+            with torch.inference_mode():
 
                 # Apply lens to model input.
-                if self.use_lens:
+                if hasattr(self.config.model_config, 'use_lens') and self.config.model_config.use_lens:
                     lens = torch.from_numpy(
                         np.array([loaded.shape[1]])).to(self.device)
                     model_args = (loaded, lens)
@@ -230,8 +196,9 @@ class MILFeatures:
                     model_args = (loaded,)
 
                 # Attention MIL and TransMIL.
-                if isinstance(self.model, (Attention_MIL, TransMIL)):
+                if self.model.__class__.__name__ in ('Attention_MIL', 'TransMIL'):
                     model_out = self.model(*model_args)
+
                     h = self.model.get_last_layer_activations(*model_args)  # type: ignore
                     att = torch.squeeze(self.model.calculate_attention(*model_args))  # type: ignore
                     if len(att.shape) == 2 and not self.attention_pooling:
@@ -241,13 +208,13 @@ class MILFeatures:
                     y_att.append(att.cpu().numpy())
 
                 # FC MIL (CLAM implementation)
-                elif isinstance(self.model, (MIL_fc, MIL_fc_mc)):
+                elif self.model.__class__.__name__ in ('MIL_fc, MIL_fc_mc'):
                     model_out = self.model(*model_args)
                     h = self.model.get_last_layer_activations(*model_args)  # type: ignore
                     y_att = None
 
                 # CLAM models.
-                else:
+                elif self.model.__class__.__name__ in ('CLAM_SB', 'CLAM_MB'):
                     model_out = self.model(*model_args)[0]
                     h, A = self.model.get_last_layer_activations(*model_args)  # type: ignore
                     if A.shape[0] == 1:
@@ -255,11 +222,16 @@ class MILFeatures:
                     else:
                         y_att.append(A.cpu().numpy())
 
+                else:
+                    raise NotImplementedError(
+                        f"Layer activation support for model {self.model.__class__.__name__} is not implemented."
+                    )
+
                 hs.append(h.cpu())
                 yp = torch.nn.functional.softmax(model_out, dim=1).cpu().numpy()
                 y_pred.append(yp)
-        yp = np.concatenate(y_pred, axis=0)
 
+        yp = np.concatenate(y_pred, axis=0)
         num_features, acts = self._get_activations(hs)
         atts = self._get_attentions(y_att)
         preds = self._get_predictions(yp)

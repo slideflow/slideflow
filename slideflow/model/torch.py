@@ -242,7 +242,7 @@ class ModelParams(_base._ModelParams):
             'Rprop': torch.optim.Rprop,
             'SGD': torch.optim.SGD
         }
-        self.LinearLossDict = {
+        self.RegressionLossDict = {
             'L1': torch.nn.L1Loss,
             'MSE': torch.nn.MSELoss,
             'NLL': torch.nn.NLLLoss,  # negative log likelihood
@@ -321,7 +321,7 @@ class ModelParams(_base._ModelParams):
         pretrain: Optional[str] = None,
         checkpoint: Optional[str] = None
     ) -> torch.nn.Module:
-        if self.model_type() == 'cph':
+        if self.model_type() == 'survival':
             num_slide_features = num_slide_features - 1
         assert num_classes is not None or labels is not None
         if num_classes is None:
@@ -388,16 +388,16 @@ class ModelParams(_base._ModelParams):
         return model
 
     def model_type(self) -> str:
-        """Returns 'linear', 'categorical', or 'cph', reflecting the loss."""
+        """Returns 'regression', 'classification', or 'survival', reflecting the loss."""
         #check if loss is custom_[type] and returns type
         if self.loss.startswith('custom'):
             return self.loss[7:]
         elif self.loss == 'CoxProportionalHazardsLoss':
-            return 'cph'
-        elif self.loss in self.LinearLossDict:
-            return 'linear'
+            return 'survival'
+        elif self.loss in self.RegressionLossDict:
+            return 'regression'
         else:
-            return 'categorical'
+            return 'classification'
 
 
 class Trainer:
@@ -405,15 +405,15 @@ class Trainer:
     processing, training, and evaluation.
 
     This base class requires categorical outcome(s). Additional outcome types
-    are supported by :class:`slideflow.model.LinearTrainer` and
-    :class:`slideflow.model.CPHTrainer`.
+    are supported by :class:`slideflow.model.RegressionTrainer` and
+    :class:`slideflow.model.SurvivalTrainer`.
 
     Slide-level (e.g. clinical) features can be used as additional model input
     by providing slide labels in the slide annotations dictionary, under
     the key 'input'.
     """
 
-    _model_type = 'categorical'
+    _model_type = 'classification'
 
     def __init__(
         self,
@@ -435,7 +435,10 @@ class Trainer:
         load_method: str = 'weights',
         custom_objects: Optional[Dict[str, Any]] = None,
         device: Optional[str] = None,
-        transform: Optional[Union[Callable, Dict[str, Callable]]] = None
+        transform: Optional[Union[Callable, Dict[str, Callable]]] = None,
+        pin_memory: bool = True,
+        num_workers: int = 4,
+        chunk_size: int = 8
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -483,6 +486,12 @@ class Trainer:
                 applied to validation data. If a dict is provided and either
                 'train' or 'val' is None, no transform will be applied to
                 that data. Defaults to None.
+            pin_memory (bool): Set the ``pin_memory`` attribute for dataloaders.
+                Defaults to True.
+            num_workers (int): Set the number of workers for dataloaders.
+                Defaults to 4.
+            chunk_size (int): Set the chunk size for TFRecord reading.
+                Defaults to 8.
         """
         self.hp = hp
         self.slides = list(labels.keys())
@@ -502,6 +511,9 @@ class Trainer:
         self.loss_fn: torch.nn.modules.loss._Loss
         self.use_tensorboard: bool
         self.writer = None  # type: Optional[torch.utils.tensorboard.SummaryWriter]
+        self.pin_memory = pin_memory
+        self.num_workers = num_workers
+        self.chunk_size = chunk_size
         self._reset_training_params()
         # Slide-level input args
         if slide_input:
@@ -574,7 +586,7 @@ class Trainer:
 
     @property
     def num_outcomes(self) -> int:
-        if self.hp.model_type() == 'categorical':
+        if self.hp.model_type() == 'classification':
             assert self.outcome_names is not None
             return len(self.outcome_names)
         else:
@@ -588,8 +600,8 @@ class Trainer:
         """Get category assignments for categorical outcome labels.
 
         Dataframes with integer labels are assumed to be categorical if
-        if hp.model_type is 'categorical'.
-        Dataframes with float labels are assumed to be linear.
+        if hp.model_type is 'classification'.
+        Dataframes with float labels are assumed to be continuous.
         Dataframes with other labels are assumed to be categorical, and will
         be assigned an integer label based on the order of unique values.
 
@@ -598,7 +610,7 @@ class Trainer:
             raise ValueError("Expected DataFrame with 'label' column.")
         if 'label' not in self.labels.columns:
             raise ValueError("Expected DataFrame with 'label' column.")
-        if self.hp.model_type() == 'categorical':
+        if self.hp.model_type() == 'classification':
             if is_integer_dtype(self.labels['label']) or is_float_dtype(self.labels['label']):
                 return {i: str(i) for i in sorted(self.labels['label'].unique())}
             else:
@@ -746,7 +758,7 @@ class Trainer:
         num_records: int = 1
     ) -> Tuple[Union[Tensor, List[Tensor]], str]:
         '''Reports accuracy of each outcome.'''
-        assert self.hp.model_type() == 'categorical'
+        assert self.hp.model_type() == 'classification'
         if self.num_outcomes > 1:
             if not isinstance(running_corrects, dict):
                 raise ValueError("Expected running_corrects to be a dict:"
@@ -875,7 +887,7 @@ class Trainer:
         label: str
     ) -> Dict[str, Dict[str, Union[float, List[float]]]]:
         epoch_metrics = {'loss': loss}  # type: Dict
-        if self.hp.model_type() == 'categorical':
+        if self.hp.model_type() == 'classification':
             epoch_metrics.update({'accuracy': acc})
         return {f'{label}_metrics': epoch_metrics}
     
@@ -913,7 +925,7 @@ class Trainer:
         def update_corrects(pred, labels, running_corrects=None):
             if running_corrects is None:
                 running_corrects = self._empty_corrects()
-            if self.hp.model_type() == 'categorical':
+            if self.hp.model_type() == 'classification':
                 labels = self._labels_to_device(labels, self.device)
                 return self._update_corrects(pred, labels, running_corrects)
             else:
@@ -940,7 +952,7 @@ class Trainer:
             **kwargs
         )
         loss_and_acc = {'loss': loss}
-        if self.hp.model_type() == 'categorical':
+        if self.hp.model_type() == 'classification':
             loss_and_acc.update({'accuracy': acc})
             self._log_epoch(
                 'val',
@@ -1053,7 +1065,7 @@ class Trainer:
         label: str
     ) -> None:
         self.writer.add_scalar(f'Loss/{label}', loss, self.global_step)
-        if self.hp.model_type() == 'categorical':
+        if self.hp.model_type() == 'classification':
             if self.num_outcomes > 1:
                 assert isinstance(acc, list)
                 for o, _acc in enumerate(acc):
@@ -1094,7 +1106,6 @@ class Trainer:
                     val=acc,
                     step=step
                 )
-
 
     def _log_early_stop_to_neptune(self) -> None:
         # Log early stop to neptune
@@ -1189,7 +1200,7 @@ class Trainer:
             val_img = val_img.to(memory_format=torch.channels_last)
             val_label = self._labels_to_device(val_label, self.device)
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
                 with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
 
@@ -1200,13 +1211,13 @@ class Trainer:
                     val_outputs, val_batch_loss = self._forward_pass_and_loss(slides, val_img, val_label, inference_model=True)
 
             running_val_loss += val_batch_loss.item() * val_img.size(0)
-            if self.hp.model_type() == 'categorical':
+            if self.hp.model_type() == 'classification':
                 running_val_correct = self._update_corrects(
                     val_outputs, val_label, running_val_correct  # type: ignore
                 )
             num_val += val_img.size(0)
         val_loss = running_val_loss / num_val
-        if self.hp.model_type() == 'categorical':
+        if self.hp.model_type() == 'classification':
             val_acc, val_acc_desc = self._calculate_accuracy(
                 running_val_correct, num_val  # type: ignore
             )
@@ -1331,9 +1342,9 @@ class Trainer:
             rank=0,
             num_replicas=1,
             labels=(self.labels if incl_labels else None),
-            chunk_size=8,
-            pin_memory=True,
-            num_workers=4 if not from_wsi else 0,
+            chunk_size=self.chunk_size,
+            pin_memory=self.pin_memory,
+            num_workers=self.num_workers if not from_wsi else 0,
             onehot=False,
             incl_slidenames=True,
             from_wsi=from_wsi,
@@ -1447,7 +1458,7 @@ class Trainer:
 
         # Record accuracy and loss
         self.epoch_records += images.size(0)
-        if self.hp.model_type() == 'categorical':
+        if self.hp.model_type() == 'classification':
             self.running_corrects = self._update_corrects(
                 outputs, labels, self.running_corrects
             )
@@ -1490,7 +1501,7 @@ class Trainer:
         running_corrects: Union[Tensor, Dict[str, Tensor]],
     ) -> Union[Tensor, Dict[str, Tensor]]:
         '''Updates running accuracy in a manner compatible with >1 outcomes.'''
-        assert self.hp.model_type() == 'categorical'
+        assert self.hp.model_type() == 'classification'
         if self.num_outcomes > 1:
             for o, out in enumerate(outputs):
                 _, preds = torch.max(out, 1)
@@ -1506,7 +1517,7 @@ class Trainer:
         """Validates early stopping parameters."""
 
         if (self.hp.early_stop and self.hp.early_stop_method == 'accuracy' and
-           self.hp.model_type() == 'categorical' and self.num_outcomes > 1):
+           self.hp.model_type() == 'classification' and self.num_outcomes > 1):
             raise errors.ModelError("Cannot combine 'accuracy' early stopping "
                                     "with multiple categorical outcomes.")
         if (self.hp.early_stop_method == 'manual'
@@ -1795,14 +1806,14 @@ class Trainer:
     def _update_log_epoch_metrics(self, results, save_model) -> None:
         loss = self.running_loss / self.epoch_records
         epoch_metrics = {'train_metrics': {'loss': loss}}
-        if self.hp.model_type() == 'categorical':
+        if self.hp.model_type() == 'classification':
             acc, acc_desc = self._calculate_accuracy(
                 self.running_corrects, self.epoch_records
             )
             epoch_metrics['train_metrics'].update({
                 'accuracy': self._accuracy_as_numpy(acc)  # type: ignore
             })
-        elif self.hp.model_type() == 'linear':
+        elif self.hp.model_type() == 'regression':
             acc, acc_desc = 0, ''  # type: ignore
         else:
             raise errors.ModelError(
@@ -2048,7 +2059,7 @@ class Trainer:
                     self.step += 1
                     self.global_step += 1
 
-            results = self._update_log_epoch_metrics(results, save_model)
+            results = self._update_log_epoch_metrics(results, save_model) # FIXME:
 
             # Full evaluation -------------------------------------------------
             # Perform full evaluation if the epoch is one of the
@@ -2076,37 +2087,37 @@ class Trainer:
         return results
 
 
-class LinearTrainer(Trainer):
+class RegressionTrainer(Trainer):
 
     """Extends the base :class:`slideflow.model.Trainer` class to add support
-    for linear outcomes. Requires that all outcomes be linear, with appropriate
-    linear loss function. Uses R-squared as the evaluation metric, rather
+    for continuous outcomes. Requires that all outcomes be continuous, with appropriate
+    regression loss function. Uses R-squared as the evaluation metric, rather
     than AUROC.
 
-    In this case, for the PyTorch backend, the linear outcomes support is
+    In this case, for the PyTorch backend, the continuous outcomes support is
     already baked into the base Trainer class, so no additional modifications
     are required. This class is written to inherit the Trainer class without
     modification to maintain consistency with the Tensorflow backend.
     """
 
-    _model_type = 'linear'
+    _model_type = 'regression'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
 
-class CPHTrainer(Trainer):
+class SurvivalTrainer(Trainer):
 
     """Cox Proportional Hazards model. Requires that the user provide event
     data as the first input feature, and time to outcome as the linear outcome.
     Uses concordance index as the evaluation metric."""
 
-    _model_type = 'cph'
+    _model_type = 'survival'
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if not self.num_slide_features:
-            raise errors.ModelError('Model error - CPH models must '
+            raise errors.ModelError('Model error - Survival models must '
                                     'include event input')
         
     def _setup_inputs(self) -> None:
@@ -2280,7 +2291,7 @@ class Features(BaseFeatureExtractor):
             device (:class:`torch.device`, optional): Device for model.
                 Defaults to torch.device('cuda')
             apply_softmax (bool): Apply softmax transformation to model output.
-                Defaults to True for categorical models, False for linear models.
+                Defaults to True for classification models, False for regression models.
             pooling (Callable or str, optional): PyTorch pooling function to use
                 on feature layers. May be a string ('avg' or 'max') or a
                 callable PyTorch function.
@@ -2326,7 +2337,7 @@ class Features(BaseFeatureExtractor):
                 num_classes=len(config['outcome_labels'])
             )
             if apply_softmax is None:
-                self.apply_softmax = True if config['model_type'] == 'categorical' else False
+                self.apply_softmax = True if config['model_type'] == 'classification' else False
                 log.debug(f"Using apply_softmax={self.apply_softmax}")
             self._model.load_state_dict(torch.load(path))
             self._model.to(self.device)
@@ -2479,7 +2490,7 @@ class Features(BaseFeatureExtractor):
         assert torch.is_floating_point(inp), "Input tensor must be float"
         _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
         with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
-            with torch.no_grad() if no_grad else no_scope():
+            with torch.inference_mode() if no_grad else no_scope():
                 inp = inp.to(self.device)
                 if self.channels_last:
                     inp = inp.to(memory_format=torch.channels_last)
@@ -2689,7 +2700,7 @@ class UncertaintyInterface(Features):
             out_act_drop = [[] for _ in range(len(self.layers))]
         for _ in range(30):
             with autocast(self.device.type, mixed_precision=_mp):  # type: ignore
-                with torch.no_grad() if no_grad else no_scope():
+                with torch.inference_mode() if no_grad else no_scope():
                     inp = inp.to(self.device)
                     if self.channels_last:
                         inp = inp.to(memory_format=torch.channels_last)
@@ -2760,7 +2771,7 @@ def load(path: str) -> torch.nn.Module:
     """
     config = sf.util.get_model_config(path)
     hp = ModelParams.from_dict(config['hp'])
-    if len(config['outcomes']) == 1 or config['model_type'] == 'linear':
+    if len(config['outcomes']) == 1 or config['model_type'] == 'regression':
         num_classes = len(list(config['outcome_labels'].keys()))
     else:
         num_classes = {

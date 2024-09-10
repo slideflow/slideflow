@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.mil.train &mdash; slideflow 2.3.0 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.mil.train &mdash; slideflow 3.0.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
@@ -31,12 +31,10 @@
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="../../../../genindex/" />
     <link rel="search" title="Search" href="../../../../search/" />
-  <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+
+
+
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -59,16 +57,7 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-
-    gtag('js', new Date());
-
-    gtag('config', 'G-43E5QNVXH2');
-  </script>
+  <script defer data-domain="slideflow.dev" src="https://plausible.io/js/script.js"></script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -87,7 +76,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -99,9 +88,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +101,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -137,15 +126,15 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation/">Installation</a></li>
@@ -158,6 +147,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../stylegan/">Generative Networks (GANs)</a></li>
@@ -174,6 +164,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -216,8 +207,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -225,7 +216,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -244,28 +235,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../../../">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../../../">Module code</a> &gt;</li>
-        
+
       <li>slideflow.mil.train</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -277,13 +268,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.mil.train</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Training functions for various multi-instance learning (MIL) models.&quot;&quot;&quot;</span>
 
@@ -292,16 +283,14 @@
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">exists</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">Dataset</span><span class="p">,</span> <span class="n">log</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">path_to_name</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">isdir</span>
 
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">utils</span>
-<span class="kn">from</span> <span class="nn">..eval</span> <span class="kn">import</span> <span class="n">predict_from_model</span><span class="p">,</span> <span class="n">generate_attention_heatmaps</span><span class="p">,</span> <span class="n">_export_attention</span>
-<span class="kn">from</span> <span class="nn">.._params</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">_TrainerConfig</span><span class="p">,</span> <span class="n">TrainerConfigCLAM</span><span class="p">,</span> <span class="n">TrainerConfigFastAI</span>
-<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..eval</span> <span class="kn">import</span> <span class="n">predict_mil</span><span class="p">,</span> <span class="n">predict_multimodal_mil</span><span class="p">,</span> <span class="n">generate_attention_heatmaps</span>
+<span class="kn">from</span> <span class="nn">.._params</span> <span class="kn">import</span> <span class="n">TrainerConfig</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">fastai.learner</span> <span class="kn">import</span> <span class="n">Learner</span>
@@ -310,7 +299,7 @@
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="train_mil"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.train_mil">[docs]</a><span class="k">def</span> <span class="nf">train_mil</span><span class="p">(</span>
-    <span class="n">config</span><span class="p">:</span> <span class="n">_TrainerConfig</span><span class="p">,</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfig</span><span class="p">,</span>
     <span class="n">train_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
     <span class="n">val_dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dataset</span><span class="p">],</span>
     <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
@@ -319,11 +308,15 @@
     <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mil&#39;</span><span class="p">,</span>
     <span class="n">exp_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span>
-<span class="p">):</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Learner&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Train a multiple-instance learning (MIL) model.</span>
 
+<span class="sd">    This high-level trainer facilitates training from a given MIL configuration,</span>
+<span class="sd">    using Datasets as input and with input features taken from a given directory</span>
+<span class="sd">    of bags.</span>
+
 <span class="sd">    Args:</span>
-<span class="sd">        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):</span>
+<span class="sd">        config (:class:`slideflow.mil.TrainerConfig`):</span>
 <span class="sd">            Trainer and model configuration.</span>
 <span class="sd">        train_dataset (:class:`slideflow.Dataset`): Training dataset.</span>
 <span class="sd">        val_dataset (:class:`slideflow.Dataset`): Validation dataset.</span>
@@ -352,7 +345,10 @@
 <span class="sd">            separately. Defaults to None.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">mil_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">TrainerConfig</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized training configuration of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">config</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
         <span class="n">train_dataset</span><span class="o">=</span><span class="n">train_dataset</span><span class="p">,</span>
         <span class="n">val_dataset</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
@@ -360,391 +356,12 @@
         <span class="n">outdir</span><span class="o">=</span><span class="n">outdir</span><span class="p">,</span>
         <span class="n">exp_label</span><span class="o">=</span><span class="n">exp_label</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
-    <span class="p">)</span>
-    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">is_multimodal</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">_train_multimodal_mil</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="o">**</span><span class="n">mil_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">_train_mil</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="o">**</span><span class="n">mil_kwargs</span><span class="p">)</span></div>
-
-
-<span class="k">def</span> <span class="nf">_train_mil</span><span class="p">(</span>
-    <span class="n">config</span><span class="p">:</span> <span class="n">_TrainerConfig</span><span class="p">,</span>
-    <span class="n">train_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
-    <span class="n">val_dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dataset</span><span class="p">],</span>
-    <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-    <span class="n">bags</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mil&#39;</span><span class="p">,</span>
-    <span class="n">exp_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="o">**</span><span class="n">kwargs</span>
-<span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train a multiple-instance learning (MIL) model.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):</span>
-<span class="sd">            Trainer and model configuration.</span>
-<span class="sd">        train_dataset (:class:`slideflow.Dataset`): Training dataset.</span>
-<span class="sd">        val_dataset (:class:`slideflow.Dataset`): Validation dataset.</span>
-<span class="sd">        outcomes (str): Outcome column (annotation header) from which to</span>
-<span class="sd">            derive category labels.</span>
-<span class="sd">        bags (str): Either a path to directory with \*.pt files, or a list</span>
-<span class="sd">            of paths to individual \*.pt files. Each file should contain</span>
-<span class="sd">            exported feature vectors, with each file containing all tile</span>
-<span class="sd">            features for one patient.</span>
-
-<span class="sd">    Keyword args:</span>
-<span class="sd">        outdir (str): Directory in which to save model and results.</span>
-<span class="sd">        exp_label (str): Experiment label, used for naming the subdirectory</span>
-<span class="sd">            in the ``{project root}/mil`` folder, where training history</span>
-<span class="sd">            and the model will be saved.</span>
-<span class="sd">        attention_heatmaps (bool): Generate attention heatmaps for slides.</span>
-<span class="sd">            Defaults to False.</span>
-<span class="sd">        interpolation (str, optional): Interpolation strategy for smoothing</span>
-<span class="sd">            attention heatmaps. Defaults to &#39;bicubic&#39;.</span>
-<span class="sd">        cmap (str, optional): Matplotlib colormap for heatmap. Can be any</span>
-<span class="sd">            valid matplotlib colormap. Defaults to &#39;inferno&#39;.</span>
-<span class="sd">        norm (str, optional): Normalization strategy for assigning heatmap</span>
-<span class="sd">            values to colors. Either &#39;two_slope&#39;, or any other valid value</span>
-<span class="sd">            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.</span>
-<span class="sd">            If &#39;two_slope&#39;, normalizes values less than 0 and greater than 0</span>
-<span class="sd">            separately. Defaults to None.</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Training FastAI MIL model with config:&quot;</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">config</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">TrainerConfigFastAI</span><span class="p">):</span>
-        <span class="n">train_fn</span> <span class="o">=</span> <span class="n">train_fastai</span>
-    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">TrainerConfigCLAM</span><span class="p">):</span>
-        <span class="n">train_fn</span> <span class="o">=</span> <span class="n">train_clam</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized training configuration of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">val_dataset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="s2">&quot;Training without validation; metrics will be calculated on training data.&quot;</span>
-        <span class="p">)</span>
-        <span class="n">val_dataset</span> <span class="o">=</span> <span class="n">train_dataset</span>
-
-    <span class="c1"># Set up experiment label</span>
-    <span class="k">if</span> <span class="n">exp_label</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">exp_label</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">-</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="n">config</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
-                <span class="s2">&quot;-&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outcomes</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">outcomes</span><span class="p">])</span>
-            <span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="n">exp_label</span> <span class="o">=</span> <span class="s1">&#39;no_label&#39;</span>
-
-    <span class="c1"># Set up output model directory</span>
-    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
-        <span class="n">outdir</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">create_new_model_dir</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">exp_label</span><span class="p">)</span>
-
-    <span class="c1"># Execute training.</span>
-    <span class="k">return</span> <span class="n">train_fn</span><span class="p">(</span>
-        <span class="n">config</span><span class="p">,</span>
-        <span class="n">train_dataset</span><span class="p">,</span>
-        <span class="n">val_dataset</span><span class="p">,</span>
-        <span class="n">outcomes</span><span class="p">,</span>
-        <span class="n">bags</span><span class="p">,</span>
-        <span class="n">outdir</span><span class="o">=</span><span class="n">outdir</span><span class="p">,</span>
-        <span class="o">**</span><span class="n">kwargs</span>
-    <span class="p">)</span>
-
-
-<span class="k">def</span> <span class="nf">_train_multimodal_mil</span><span class="p">(</span>
-    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfigFastAI</span><span class="p">,</span>
-    <span class="n">train_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
-    <span class="n">val_dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dataset</span><span class="p">],</span>
-    <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-    <span class="n">bags</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mil&#39;</span><span class="p">,</span>
-    <span class="n">exp_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">attention_heatmaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train a multi-modal (e.g. multi-magnification) MIL model.&quot;&quot;&quot;</span>
-
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_fastai</span>
-
-    <span class="c1"># Export attention &amp; heatmaps.</span>
-    <span class="k">if</span> <span class="n">attention_heatmaps</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;Attention heatmaps cannot yet be exported for multi-modal &quot;</span>
-                <span class="s2">&quot;models. Please use Slideflow Studio for visualization of &quot;</span>
-                <span class="s2">&quot;multi-modal attention.&quot;</span>
-            <span class="p">)</span>
-
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Training FastAI Multi-modal MIL model with config:&quot;</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">config</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">val_dataset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">sf</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Training without validation; metrics will be calculated on training data.&quot;</span><span class="p">)</span>
-        <span class="n">val_dataset</span> <span class="o">=</span> <span class="n">train_dataset</span>
-
-    <span class="c1"># Set up experiment label</span>
-    <span class="k">if</span> <span class="n">exp_label</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">exp_label</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">-</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="n">config</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
-                <span class="s2">&quot;-&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outcomes</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">outcomes</span><span class="p">])</span>
-            <span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="n">exp_label</span> <span class="o">=</span> <span class="s1">&#39;no_label&#39;</span>
-
-    <span class="c1"># Set up output model directory</span>
-    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
-        <span class="n">outdir</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">create_new_model_dir</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">exp_label</span><span class="p">)</span>
-
-    <span class="c1"># Prepare validation bags and targets.</span>
-    <span class="n">val_labels</span><span class="p">,</span> <span class="n">val_unique</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;id&#39;</span><span class="p">)</span>
-    <span class="n">val_bags</span><span class="p">,</span> <span class="n">val_slides</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">_get_nested_bags</span><span class="p">(</span><span class="n">val_dataset</span><span class="p">,</span> <span class="n">bags</span><span class="p">)</span>
-    <span class="n">val_targets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">val_labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">val_slides</span><span class="p">])</span>
-
-    <span class="c1"># Build learner.</span>
-    <span class="n">learner</span><span class="p">,</span> <span class="p">(</span><span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">)</span> <span class="o">=</span> <span class="n">build_multimodal_learner</span><span class="p">(</span>
-        <span class="n">config</span><span class="p">,</span>
-        <span class="n">train_dataset</span><span class="p">,</span>
-        <span class="n">val_dataset</span><span class="p">,</span>
-        <span class="n">outcomes</span><span class="p">,</span>
-        <span class="n">bags</span><span class="o">=</span><span class="n">bags</span><span class="p">,</span>
-        <span class="n">outdir</span><span class="o">=</span><span class="n">outdir</span><span class="p">,</span>
-        <span class="n">return_shape</span><span class="o">=</span><span class="kc">True</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Save MIL settings.</span>
-    <span class="c1"># Attempt to read the unique categories from the learner.</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">learner</span><span class="o">.</span><span class="n">dls</span><span class="o">.</span><span class="n">train_ds</span><span class="p">,</span> <span class="s1">&#39;encoder&#39;</span><span class="p">):</span>
-        <span class="n">unique</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">encoder</span> <span class="o">=</span> <span class="n">learner</span><span class="o">.</span><span class="n">dls</span><span class="o">.</span><span class="n">train_ds</span><span class="o">.</span><span class="n">encoder</span>
-        <span class="k">if</span> <span class="n">encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">unique</span> <span class="o">=</span> <span class="n">encoder</span><span class="o">.</span><span class="n">categories_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">unique</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">_log_mil_params</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">unique</span><span class="p">,</span> <span class="n">bags</span><span class="p">,</span> <span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">,</span> <span class="n">outdir</span><span class="p">)</span>
-
-    <span class="c1"># Execute training.</span>
-    <span class="n">_fastai</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">learner</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
-
-    <span class="c1"># Generate validation predictions</span>
-    <span class="n">y_pred</span><span class="p">,</span> <span class="n">y_att</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">mil</span><span class="o">.</span><span class="n">eval</span><span class="o">.</span><span class="n">_predict_multimodal_mil</span><span class="p">(</span>
-        <span class="n">learner</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
-        <span class="n">val_bags</span><span class="p">,</span>
-        <span class="n">attention</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">use_lens</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">use_lens</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Combine to a dataframe.</span>
-    <span class="n">df_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">slide</span><span class="o">=</span><span class="n">val_slides</span><span class="p">,</span> <span class="n">y_true</span><span class="o">=</span><span class="n">val_targets</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">y_pred</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
-        <span class="n">df_dict</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;y_pred</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">df_dict</span><span class="p">)</span>
-
-    <span class="c1"># Print categorical metrics, including per-category accuracy</span>
-    <span class="n">outcome_name</span> <span class="o">=</span> <span class="n">outcomes</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outcomes</span><span class="p">)</span>
-    <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span>
-        <span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">c</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">outcome_name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="s1">&#39;slide&#39;</span><span class="p">},</span>
-        <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span>
-    <span class="p">)</span>
-    <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">categorical_metrics</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
-
-    <span class="c1"># Export predictions.</span>
-    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
-        <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Export attention.</span>
-    <span class="k">if</span> <span class="n">y_att</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="n">_export_attention</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;attention&#39;</span><span class="p">),</span> <span class="n">y_att</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">learner</span>
-
-
-<span class="c1"># -----------------------------------------------------------------------------</span>
-
-<div class="viewcode-block" id="train_clam"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.train_clam">[docs]</a><span class="k">def</span> <span class="nf">train_clam</span><span class="p">(</span>
-    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfigCLAM</span><span class="p">,</span>
-    <span class="n">train_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
-    <span class="n">val_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
-    <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-    <span class="n">bags</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mil&#39;</span><span class="p">,</span>
-    <span class="n">attention_heatmaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="o">**</span><span class="n">heatmap_kwargs</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train a CLAM model from layer activations exported with</span>
-<span class="sd">    :meth:`slideflow.project.generate_features_for_clam`.</span>
-
-<span class="sd">    See :ref:`mil` for more information.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        train_dataset (:class:`slideflow.Dataset`): Training dataset.</span>
-<span class="sd">        val_dataset (:class:`slideflow.Dataset`): Validation dataset.</span>
-<span class="sd">        outcomes (str): Outcome column (annotation header) from which to</span>
-<span class="sd">            derive category labels.</span>
-<span class="sd">        bags (str): Either a path to directory with \*.pt files, or a list</span>
-<span class="sd">            of paths to individual \*.pt files. Each file should contain</span>
-<span class="sd">            exported feature vectors, with each file containing all tile</span>
-<span class="sd">            features for one patient.</span>
-
-<span class="sd">    Keyword args:</span>
-<span class="sd">        outdir (str): Directory in which to save model and results.</span>
-<span class="sd">        exp_label (str): Experiment label, used for naming the subdirectory</span>
-<span class="sd">            in the ``outdir`` folder, where training history</span>
-<span class="sd">            and the model will be saved.</span>
-<span class="sd">        clam_args (optional): Namespace with clam arguments, as provided</span>
-<span class="sd">            by :func:`slideflow.clam.get_args`.</span>
-<span class="sd">        attention_heatmaps (bool): Generate attention heatmaps for slides.</span>
-<span class="sd">            Defaults to False.</span>
-<span class="sd">        interpolation (str, optional): Interpolation strategy for smoothing</span>
-<span class="sd">            attention heatmaps. Defaults to &#39;bicubic&#39;.</span>
-<span class="sd">        cmap (str, optional): Matplotlib colormap for heatmap. Can be any</span>
-<span class="sd">            valid matplotlib colormap. Defaults to &#39;inferno&#39;.</span>
-<span class="sd">        norm (str, optional): Normalization strategy for assigning heatmap</span>
-<span class="sd">            values to colors. Either &#39;two_slope&#39;, or any other valid value</span>
-<span class="sd">            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.</span>
-<span class="sd">            If &#39;two_slope&#39;, normalizes values less than 0 and greater than 0</span>
-<span class="sd">            separately. Defaults to None.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        None</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">import</span> <span class="nn">slideflow.clam</span> <span class="k">as</span> <span class="nn">clam</span>
-    <span class="kn">from</span> <span class="nn">slideflow.clam</span> <span class="kn">import</span> <span class="n">CLAM_Dataset</span>
-
-    <span class="c1"># Set up results directory</span>
-    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="n">results_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;results&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">results_dir</span><span class="p">):</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">results_dir</span><span class="p">)</span>
-
-    <span class="c1"># Set up labels.</span>
-    <span class="n">labels</span><span class="p">,</span> <span class="n">unique_train</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">use_float</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">val_labels</span><span class="p">,</span> <span class="n">unique_val</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">use_float</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">labels</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">val_labels</span><span class="p">)</span>
-    <span class="n">unique_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">unique_train</span> <span class="o">+</span> <span class="n">unique_val</span><span class="p">)</span>
-    <span class="n">label_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">,</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">))))</span>
-
-    <span class="c1"># Prepare CLAM arguments.</span>
-    <span class="n">clam_args</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">_to_clam_args</span><span class="p">()</span>
-    <span class="n">clam_args</span><span class="o">.</span><span class="n">results_dir</span> <span class="o">=</span> <span class="n">results_dir</span>
-    <span class="n">clam_args</span><span class="o">.</span><span class="n">n_classes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">)</span>
-
-    <span class="c1"># Set up bags.</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bags</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">train_bags</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">pt_files</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
-        <span class="n">val_bags</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">pt_files</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">train_bags</span> <span class="o">=</span> <span class="n">val_bags</span> <span class="o">=</span> <span class="n">bags</span>
-
-    <span class="c1"># Write slide/bag manifest</span>
-    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">log_manifest</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">train_bags</span><span class="p">],</span>
-            <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">val_bags</span><span class="p">],</span>
-            <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
-            <span class="n">filename</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">),</span>
-        <span class="p">)</span>
-
-    <span class="c1"># Set up datasets.</span>
-    <span class="n">train_mil_dataset</span> <span class="o">=</span> <span class="n">CLAM_Dataset</span><span class="p">(</span>
-        <span class="n">train_bags</span><span class="p">,</span>
-        <span class="n">annotations</span><span class="o">=</span><span class="n">train_dataset</span><span class="o">.</span><span class="n">filtered_annotations</span><span class="p">,</span>
-        <span class="n">label_col</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
-        <span class="n">label_dict</span><span class="o">=</span><span class="n">label_dict</span>
-    <span class="p">)</span>
-    <span class="n">val_mil_dataset</span> <span class="o">=</span> <span class="n">CLAM_Dataset</span><span class="p">(</span>
-        <span class="n">val_bags</span><span class="p">,</span>
-        <span class="n">annotations</span><span class="o">=</span><span class="n">val_dataset</span><span class="o">.</span><span class="n">filtered_annotations</span><span class="p">,</span>
-        <span class="n">label_col</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
-        <span class="n">label_dict</span><span class="o">=</span><span class="n">label_dict</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Get base CLAM args/settings if not provided.</span>
-    <span class="n">num_features</span> <span class="o">=</span> <span class="n">train_mil_dataset</span><span class="o">.</span><span class="n">detect_num_features</span><span class="p">()</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">clam_args</span><span class="o">.</span><span class="n">model_size</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">model_size</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">model_fn</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="n">clam_args</span><span class="o">.</span><span class="n">model_size</span><span class="p">]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">model_size</span> <span class="o">=</span> <span class="n">clam_args</span><span class="o">.</span><span class="n">model_size</span>
-    <span class="k">if</span> <span class="n">model_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">num_features</span><span class="p">:</span>
-        <span class="n">_old_size</span> <span class="o">=</span> <span class="n">model_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">model_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">num_features</span>
-        <span class="n">clam_args</span><span class="o">.</span><span class="n">model_size</span> <span class="o">=</span> <span class="n">model_size</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;First dimension of model size (</span><span class="si">{</span><span class="n">_old_size</span><span class="si">}</span><span class="s2">) does not &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;match features (</span><span class="si">{</span><span class="n">num_features</span><span class="si">}</span><span class="s2">). Updating model size to &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">clam_args</span><span class="o">.</span><span class="n">model_size</span><span class="si">}</span><span class="s2">. &quot;</span>
-        <span class="p">)</span>
-
-    <span class="c1"># Save clam settings</span>
-    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">clam_args</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;experiment.json&#39;</span><span class="p">))</span>
-
-    <span class="c1"># Save MIL settings</span>
-    <span class="n">_log_mil_params</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">unique_labels</span><span class="p">,</span> <span class="n">bags</span><span class="p">,</span> <span class="n">num_features</span><span class="p">,</span> <span class="n">clam_args</span><span class="o">.</span><span class="n">n_classes</span><span class="p">,</span> <span class="n">outdir</span><span class="p">)</span>
-
-    <span class="c1"># Run CLAM</span>
-    <span class="n">datasets</span> <span class="o">=</span> <span class="p">(</span><span class="n">train_mil_dataset</span><span class="p">,</span> <span class="n">val_mil_dataset</span><span class="p">,</span> <span class="n">val_mil_dataset</span><span class="p">)</span>
-    <span class="n">model</span><span class="p">,</span> <span class="n">results</span><span class="p">,</span> <span class="n">test_auc</span><span class="p">,</span> <span class="n">val_auc</span><span class="p">,</span> <span class="n">test_acc</span><span class="p">,</span> <span class="n">val_acc</span> <span class="o">=</span> <span class="n">clam</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
-        <span class="n">datasets</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">clam_args</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Generate validation predictions</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">attention</span> <span class="o">=</span> <span class="n">predict_from_model</span><span class="p">(</span>
-        <span class="n">model</span><span class="p">,</span>
-        <span class="n">config</span><span class="p">,</span>
-        <span class="n">dataset</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
-        <span class="n">outcomes</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
-        <span class="n">bags</span><span class="o">=</span><span class="n">bags</span><span class="p">,</span>
-        <span class="n">attention</span><span class="o">=</span><span class="kc">True</span>
-    <span class="p">)</span>
-    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;results&#39;</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
-        <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Print categorical metrics, including per-category accuracy</span>
-    <span class="n">outcome_name</span> <span class="o">=</span> <span class="n">outcomes</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outcomes</span><span class="p">)</span>
-    <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span>
-        <span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">c</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">outcome_name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="s1">&#39;slide&#39;</span><span class="p">},</span>
-        <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span>
-    <span class="p">)</span>
-    <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">categorical_metrics</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
-
-    <span class="c1"># Attention heatmaps</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bags</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">val_bags</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">pt_files</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">val_bags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
-
-    <span class="c1"># Export attention to numpy arrays</span>
-    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="n">_export_attention</span><span class="p">(</span>
-            <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;attention&#39;</span><span class="p">),</span>
-            <span class="n">attention</span><span class="p">,</span>
-            <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">val_bags</span><span class="p">]</span>
-        <span class="p">)</span>
-
-    <span class="c1"># Save attention heatmaps</span>
-    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">attention_heatmaps</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_bags</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">attention</span><span class="p">)</span>
-        <span class="n">generate_attention_heatmaps</span><span class="p">(</span>
-            <span class="n">outdir</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;heatmaps&#39;</span><span class="p">),</span>
-            <span class="n">dataset</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
-            <span class="n">bags</span><span class="o">=</span><span class="n">val_bags</span><span class="p">,</span>
-            <span class="n">attention</span><span class="o">=</span><span class="n">attention</span><span class="p">,</span>
-            <span class="o">**</span><span class="n">heatmap_kwargs</span>
-        <span class="p">)</span></div>
+    <span class="p">)</span></div>
 
 <span class="c1"># -----------------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="build_fastai_learner"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.build_fastai_learner">[docs]</a><span class="k">def</span> <span class="nf">build_fastai_learner</span><span class="p">(</span>
-    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfigFastAI</span><span class="p">,</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfig</span><span class="p">,</span>
     <span class="n">train_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
     <span class="n">val_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
     <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
@@ -752,8 +369,12 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mil&#39;</span><span class="p">,</span>
     <span class="n">return_shape</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Learner&quot;</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a FastAI Learner for training an aMIL model.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a FastAI Learner for training an MIL model.</span>
+
+<span class="sd">    Does not execute training. Useful for customizing a Learner object</span>
+<span class="sd">    prior to training.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        train_dataset (:class:`slideflow.Dataset`): Training dataset.</span>
@@ -766,31 +387,32 @@
 
 <span class="sd">    Keyword args:</span>
 <span class="sd">        outdir (str): Directory in which to save model and results.</span>
+<span class="sd">        return_shape (bool): Return the input and output shapes of the model.</span>
+<span class="sd">            Defaults to False.</span>
 <span class="sd">        exp_label (str): Experiment label, used for naming the subdirectory</span>
 <span class="sd">            in the ``outdir`` folder, where training history</span>
 <span class="sd">            and the model will be saved.</span>
 <span class="sd">        lr (float): Learning rate, or maximum learning rate if</span>
 <span class="sd">            ``fit_one_cycle=True``.</span>
 <span class="sd">        epochs (int): Maximum epochs.</span>
+<span class="sd">        **kwargs: Additional keyword arguments to pass to the FastAI learner.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        fastai.learner.Learner</span>
+<span class="sd">        fastai.learner.Learner, and optionally a tuple of input and output shapes</span>
+<span class="sd">        if ``return_shape=True``.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_fastai</span>
 
-    <span class="c1"># Prepare labels and slides</span>
-    <span class="n">labels</span><span class="p">,</span> <span class="n">unique_train</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
-    <span class="n">val_labels</span><span class="p">,</span> <span class="n">unique_val</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
-    <span class="n">labels</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">val_labels</span><span class="p">)</span>
-    <span class="n">unique_categories</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">unique_train</span> <span class="o">+</span> <span class="n">unique_val</span><span class="p">)</span>
+    <span class="n">labels</span><span class="p">,</span> <span class="n">unique</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_labels</span><span class="p">((</span><span class="n">train_dataset</span><span class="p">,</span> <span class="n">val_dataset</span><span class="p">),</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">is_classification</span><span class="p">())</span>
 
     <span class="c1"># Prepare bags</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bags</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">bags</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="n">isdir</span><span class="p">(</span><span class="n">bags</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
-        <span class="n">train_bags</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">pt_files</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
+        <span class="n">train_bags</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">get_bags</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">val_dataset</span> <span class="ow">is</span> <span class="n">train_dataset</span><span class="p">:</span>
             <span class="n">bags</span> <span class="o">=</span> <span class="n">train_bags</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">val_bags</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">pt_files</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
+            <span class="n">val_bags</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">get_bags</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
             <span class="n">bags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">train_bags</span><span class="p">,</span> <span class="n">val_bags</span><span class="p">))</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">bags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
@@ -800,7 +422,6 @@
 
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">aggregation_level</span> <span class="o">==</span> <span class="s1">&#39;slide&#39;</span><span class="p">:</span>
         <span class="c1"># Aggregate feature bags across slides.</span>
-
         <span class="n">bags</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">train_idx</span><span class="p">,</span> <span class="n">val_idx</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">aggregate_trainval_bags_by_slide</span><span class="p">(</span>
             <span class="n">bags</span><span class="p">,</span>  <span class="c1"># type: ignore</span>
             <span class="n">labels</span><span class="p">,</span>
@@ -840,9 +461,9 @@
         <span class="n">targets</span><span class="o">=</span><span class="n">targets</span><span class="p">,</span>
         <span class="n">train_idx</span><span class="o">=</span><span class="n">train_idx</span><span class="p">,</span>
         <span class="n">val_idx</span><span class="o">=</span><span class="n">val_idx</span><span class="p">,</span>
-        <span class="n">unique_categories</span><span class="o">=</span><span class="n">unique_categories</span><span class="p">,</span>
+        <span class="n">unique_categories</span><span class="o">=</span><span class="n">unique</span><span class="p">,</span>
         <span class="n">outdir</span><span class="o">=</span><span class="n">outdir</span><span class="p">,</span>
-        <span class="n">pin_memory</span><span class="o">=</span><span class="kc">True</span>
+        <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">return_shape</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">learner</span><span class="p">,</span> <span class="p">(</span><span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">)</span>
@@ -850,17 +471,46 @@
         <span class="k">return</span> <span class="n">learner</span></div>
 
 
-<span class="k">def</span> <span class="nf">build_multimodal_learner</span><span class="p">(</span>
-    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfigFastAI</span><span class="p">,</span>
+<div class="viewcode-block" id="build_multimodal_learner"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.build_multimodal_learner">[docs]</a><span class="k">def</span> <span class="nf">build_multimodal_learner</span><span class="p">(</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfig</span><span class="p">,</span>
     <span class="n">train_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
     <span class="n">val_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
     <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-    <span class="n">bags</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+    <span class="n">bags</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mil&#39;</span><span class="p">,</span>
     <span class="n">return_shape</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Learner&quot;</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a multi-magnification FastAI Learner for training an aMIL model.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a multi-magnification FastAI Learner for training an MIL model.</span>
+
+<span class="sd">    Does not execute training. Useful for customizing a Learner object</span>
+<span class="sd">    prior to training.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        train_dataset (:class:`slideflow.Dataset`): Training dataset.</span>
+<span class="sd">        val_dataset (:class:`slideflow.Dataset`): Validation dataset.</span>
+<span class="sd">        outcomes (str): Outcome column (annotation header) from which to</span>
+<span class="sd">            derive category labels.</span>
+<span class="sd">        bags (list(str)): List of bag directories containing \*.pt files, one</span>
+<span class="sd">            directory for each mode.</span>
+
+<span class="sd">    Keyword args:</span>
+<span class="sd">        outdir (str): Directory in which to save model and results.</span>
+<span class="sd">        return_shape (bool): Return the input and output shapes of the model.</span>
+<span class="sd">            Defaults to False.</span>
+<span class="sd">        exp_label (str): Experiment label, used for naming the subdirectory</span>
+<span class="sd">            in the ``outdir`` folder, where training history</span>
+<span class="sd">            and the model will be saved.</span>
+<span class="sd">        lr (float): Learning rate, or maximum learning rate if</span>
+<span class="sd">            ``fit_one_cycle=True``.</span>
+<span class="sd">        epochs (int): Maximum epochs.</span>
+<span class="sd">        **kwargs: Additional keyword arguments to pass to the FastAI learner.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        fastai.learner.Learner, and optionally a tuple of input and output shapes</span>
+<span class="sd">        if ``return_shape=True``.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_fastai</span>
 
@@ -872,10 +522,7 @@
     <span class="n">num_modes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
 
     <span class="c1"># Prepare labels and slides</span>
-    <span class="n">labels</span><span class="p">,</span> <span class="n">unique_train</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
-    <span class="n">val_labels</span><span class="p">,</span> <span class="n">unique_val</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
-    <span class="n">labels</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">val_labels</span><span class="p">)</span>
-    <span class="n">unique_categories</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">unique_train</span> <span class="o">+</span> <span class="n">unique_val</span><span class="p">)</span>
+    <span class="n">labels</span><span class="p">,</span> <span class="n">unique</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_labels</span><span class="p">((</span><span class="n">train_dataset</span><span class="p">,</span> <span class="n">val_dataset</span><span class="p">),</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">is_classification</span><span class="p">())</span>
 
     <span class="c1"># --- Prepare bags --------------------------------------------------------</span>
 
@@ -911,7 +558,7 @@
         <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - [blue]Modes[/]: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">num_modes</span><span class="p">)</span>
         <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - [blue]Slides with bags[/]: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">all_slides</span><span class="p">)))</span>
         <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - [blue]Multi-modal bags[/]: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">all_bags</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - [blue]Unique categories[/]: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_categories</span><span class="p">))</span>
+        <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - [blue]Unique categories[/]: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unique</span><span class="p">))</span>
         <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - [blue]Training multi-modal bags[/]: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">train_idx</span><span class="p">))</span>
         <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - [blue]Training slides[/]: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">train_slides</span><span class="p">)))</span>
         <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - [blue]Validation multi-modal bags[/]: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">val_idx</span><span class="p">))</span>
@@ -939,25 +586,25 @@
     <span class="c1"># --- Build FastAI Learner ------------------------------------------------</span>
 
     <span class="c1"># Build FastAI Learner</span>
-    <span class="n">learner</span><span class="p">,</span> <span class="p">(</span><span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">)</span> <span class="o">=</span> <span class="n">_fastai</span><span class="o">.</span><span class="n">_build_multimodal_learner</span><span class="p">(</span>
+    <span class="n">learner</span><span class="p">,</span> <span class="p">(</span><span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">)</span> <span class="o">=</span> <span class="n">_fastai</span><span class="o">.</span><span class="n">build_learner</span><span class="p">(</span>
         <span class="n">config</span><span class="p">,</span>
         <span class="n">all_bags</span><span class="p">,</span>
         <span class="n">targets</span><span class="p">,</span>
         <span class="n">train_idx</span><span class="p">,</span>
         <span class="n">val_idx</span><span class="p">,</span>
-        <span class="n">unique_categories</span><span class="p">,</span>
-        <span class="n">num_modes</span><span class="p">,</span>
+        <span class="n">unique_categories</span><span class="o">=</span><span class="n">unique</span><span class="p">,</span>
         <span class="n">outdir</span><span class="o">=</span><span class="n">outdir</span><span class="p">,</span>
-        <span class="n">pin_memory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">return_shape</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">learner</span><span class="p">,</span> <span class="p">(</span><span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">learner</span>
+        <span class="k">return</span> <span class="n">learner</span></div>
 
+<span class="c1"># ------------------------------------------------------------------------------</span>
+<span class="c1"># Internal training functions.</span>
 
-<div class="viewcode-block" id="train_fastai"><a class="viewcode-back" href="../../../../mil_module/#slideflow.mil.train_fastai">[docs]</a><span class="k">def</span> <span class="nf">train_fastai</span><span class="p">(</span>
-    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfigFastAI</span><span class="p">,</span>
+<span class="k">def</span> <span class="nf">_train_mil</span><span class="p">(</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfig</span><span class="p">,</span>
     <span class="n">train_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
     <span class="n">val_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
     <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
@@ -966,9 +613,10 @@
     <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mil&#39;</span><span class="p">,</span>
     <span class="n">attention_heatmaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">uq</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">**</span><span class="n">heatmap_kwargs</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train an aMIL model using FastAI.</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Learner&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train an MIL model using FastAI.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        train_dataset (:class:`slideflow.Dataset`): Training dataset.</span>
@@ -1007,12 +655,102 @@
 
     <span class="c1"># Prepare validation bags.</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bags</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">bags</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="n">isdir</span><span class="p">(</span><span class="n">bags</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
-        <span class="n">val_bags</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">pt_files</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
+        <span class="n">val_bags</span> <span class="o">=</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">get_bags</span><span class="p">(</span><span class="n">bags</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">val_bags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bags</span> <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">val_dataset</span><span class="o">.</span><span class="n">slides</span><span class="p">()])</span>
 
     <span class="c1"># Build learner.</span>
     <span class="n">learner</span><span class="p">,</span> <span class="p">(</span><span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">)</span> <span class="o">=</span> <span class="n">build_fastai_learner</span><span class="p">(</span>
+        <span class="n">config</span><span class="p">,</span>
+        <span class="n">train_dataset</span><span class="p">,</span>
+        <span class="n">val_dataset</span><span class="p">,</span>
+        <span class="n">outcomes</span><span class="p">,</span>
+        <span class="n">bags</span><span class="o">=</span><span class="n">bags</span><span class="p">,</span>
+        <span class="n">outdir</span><span class="o">=</span><span class="n">outdir</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+        <span class="n">return_shape</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Save MIL settings.</span>
+    <span class="c1"># Attempt to read the unique categories from the learner.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">learner</span><span class="o">.</span><span class="n">dls</span><span class="o">.</span><span class="n">train_ds</span><span class="p">,</span> <span class="s1">&#39;encoder&#39;</span><span class="p">):</span>
+        <span class="n">unique</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">encoder</span> <span class="o">=</span> <span class="n">learner</span><span class="o">.</span><span class="n">dls</span><span class="o">.</span><span class="n">train_ds</span><span class="o">.</span><span class="n">encoder</span>
+        <span class="k">if</span> <span class="n">encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">unique</span> <span class="o">=</span> <span class="n">encoder</span><span class="o">.</span><span class="n">categories_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">unique</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_log_mil_params</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">unique</span><span class="p">,</span> <span class="n">bags</span><span class="p">,</span> <span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">,</span> <span class="n">outdir</span><span class="p">)</span>
+
+    <span class="c1"># Train.</span>
+    <span class="n">_fastai</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">learner</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+
+    <span class="c1"># Generate validation predictions.</span>
+    <span class="n">df</span><span class="p">,</span> <span class="n">attention</span> <span class="o">=</span> <span class="n">predict_mil</span><span class="p">(</span>
+        <span class="n">learner</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
+        <span class="n">dataset</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+        <span class="n">outcomes</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
+        <span class="n">bags</span><span class="o">=</span><span class="n">val_bags</span><span class="p">,</span>
+        <span class="n">attention</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">uq</span><span class="o">=</span><span class="n">uq</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Print classification metrics, including per-category accuracy</span>
+    <span class="n">utils</span><span class="o">.</span><span class="n">rename_df_cols</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">categorical</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">is_classification</span><span class="p">(),</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">run_metrics</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="n">outdir</span><span class="p">)</span>
+
+    <span class="c1"># Export attention to numpy arrays</span>
+    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">_export_attention</span><span class="p">(</span>
+            <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;attention&#39;</span><span class="p">),</span>
+            <span class="n">attention</span><span class="p">,</span>
+            <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">val_bags</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Attention heatmaps.</span>
+    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">attention_heatmaps</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="n">generate_attention_heatmaps</span><span class="p">(</span>
+            <span class="n">outdir</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;heatmaps&#39;</span><span class="p">),</span>
+            <span class="n">dataset</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
+            <span class="n">bags</span><span class="o">=</span><span class="n">val_bags</span><span class="p">,</span>
+            <span class="n">attention</span><span class="o">=</span><span class="n">attention</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">heatmap_kwargs</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">learner</span>
+
+
+<span class="k">def</span> <span class="nf">_train_multimodal_mil</span><span class="p">(</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">TrainerConfig</span><span class="p">,</span>
+    <span class="n">train_dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
+    <span class="n">val_dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dataset</span><span class="p">],</span>
+    <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+    <span class="n">bags</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mil&#39;</span><span class="p">,</span>
+    <span class="n">exp_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">attention_heatmaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train a multi-modal (e.g. multi-magnification) MIL model.&quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_fastai</span>
+
+    <span class="c1"># Export attention &amp; heatmaps.</span>
+    <span class="k">if</span> <span class="n">attention_heatmaps</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Attention heatmaps cannot yet be exported for multi-modal &quot;</span>
+                <span class="s2">&quot;models. Please use Slideflow Studio for visualization of &quot;</span>
+                <span class="s2">&quot;multi-modal attention.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># Build learner.</span>
+    <span class="n">learner</span><span class="p">,</span> <span class="p">(</span><span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">)</span> <span class="o">=</span> <span class="n">build_multimodal_learner</span><span class="p">(</span>
         <span class="n">config</span><span class="p">,</span>
         <span class="n">train_dataset</span><span class="p">,</span>
         <span class="n">val_dataset</span><span class="p">,</span>
@@ -1034,51 +772,33 @@
             <span class="n">unique</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">_log_mil_params</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">unique</span><span class="p">,</span> <span class="n">bags</span><span class="p">,</span> <span class="n">n_in</span><span class="p">,</span> <span class="n">n_out</span><span class="p">,</span> <span class="n">outdir</span><span class="p">)</span>
 
-    <span class="c1"># Train.</span>
+    <span class="c1"># Execute training.</span>
     <span class="n">_fastai</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">learner</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
 
-    <span class="c1"># Generate validation predictions.</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">attention</span> <span class="o">=</span> <span class="n">predict_from_model</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">,</span> <span class="n">attention</span> <span class="o">=</span> <span class="n">predict_multimodal_mil</span><span class="p">(</span>
         <span class="n">learner</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
-        <span class="n">config</span><span class="p">,</span>
         <span class="n">dataset</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
-        <span class="n">bags</span><span class="o">=</span><span class="n">val_bags</span><span class="p">,</span>
-        <span class="n">attention</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">uq</span><span class="o">=</span><span class="n">uq</span>
+        <span class="n">bags</span><span class="o">=</span><span class="n">bags</span><span class="p">,</span>
+        <span class="n">attention</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
+
+    <span class="c1"># Print classification metrics, including per-category accuracy</span>
+    <span class="n">utils</span><span class="o">.</span><span class="n">rename_df_cols</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">categorical</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">is_classification</span><span class="p">(),</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">run_metrics</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="n">outdir</span><span class="p">)</span>
+
+    <span class="c1"># Export predictions.</span>
     <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
         <span class="n">pred_out</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;predictions.parquet&#39;</span><span class="p">)</span>
         <span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">pred_out</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions saved to [green]</span><span class="si">{</span><span class="n">pred_out</span><span class="si">}</span><span class="s2">[/]&quot;</span><span class="p">)</span>
 
-    <span class="c1"># Print categorical metrics, including per-category accuracy</span>
-    <span class="n">outcome_name</span> <span class="o">=</span> <span class="n">outcomes</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcomes</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outcomes</span><span class="p">)</span>
-    <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span>
-        <span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">c</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">outcome_name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="s1">&#39;slide&#39;</span><span class="p">},</span>
-        <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span>
-    <span class="p">)</span>
-    <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">categorical_metrics</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;slide&#39;</span><span class="p">)</span>
-
-    <span class="c1"># Export attention to numpy arrays</span>
+    <span class="c1"># Export attention.</span>
     <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="n">_export_attention</span><span class="p">(</span>
-            <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;attention&#39;</span><span class="p">),</span>
-            <span class="n">attention</span><span class="p">,</span>
-            <span class="p">[</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">val_bags</span><span class="p">]</span>
-        <span class="p">)</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">_export_attention</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;attention&#39;</span><span class="p">),</span> <span class="n">attention</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
 
-    <span class="c1"># Attention heatmaps.</span>
-    <span class="k">if</span> <span class="n">attention</span> <span class="ow">and</span> <span class="n">attention_heatmaps</span> <span class="ow">and</span> <span class="n">outdir</span><span class="p">:</span>
-        <span class="n">generate_attention_heatmaps</span><span class="p">(</span>
-            <span class="n">outdir</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;heatmaps&#39;</span><span class="p">),</span>
-            <span class="n">dataset</span><span class="o">=</span><span class="n">val_dataset</span><span class="p">,</span>
-            <span class="n">bags</span><span class="o">=</span><span class="n">val_bags</span><span class="p">,</span>
-            <span class="n">attention</span><span class="o">=</span><span class="n">attention</span><span class="p">,</span>
-            <span class="o">**</span><span class="n">heatmap_kwargs</span>
-        <span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">learner</span></div>
+    <span class="k">return</span> <span class="n">learner</span>
 
 <span class="c1"># ------------------------------------------------------------------------------</span>
 
@@ -1114,16 +834,16 @@
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -1131,11 +851,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -1145,26 +865,26 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
          <script src="../../../../_static/doctools.js"></script>
          <script src="../../../../_static/sphinx_highlight.js"></script>
-     
 
-  
+
+
   <script type="text/javascript" src="../../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -1175,7 +895,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 
@@ -1205,7 +925,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

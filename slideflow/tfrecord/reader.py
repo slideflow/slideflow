@@ -9,10 +9,13 @@ import struct
 import numpy as np
 import slideflow as sf
 
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple, Union, TYPE_CHECKING
 
 from slideflow.tfrecord import iterator_utils
 from slideflow.util import example_pb2, extract_feature_dict, tfrecord2idx, log
+
+if TYPE_CHECKING:
+    from slideflow.io.torch.data_utils import TFRecordParser
 
 # -----------------------------------------------------------------------------
 
@@ -52,9 +55,11 @@ class TFRecord:
         path: str,
         index: Optional[Union[str, np.ndarray]] = None,
         *,
-        create_index: bool = True
+        create_index: bool = True,
+        decode_images: bool = False
     ) -> None:
         self.path = path
+        self.decode_images = decode_images
         self._fields = None  # type: Optional[str]
         self._img_format = None  # type: Optional[str]
         self._length = None # type: Optional[int]
@@ -92,9 +97,12 @@ class TFRecord:
             return self._length
 
     def __getitem__(self, idx):
-        return sf.io.get_tfrecord_by_index(
+        record = sf.io.get_tfrecord_by_index(
             self.path, idx, index_array=self.index
         )
+        if self.decode_images:
+            return self.decode(record)
+        return record
 
     def __iter__(self):
         for i in range(len(self)):
@@ -111,8 +119,8 @@ class TFRecord:
         return self._img_format  # type: ignore
 
     @property
-    def fields(self) -> str:
-        """Return the image format of the tfrecord."""
+    def fields(self) -> List[str]:
+        """Return the fields of the tfrecord."""
         if self._fields is None:
             tfr_format = sf.io.detect_tfrecord_format(self.path)
             if tfr_format is None:
@@ -120,17 +128,38 @@ class TFRecord:
             self._fields, self._img_format = tfr_format
         return self._fields  # type: ignore
 
+    def decode(
+        self,
+        record: Union[bytes, Dict[str, bytes]],
+    ) -> Union[np.ndarray, Dict[str, np.ndarray]]:
+        """Decode the image contained within the record."""
+        if isinstance(record, dict):
+            return {
+                k: v if k != 'image_raw' else sf.io.decode_image(v, img_type=self.img_format)
+                for k, v in record.items()
+            }
+        return sf.io.decode_image(record, img_type=self.img_format)
+
     def __repr__(self) -> str:
         return f"<TFRecord(path='{self.path}') length={len(self)}>"
 
     def __str__(self) -> str:
         return self.__repr__()
 
+    def get_parser(self, decode=True) -> "TFRecordParser":
+        """Return the parser for the tfrecord."""
+        from slideflow.io.torch.data_utils import TFRecordParser
+        return TFRecordParser(
+            features_to_return=self.fields,
+            img_type=self.img_format,
+            decode_images=decode
+        )
+
     def get_size(self) -> int:
         """Return the size of the tfrecord file."""
         return os.path.getsize(self.path)
 
-    def get_record_by_xy(self, x: int, y: int, decode: bool = False):
+    def get_record_by_xy(self, x: int, y: int, decode: Optional[bool] = None):
         """Return the record at the given x, y coordinates.
 
         Args:
@@ -139,6 +168,8 @@ class TFRecord:
             decode (bool, optional): Decode the image. Defaults to False.
 
         """
+        if decode is None:
+            decode = self.decode_images
         return sf.io.get_tfrecord_by_location(
             self.path,
             (x, y),

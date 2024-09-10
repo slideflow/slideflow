@@ -1,22 +1,29 @@
-![slideflow logo](https://github.com/jamesdolezal/slideflow/raw/master/docs-source/pytorch_sphinx_theme/images/slideflow-banner.png)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5703792.svg)](https://doi.org/10.5281/zenodo.5703792)
-[![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml)
-[![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/53d5c1f8-8fbc-4e0f-bd62-db16797492b0" alt="slideflow logo">
 
-[ArXiv](https://arxiv.org/abs/2304.04142) | [Docs](https://slideflow.dev) | [Slideflow Studio](https://slideflow.dev/studio/) | [Cite](#reference)
+  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5703792.svg)](https://doi.org/10.5281/zenodo.5703792)
+  [![Python application](https://github.com/slideflow/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/slideflow/slideflow/actions/workflows/python-app.yml)
+  [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
 
-## 🔬 Overview
+  [ArXiv](https://arxiv.org/abs/2304.04142) | [Docs](https://slideflow.dev) | [Slideflow Studio](https://slideflow.dev/studio/) | [Cite](#reference) | [✨ What's New in 3.0 ✨](https://github.com/slideflow/slideflow/releases/tag/3.0.0)
 
-![Slideflow Studio: a visualization tool for interacting with models and whole-slide images.](https://github.com/jamesdolezal/slideflow/assets/48372806/7f43d8cb-dc80-427d-84c4-3e5a35fa1472)
+  ______________________________________________________________________
+
+  ![Slideflow Studio: a visualization tool for interacting with models and whole-slide images.](https://github.com/slideflow/slideflow/assets/48372806/7f43d8cb-dc80-427d-84c4-3e5a35fa1472)
+
+</div>
 
 **Slideflow is a deep learning library for digital pathology, offering a user-friendly interface for model development.**
+  
+Designed for both medical researchers and AI enthusiasts, the goal of Slideflow is to provide an accessible, easy-to-use interface for developing state-of-the-art pathology models. Slideflow has been built with the future in mind, offering a scalable platform for digital biomarker development that bridges the gap between ever-evolving, sophisticated methods and the needs of a clinical researcher. For developers, Slideflow provides multiple endpoints for integration with other packages and external training paradigms, allowing you to leverage highly optimized, pathology-specific processes with the latest ML methodologies.
 
-Designed at University of Chicago for both medical researchers and AI enthusiasts, the goal of Slideflow is to provide an accessible, easy-to-use interface for developing state-of-the-art pathology models. Slideflow has been built with the future in mind, offering a scalable platform for digital biomarker development that bridges the gap between ever-evolving, sophisticated methods and the needs of a clinical researcher. For developers, Slideflow provides multiple endpoints for integration with other packages and external training paradigms, allowing you to leverage highly optimized, pathology-specific processes with the latest ML methodologies.
+
 
 ## 🚀 Features
 - Easy-to-use, highly customizable training pipelines
 - Robust **[slide processing](https://slideflow.dev/slide_processing) and [stain normalization](https://slideflow.dev/norm)** toolkit
 - Support for training with **[weakly-supervised](https://slideflow.dev/training) or [strongly-supervised](https://slideflow.dev/tile_labels)** labels
+- Built-in, state-of-the-art **[foundation models](https://slideflow.dev/features)**
 - **[Multiple-instance learning (MIL)](https://slideflow.dev/mil)**
 - **[Self-supervised learning (SSL)](https://slideflow.dev/ssl)**
 - **[Generative adversarial networks (GANs)](https://slideflow.dev/training)**
@@ -30,8 +37,7 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
 
 ## Requirements
 - Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
-- [Tensorflow](https://www.tensorflow.org/) 2.5-2.11 _or_ [PyTorch](https://pytorch.org/) 1.9-2.1
-  - GAN functions require PyTorch <1.13
+- [PyTorch](https://pytorch.org/) >= 1.9 _or_ [Tensorflow](https://www.tensorflow.org/) 2.5-2.11
 
 ### Optional
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9 (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files).
@@ -54,18 +60,18 @@ The `cupy` package name depends on the installed CUDA version; [see here](https:
 
 ### Method 2: Docker image
 
-Alternatively, pre-configured [docker images](https://hub.docker.com/repository/docker/jamesdolezal/slideflow) are available with OpenSlide/Libvips and the latest version of either Tensorflow and PyTorch. To install with the Tensorflow backend:
+Alternatively, pre-configured [docker images](https://hub.docker.com/repository/docker/slideflow/slideflow) are available with OpenSlide/Libvips and the latest version of either Tensorflow and PyTorch. To install with the Tensorflow backend:
 
 ```
-docker pull jamesdolezal/slideflow:latest-tf
-docker run -it --gpus all jamesdolezal/slideflow:latest-tf
+docker pull slideflow/slideflow:latest-tf
+docker run -it --gpus all slideflow/slideflow:latest-tf
 ```
 
 To install with the PyTorch backend:
 
 ```
-docker pull jamesdolezal/slideflow:latest-torch
-docker run -it --shm-size=2g --gpus all jamesdolezal/slideflow:latest-torch
+docker pull slideflow/slideflow:latest-torch
+docker run -it --shm-size=2g --gpus all slideflow/slideflow:latest-torch
 ```
 
 ### Method 3: From source
@@ -73,13 +79,21 @@ docker run -it --shm-size=2g --gpus all jamesdolezal/slideflow:latest-torch
 To run from source, clone this repository, install the conda development environment, and build a wheel:
 
 ```
-git clone https://github.com/jamesdolezal/slideflow
-cd slideflow
-conda env create -f environment.yml
+git clone https://github.com/slideflow/slideflow
+conda env create -f slideflow/environment.yml
 conda activate slideflow
-python setup.py bdist_wheel
-pip install dist/slideflow* cupy-cuda11x
+pip install -e slideflow/ cupy-cuda11x
 ```
+
+### Non-Commercial Add-ons
+
+To add additional tools and pretrained models available under a non-commercial license, install `slideflow-gpl` and `slideflow-noncommercial`:
+
+```
+pip install slideflow-gpl slideflow-noncommercial
+```
+
+This will provide integrated access to 6 additional pretrained foundation models ([UNI](https://www.nature.com/articles/s41591-024-02857-3), [HistoSSL](https://www.medrxiv.org/content/10.1101/2023.07.21.23292757v2.full.pdf), [GigaPath](https://aka.ms/gigapath), [PLIP](https://www.nature.com/articles/s41591-023-02504-3), [RetCCL](https://www.sciencedirect.com/science/article/abs/pii/S1361841522002730), and [CTransPath](https://www.sciencedirect.com/science/article/abs/pii/S1361841522002043)), the MIL architecture [CLAM](https://www.nature.com/articles/s41551-020-00682-w), the UQ algorithm [BISCUIT](https://www.nature.com/articles/s41467-022-34025-x), and the GAN framework [StyleGAN3](https://nvlabs-fi-cdn.nvidia.com/stylegan3/stylegan3-paper.pdf).
 
 ## ⚙️ Configuration
 
@@ -108,7 +122,7 @@ import slideflow as sf
 
 P = sf.create_project(
     root='/project/destination',
-    cfg=sf.project.LungAdenoSquam,
+    cfg=sf.project.LungAdenoSquam(),
     download=True
 )
 ```
@@ -197,20 +211,25 @@ Slideflow has been used by:
 - [Carrillo-Perez et al](https://doi.org/10.1186/s40644-023-00586-3) _Cancer Imaging_, 2023
 
 ## 🔓 License
-This code is made available under the GPLv3 License and is available for non-commercial academic purposes.
+This code is made available under the Apache-2.0 license.
 
 ## 🔗 Reference
 If you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
 
-Dolezal, J. M., Kochanny, S., Dyer, E., *et al*. Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization. ArXiv [q-Bio.QM] (2023). http://arxiv.org/abs/2304.04142
+Dolezal, J.M., Kochanny, S., Dyer, E. et al. Slideflow: deep learning for digital histopathology with real-time whole-slide visualization. BMC Bioinformatics 25, 134 (2024). https://doi.org/10.1186/s12859-024-05758-x
 
 ```
-@misc{dolezal2023slideflow,
-      title={Slideflow: Deep Learning for Digital Histopathology with Real-Time Whole-Slide Visualization},
-      author={James M. Dolezal and Sara Kochanny and Emma Dyer and Andrew Srisuwananukorn and Matteo Sacco and Frederick M. Howard and Anran Li and Prajval Mohan and Alexander T. Pearson},
-      year={2023},
-      eprint={2304.04142},
-      archivePrefix={arXiv},
-      primaryClass={q-bio.QM}
+@Article{Dolezal2024,
+    author={Dolezal, James M. and Kochanny, Sara and Dyer, Emma and Ramesh, Siddhi and Srisuwananukorn, Andrew and Sacco, Matteo and Howard, Frederick M. and Li, Anran and Mohan, Prajval and Pearson, Alexander T.},
+    title={Slideflow: deep learning for digital histopathology with real-time whole-slide visualization},
+    journal={BMC Bioinformatics},
+    year={2024},
+    month={Mar},
+    day={27},
+    volume={25},
+    number={1},
+    pages={134},
+    doi={10.1186/s12859-024-05758-x},
+    url={https://doi.org/10.1186/s12859-024-05758-x}
 }
 ```

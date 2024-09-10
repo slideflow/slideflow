@@ -77,6 +77,7 @@ class SlideWidget:
         self.alpha                  = 1.0
         self.stride                 = 1
         self.enable_stride_capture  = True
+        self.manual_mpp             = None
         self._filter_grid           = None
         self._filter_thread         = None
         self._capturing_ws_thresh   = None
@@ -292,7 +293,9 @@ class SlideWidget:
         if not len(self._tile_box_coords):
             return
         scaled_boxes = self.viz.viewer._scale_rois_to_view(self._tile_box_coords).astype(np.float32)
-        if self._scaled_boxes is None or not np.all(self._scaled_boxes == scaled_boxes):
+        if (self._scaled_boxes is None
+            or (not self._scaled_boxes.shape == scaled_boxes.shape)
+            or (not np.all(self._scaled_boxes == scaled_boxes))):
             self._scaled_boxes = scaled_boxes
             self._vbo = gl_utils.create_buffer(scaled_boxes.flatten())
         c = self._tile_colors_rgb[self.tile_color]
@@ -417,7 +420,7 @@ class SlideWidget:
 
     def load(
         self,
-        slide: str,
+        slide: Union[str, sf.WSI],
         stride: Optional[int] = None,
         ignore_errors: bool = False,
         mpp: Optional[float] = None,
@@ -426,7 +429,8 @@ class SlideWidget:
         """Load a slide.
 
         Args:
-            slide (str): The path to the slide to load.
+            slide (str, sf.WSI): The slide to load. May be a slide path or 
+                ``sf.WSI`` object.
             stride (int, optional): The stride to use when extracting tiles.
                 If a slide is currently loaded and this value is not None, this
                 will override the current stride. Defaults to None.
@@ -455,19 +459,34 @@ class SlideWidget:
         # Wrap the entire slide loading function in a try-catch block
         # to gracefully handle errors without crashing the application
         try:
+            # Preparations.
             if hasattr(viz, 'close_gan'):
                 viz.close_gan()
-            name = slide.replace('\\', '/').split('/')[-1]
-            self.cur_slide = slide
-            self.user_slide = slide
-            self.manual_mpp = mpp
+
+            
+            if isinstance(slide, str):
+                slide_path = slide
+            elif isinstance(slide, sf.WSI):
+                slide_path = slide.path
+            else:
+                raise ValueError(
+                    "Error in load(): Expected slide to be type 'str' or "
+                    f"'WSI', got: {type(slide)}"
+                )
+
+            self.manual_mpp = mpp    
+            self.cur_slide = slide_path
+            self.user_slide = slide_path
+            name = slide_path.replace('\\', '/').split('/')[-1]
             viz.set_message(f'Loading {name}...')
-            sf.log.debug(f"Loading slide {slide}...")
+            sf.log.debug(f"Loading slide {slide_path}...")
             viz.defer_rendering()
             if stride is not None:
                 self.stride = stride
+            
+            # Load the slide.
             try:
-                success = viz._reload_wsi(
+                success = viz.reload_wsi(
                     slide,
                     stride=self.stride,
                     use_rois=self.roi_widget.use_rois,
@@ -478,15 +497,17 @@ class SlideWidget:
                     return
             except sf.errors.SlideMissingMPPError:
                 self.cur_slide = None
-                self.user_slide = slide
+                self.user_slide = slide_path
                 self._show_mpp_popup = True
                 self._mpp_reload_kwargs = dict(
-                    slide=slide,
+                    slide=slide_path,
                     stride=stride,
                     ignore_errors=ignore_errors,
                     **kwargs
                 )
                 return
+            
+            # Clear the heatmap, if one exists.
             viz.heatmap_widget.reset()
 
             # Generate WSI thumbnail.
@@ -835,7 +856,7 @@ class SlideWidget:
             self.show_slide_filter = False
             self._reset_tile_filter_and_join_thread()
             self.viz.clear_overlay()
-            self.viz._reload_wsi(stride=self.stride, use_rois=self.roi_widget.use_rois)
+            self.viz.reload_wsi(stride=self.stride, use_rois=self.roi_widget.use_rois)
             self._update_tile_coords()
 
         # ROI Filter Method

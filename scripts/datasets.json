@@ -1,0 +1,8 @@
+{
+ "TEST": {
+  "slides": "",
+  "roi": "roi",
+  "tiles": "project/tiles/TEST",
+  "tfrecords": "project/tfrecords/TEST"
+ }
+}

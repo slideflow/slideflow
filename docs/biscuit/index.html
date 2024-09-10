@@ -6,25 +6,25 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.biscuit &mdash; slideflow 2.3.0 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.biscuit &mdash; slideflow 3.0.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
@@ -34,12 +34,10 @@
     <link rel="search" title="Search" href="../search/" />
     <link rel="next" title="slideflow.cellseg" href="../slideflow_cellseg/" />
     <link rel="prev" title="slideflow.SlideMap" href="../slidemap/" />
-  <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+
+
+
   <script src="../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -62,16 +60,7 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-
-    gtag('js', new Date());
-
-    gtag('config', 'G-43E5QNVXH2');
-  </script>
+  <script defer data-domain="slideflow.dev" src="https://plausible.io/js/script.js"></script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -90,7 +79,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+            <a href="https://github.com/slideflow/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -102,9 +91,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +104,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  2.3
+                  3.0
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -140,15 +129,15 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a></li>
@@ -161,6 +150,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../evaluation/">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../posthoc/">Layer Activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../uq/">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/">Generating Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mil/">Multiple-Instance Learning (MIL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ssl/">Self-Supervised Learning (SSL)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../stylegan/">Generative Networks (GANs)</a></li>
@@ -177,6 +167,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../dataloaders/">Dataloaders: Sampling and Augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../custom_extractors/">Custom Feature Extractors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tile_labels/">Strong Supervision with Tile Labels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/">Creating a Slideflow Plugin</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
@@ -219,8 +210,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial8/">Tutorial 8: Multiple-Instance Learning</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -228,7 +219,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -247,30 +238,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
       <li>slideflow.biscuit</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
-            
+
+
             <a href="../_sources/biscuit.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
-          
-        
+
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -282,20 +273,24 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <section id="slideflow-biscuit">
 <h1>slideflow.biscuit<a class="headerlink" href="#slideflow-biscuit" title="Permalink to this heading">¶</a></h1>
 <p>This module contains an official implementation of <a class="reference external" href="https://www.nature.com/articles/s41467-022-34025-x">BISCUIT</a>, an uncertainty quantification and confidence thresholding algorithm for whole-slide images. The original implementation, which includes instructions for reproducing experimental results reported in the manuscript, is available on <a class="reference external" href="https://github.com/jamesdolezal/biscuit">GitHub</a>.</p>
+<p>This module is requires the <code class="docutils literal notranslate"><span class="pre">slideflow-noncommercial</span></code> package, which can be installed with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>slideflow-noncommercial
+</pre></div>
+</div>
 <p>See <a class="reference internal" href="../uq/#uncertainty"><span class="std std-ref">Uncertainty Quantification</span></a> for more information.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.biscuit.find_cv">
-<span class="sig-name descname"><span class="pre">find_cv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/biscuit/utils/#find_cv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.find_cv" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">find_cv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow_noncommercial/biscuit/utils/#find_cv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.find_cv" title="Permalink to this definition">¶</a></dt>
 <dd><p>Finds paths to cross-validation models.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -318,7 +313,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.biscuit.get_model_results">
-<span class="sig-name descname"><span class="pre">get_model_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/biscuit/utils/#get_model_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.get_model_results" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">get_model_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow_noncommercial/biscuit/utils/#get_model_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.get_model_results" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reads results/metrics from a trained model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -344,7 +339,7 @@
 <h2>biscuit.Experiment<a class="headerlink" href="#biscuit-experiment" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.biscuit.Experiment">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Experiment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_project</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_projects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cohort'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LUAD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LUSC'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'results'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow/biscuit/experiment/#Experiment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.Experiment" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Experiment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_project</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_projects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cohort'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LUAD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LUSC'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'results'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/slideflow_noncommercial/biscuit/experiment/#Experiment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.biscuit.Experiment" title="Permalink to this definition">¶</a></dt>
 <dd><p>Supervises uncertainty thresholding experiments.</p>
 </dd></dl>
 
@@ -996,22 +991,6 @@ sorted such as the examples with label “1” are first</p>
 <dd class="field-even"><p>(AUC value, DeLong covariance)</p>
 </dd>
 </dl>
-<dl>
-<dt>Reference:</dt><dd><p>&#64;article{sun2014fast,
-title={Fast Implementation of DeLong’s Algorithm for</p>
-<blockquote>
-<div><p>Comparing the Areas Under Correlated Receiver Operating Characteristic Curves},</p>
-</div></blockquote>
-<p>author={Xu Sun and Weichao Xu},
-journal={IEEE Signal Processing Letters},
-volume={21},
-number={11},
-pages={1389–1393},
-year={2014},
-publisher={IEEE}
-}</p>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -1050,25 +1029,25 @@ np.array of floats of the probability of being class 1</p></li>
 
 
              </article>
-             
+
             </div>
             <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="../slideflow_cellseg/" class="btn btn-neutral float-right" title="slideflow.cellseg" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
-      
-      
-        <a href="../slidemap/" class="btn btn-neutral" title="slideflow.SlideMap" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-      
-    </div>
-  
 
-  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="../slideflow_cellseg/" class="btn btn-neutral float-right" title="slideflow.cellseg" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="../slidemap/" class="btn btn-neutral" title="slideflow.SlideMap" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -1076,11 +1055,11 @@ np.array of floats of the probability of being class 1</p></li>
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -1150,19 +1129,19 @@ np.array of floats of the probability of being class 1</p></li>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
          <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/sphinx_highlight.js"></script>
-     
 
-  
+
+
   <script type="text/javascript" src="../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
@@ -1173,7 +1152,7 @@ np.array of floats of the probability of being class 1</p></li>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 
@@ -1203,7 +1182,7 @@ np.array of floats of the probability of being class 1</p></li>
           </li>
 
           <li>
-            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+            <a href="https://github.com/slideflow/slideflow">Github</a>
           </li>
         </ul>
       </div>

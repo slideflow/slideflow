@@ -59,7 +59,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         clip: Optional[List[int]] = None,
         chunk_size: int = 1,
         use_labels: bool = True,
-        model_type: str = 'categorical',
+        model_type: str = 'classification',
         onehot: bool = False,
         indices: Optional[np.ndarray] = None,
         from_wsi: bool = False,
@@ -117,7 +117,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             use_labels (bool, optional): Enable use of labels (disabled for
                 non-conditional GANs). Defaults to True.
             model_type (str, optional): Used to generate random labels
-                (for StyleGAN2). Not required. Defaults to 'categorical'.
+                (for StyleGAN2). Not required. Defaults to 'classification'.
             onehot (bool, optional): Onehot encode outcomes. Defaults to False.
             indices (numpy.ndarray, optional): Indices in form of array,
                 with np.loadtxt(index_path, dtype=np.int64) for each tfrecord.
@@ -408,7 +408,7 @@ class StyleGAN2Interleaver(InterleaveIterator):
 
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""
-        if self.use_labels and self.model_type == 'categorical':
+        if self.use_labels and self.model_type == 'classification':
             return random.choices(
                 self.unique_labels,
                 weights=self.label_prob, # type: ignore

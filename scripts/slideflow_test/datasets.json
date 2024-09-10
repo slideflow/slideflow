@@ -1,0 +1,8 @@
+{
+ "TEST": {
+  "slides": "/mnt/labshare/PROJECTS/prj_debug/data/slides",
+  "roi": "slideflow_test/roi",
+  "tiles": "slideflow_test/project/tiles/TEST",
+  "tfrecords": "slideflow_test/project/tfrecords/TEST"
+ }
+}

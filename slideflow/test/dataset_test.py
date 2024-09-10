@@ -32,7 +32,7 @@ class TestDataset(unittest.TestCase):
         ann_df = pd.DataFrame({
             'patient': pd.Series([f'pt{p}' for p in range(100)]),
             'slide': pd.Series([f'slide{s}' for s in range(100)]),
-            'linear': pd.Series([random.random() for _ in range(100)])
+            'continuous': pd.Series([random.random() for _ in range(100)])
         })
         dataset.load_annotations(ann_df)
         self.assertTrue(len(dataset.annotations) == 100)
@@ -42,7 +42,7 @@ class TestDataset(unittest.TestCase):
         ann_df = pd.DataFrame({
             'patient': pd.Series([f'pt{p}' for p in range(100)]),
             'slide': pd.Series(['slide_test', 'slide_test'] + [f'slide{s}' for s in range(98)]),
-            'linear': pd.Series([random.random() for _ in range(100)])
+            'continuous': pd.Series([random.random() for _ in range(100)])
         })
         with self.assertRaises(sf.errors.DatasetError):
             dataset.load_annotations(ann_df)
@@ -51,7 +51,7 @@ class TestDataset(unittest.TestCase):
         dataset = self.PROJECT.dataset()
         ann_df = pd.DataFrame({
             'slide': pd.Series([f'slide{s}' for s in range(100)]),
-            'linear': pd.Series([random.random() for _ in range(100)])
+            'continuous': pd.Series([random.random() for _ in range(100)])
         })
         self.assertRaises(sf.errors.AnnotationsError, dataset.load_annotations, ann_df)
 
@@ -59,7 +59,7 @@ class TestDataset(unittest.TestCase):
         dataset = self.PROJECT.dataset()
         ann_df = pd.DataFrame({
             'patient': pd.Series([f'pt{p}' for p in range(100)]),
-            'linear': pd.Series([random.random() for _ in range(100)])
+            'continuous': pd.Series([random.random() for _ in range(100)])
         })
         self.assertRaises(sf.errors.AnnotationsError, dataset.load_annotations, ann_df)
 
@@ -79,8 +79,8 @@ class TestDataset(unittest.TestCase):
 
     def test_is_float(self):
         dataset = self.PROJECT.dataset()
-        self.assertTrue(dataset.is_float('linear1'))
-        self.assertTrue(dataset.is_float('linear2'))
+        self.assertTrue(dataset.is_float('continuous1'))
+        self.assertTrue(dataset.is_float('continuous2'))
         self.assertFalse(dataset.is_float('category1'))
         self.assertFalse(dataset.is_float('category2'))
 
@@ -208,8 +208,8 @@ class TestLabels(unittest.TestCase):
         self.assertIsInstance(unique, list)
         self.assertTrue(all([isinstance(lbl, str) for lbl in unique]))
 
-    def _test_linear_labels(self, use_float):
-        labels, unique = self.dataset.labels('linear1', use_float=use_float)
+    def _test_continuous_labels(self, use_float):
+        labels, unique = self.dataset.labels('continuous1', use_float=use_float)
         self._check_label_format(labels)
         self.assertTrue(all([isinstance(lbl, list) for lbl in labels.values()]))
         self.assertTrue(all([len(lbl) == 1 for lbl in labels.values()]))
@@ -217,61 +217,61 @@ class TestLabels(unittest.TestCase):
         self.assertIsInstance(unique, list)
         self.assertFalse(len(unique))
 
-    def test_linear_labels_with_manual_float(self):
-        self._test_linear_labels(use_float=True)
+    def test_continuous_labels_with_manual_float(self):
+        self._test_continuous_labels(use_float=True)
 
-    def test_linear_labels_with_auto_float(self):
-        self._test_linear_labels(use_float='auto')
+    def test_continuous_labels_with_auto_float(self):
+        self._test_continuous_labels(use_float='auto')
 
-    def test_linear_labels_with_dict_float(self):
-        self._test_linear_labels(use_float={'linear1': True})
+    def test_continuous_labels_with_dict_float(self):
+        self._test_continuous_labels(use_float={'continuous1': True})
 
-    def _test_cat_and_linear_labels(self, labels, unique, cat_idx, linear_idx, cat_format):
+    def _test_cat_and_continuous_labels(self, labels, unique, cat_idx, continuous_idx, cat_format):
         # Label format checks
         self._check_label_format(labels)
-        self.assertTrue('category1' in unique and 'linear1' in unique)
+        self.assertTrue('category1' in unique and 'continuous1' in unique)
         self.assertIsInstance(unique, dict)
 
         # Categorical label checks
         self.assertTrue(all([isinstance(lbl[cat_idx], cat_format) for lbl in labels.values()]))
         self.assertTrue(all([isinstance(lbl, str) for lbl in unique['category1']]))
 
-        # Linear label checks
-        self.assertTrue(all([isinstance(lbl[linear_idx], float) for lbl in labels.values()]))
-        self.assertIsInstance(unique['linear1'], list)
-        self.assertFalse(len(unique['linear1']))
+        # continuous label checks
+        self.assertTrue(all([isinstance(lbl[continuous_idx], float) for lbl in labels.values()]))
+        self.assertIsInstance(unique['continuous1'], list)
+        self.assertFalse(len(unique['continuous1']))
 
-    def test_categorical_and_linear_labels_by_index(self):
+    def test_categorical_and_continuous_labels_by_index(self):
         labels, unique = self.dataset.labels(
-            ['category1', 'linear1'],
+            ['category1', 'continuous1'],
             format='index',
-            use_float={'linear1': True, 'category1': False}
+            use_float={'continuous1': True, 'category1': False}
         )
-        self._test_cat_and_linear_labels(labels, unique, 0, 1, cat_format=int)
+        self._test_cat_and_continuous_labels(labels, unique, 0, 1, cat_format=int)
 
-    def test_categorical_and_linear_labels_by_name(self):
+    def test_categorical_and_continuous_labels_by_name(self):
         labels, unique = self.dataset.labels(
-            ['category1', 'linear1'],
+            ['category1', 'continuous1'],
             format='name',
-            use_float={'linear1': True, 'category1': False}
+            use_float={'continuous1': True, 'category1': False}
         )
-        self._test_cat_and_linear_labels(labels, unique, 0, 1, cat_format=str)
+        self._test_cat_and_continuous_labels(labels, unique, 0, 1, cat_format=str)
 
-    def test_linear_and_categorical_labels_by_index(self):
+    def test_continuous_and_categorical_labels_by_index(self):
         labels, unique = self.dataset.labels(
-            ['linear1', 'category1'],
+            ['continuous1', 'category1'],
             format='index',
-            use_float={'linear1': True, 'category1': False}
+            use_float={'continuous1': True, 'category1': False}
         )
-        self._test_cat_and_linear_labels(labels, unique, 1, 0, cat_format=int)
+        self._test_cat_and_continuous_labels(labels, unique, 1, 0, cat_format=int)
 
-    def test_linear_and_categorical_labels_by_name(self):
+    def test_continuous_and_categorical_labels_by_name(self):
         labels, unique = self.dataset.labels(
-            ['linear1', 'category1'],
+            ['continuous1', 'category1'],
             format='name',
-            use_float={'linear1': True, 'category1': False}
+            use_float={'continuous1': True, 'category1': False}
         )
-        self._test_cat_and_linear_labels(labels, unique, 1, 0, cat_format=str)
+        self._test_cat_and_continuous_labels(labels, unique, 1, 0, cat_format=str)
 
     def test_multi_categorical_labels_by_index(self):
         labels, unique = self.dataset.labels(
