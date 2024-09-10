@@ -134,6 +134,7 @@ dependencies:
     - kiwisolver==1.4.4
     - lazy-loader==0.3
     - libclang==14.0.6
+    - lifelines==0.29.0
     - llvmlite==0.39.1
     - locket==1.0.0
     - markdown==3.4.1
