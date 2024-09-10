@@ -365,7 +365,10 @@ class WSI:
                 has_segmentation=False,
             )
         )
-        return image_dict['image']
+        if image_dict is not None:
+            return image_dict['image']
+        else:
+            return None
 
     def __getstate__(self):
         state = self.__dict__.copy()
