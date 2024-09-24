@@ -2211,7 +2211,7 @@ class Dataset:
         slide_task = pb.add_task(
             "Generating...",
             progress_type="slide_progress",
-            total=n_slides
+            total=n_tfrecords
         )
         pb.start()
 
