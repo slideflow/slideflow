@@ -534,8 +534,8 @@ def _verify_compatible_tile_size(mil_path: str, bag_path: str, strict: bool = Fa
         mil_px, mil_um = mil_bags_params['tile_px'], mil_bags_params['tile_um']
         bag_px, bag_um = bags_config['tile_px'], bags_config['tile_um']
         if not sf.util.is_tile_size_compatible(bag_px, bag_um, mil_px, mil_um):
-            log.error(f"Model tile size (px={bag_px}, um={bag_um}) does not match the tile size "
-                      f"of indicated bags (px={mil_px}, um={mil_um}). Predictions may be unreliable.")
+            log.error(f"Model tile size (px={mil_px}, um={mil_um}) does not match the tile size "
+                      f"of indicated bags (px={bag_px}, um={bag_um}). Predictions may be unreliable.")
 
 
 def _pool_attention(
