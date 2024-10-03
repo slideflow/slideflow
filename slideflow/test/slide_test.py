@@ -12,7 +12,7 @@ class TestSlide(unittest.TestCase):
         super().__init__(testname)
         self.wsi_path = path
         self.tile_px = tile_px
-        self.kw = dict(tile_px=tile_px, tile_um=1208)
+        self.kw = dict(tile_px=tile_px, tile_um=604)
         self.wsi = sf.WSI(self.wsi_path, roi_method='ignore', **self.kw)
 
     def _assert_is_image(self, img: np.ndarray):

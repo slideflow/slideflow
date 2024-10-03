@@ -84,7 +84,7 @@ def random_annotations(
     else:
         slides = [f'slide{i}' for i in range(10)]
     annotations = [['patient', 'slide', 'dataset', 'category1', 'category2',
-                    'regression1', 'regression2', 'time', 'event']]
+                    'continuous1', 'continuous2', 'time', 'event']]
     for s, slide in enumerate(slides):
         cat1 = ['A', 'B'][s % 2]
         cat2 = ['A', 'B'][s % 2]
