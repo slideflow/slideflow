@@ -3147,8 +3147,8 @@ class Dataset:
         directory so future models may use the same split for consistency.
 
         Args:
-            model_type (str): Either 'classification' or 'regression'. Defaults
-                to 'classification' if ``labels`` is provided.
+            model_type (str): Either 'classification', 'regression', or 'survival'.
+                Defaults to 'classification' if ``labels`` is provided.
             labels (dict or str):  Either a dictionary of slides: labels,
                 or an outcome label (``str``). Used for balancing outcome
                 labels in training and validation cohorts. Defaults to None.
@@ -3222,10 +3222,10 @@ class Dataset:
                 "'regression' instead."
             )
             model_type = 'regression'
-        if model_type not in ('classification', 'regression'):
+        if model_type not in ('classification', 'regression', 'survival'):
             raise ValueError(
                 f"Invalid model_type {model_type}; must be either "
-                "'classification' or 'regression'"
+                "'classification', 'regression', or 'survival'"
             )
 
         # Prepare dataset
