@@ -330,8 +330,7 @@ def eval_from_model(
                             inp = (img,)  # type: ignore
                         event_indicator = [torch_args.slide_input[s][0] for s in slide]
                         event_indicator = np.array(event_indicator, dtype=np.float32)
-
-                    y_pred_ei += [event_indicator]
+                        y_pred_ei += [event_indicator]
 
                     if uq:
                         res, yp_std, num_outcomes = get_uq_predictions(
