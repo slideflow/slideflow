@@ -799,8 +799,10 @@ def metrics_from_dataset(
         metrics = metrics_by_level(classification_metrics)
     elif model_type == 'regression':
         metrics = metrics_by_level(regression_metrics)
-    else:
+    elif model_type == 'survival':
         metrics = metrics_by_level(survival_metrics)
+    else: 
+        raise ValueError(f"Unrecognized model_type {model_type}")
 
     log.debug(f'Metrics generation complete.')
     return metrics, acc, total_loss

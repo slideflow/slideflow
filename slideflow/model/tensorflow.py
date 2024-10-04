@@ -1156,34 +1156,8 @@ class Trainer:
 
         # Format outcome labels (ensures compatibility with single
         # and multi-outcome models)
-        outcome_labels = np.array(list(labels.values()))
-        if len(outcome_labels.shape) == 1:
-            outcome_labels = np.expand_dims(outcome_labels, axis=1)
-        if not outcome_names:
-            outcome_names = [
-                f'Outcome {i}'
-                for i in range(outcome_labels.shape[1])
-            ]
-        outcome_names = sf.util.as_list(outcome_names)
-        if labels and (len(outcome_names) != outcome_labels.shape[1]):
-            num_names = len(outcome_names)
-            num_outcomes = outcome_labels.shape[1]
-            raise errors.ModelError(f'Size of outcome_names ({num_names}) != '
-                                    f'number of outcomes {num_outcomes}')
-        self.outcome_names = outcome_names
+        self._process_outcome_labels(outcome_names)
         self._setup_inputs()
-        if labels:
-            self.num_classes = self.hp._detect_classes_from_labels(labels)
-            with tf.device('/cpu'):
-                for oi in range(outcome_labels.shape[1]):
-                    self.annotations_tables += [tf.lookup.StaticHashTable(
-                        tf.lookup.KeyValueTensorInitializer(
-                            self.slides,
-                            outcome_labels[:, oi]
-                        ), -1
-                    )]
-        else:
-            self.num_classes = None  # type: ignore
 
         # Normalization setup
         self.normalizer = self.hp.get_normalizer()
@@ -1236,6 +1210,36 @@ class Trainer:
                 neptune_api,
                 neptune_workspace
             )
+
+    def _process_outcome_labels(self, outcome_names: Optional[List[str]]) -> None:
+        outcome_labels = np.array(list(self.labels.values()))
+        if len(outcome_labels.shape) == 1:
+            outcome_labels = np.expand_dims(outcome_labels, axis=1)
+        if not outcome_names:
+            outcome_names = [
+                f'Outcome {i}'
+                for i in range(outcome_labels.shape[1])
+            ]
+        outcome_names = sf.util.as_list(outcome_names)
+        if self.labels and (len(outcome_names) != outcome_labels.shape[1]):
+            num_names = len(outcome_names)
+            num_outcomes = outcome_labels.shape[1]
+            raise errors.ModelError(f'Size of outcome_names ({num_names}) != '
+                                    f'number of outcomes {num_outcomes}')
+        self.outcome_names = outcome_names
+
+        if self.labels:
+            self.num_classes = self.hp._detect_classes_from_labels(self.labels)
+            with tf.device('/cpu'):
+                for oi in range(outcome_labels.shape[1]):
+                    self.annotations_tables += [tf.lookup.StaticHashTable(
+                        tf.lookup.KeyValueTensorInitializer(
+                            self.slides,
+                            outcome_labels[:, oi]
+                        ), -1
+                    )]
+        else:
+            self.num_classes = None  # type: ignore
 
     def _process_transforms(
         self,

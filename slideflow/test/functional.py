@@ -34,7 +34,7 @@ def activations_tester(
     sf.setLoggingLevel(verbosity)
 
     # Test activations generation.
-    dataset = project.dataset(tile_px, 1208)
+    dataset = project.dataset(tile_px, 604)
     test_slide = dataset.slides()[0]
 
     df = project.generate_features(
@@ -133,7 +133,7 @@ def reader_tester(project, verbosity, passed, tile_px) -> None:
 
     Function must happen in an isolated process to free GPU memory when done.
     """
-    dataset = project.dataset(tile_px, 1208)
+    dataset = project.dataset(tile_px, 604)
     tfrecords = dataset.tfrecords()
     batch_size = 128
     assert len(tfrecords)
@@ -208,7 +208,7 @@ def single_thread_normalizer_tester(
     sf.setLoggingLevel(verbosity)
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
-    dataset = project.dataset(tile_px, 1208)
+    dataset = project.dataset(tile_px, 604)
     v = f'[bold]({sf.backend()}-native)[/]'
 
     dts_kw = {'standardize': False, 'infinite': True}
@@ -259,7 +259,7 @@ def multi_thread_normalizer_tester(
     sf.setLoggingLevel(verbosity)
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
-    dataset = project.dataset(tile_px, 1208)
+    dataset = project.dataset(tile_px, 604)
     v = f'[bold]({sf.backend()}-native)[/]'
 
     for method in methods:

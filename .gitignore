@@ -15,3 +15,6 @@ torch_test/*
 warn_report*.txt
 slideflow.log
 .DS_Store
+scripts/slideflow_test
+scripts/cufile.log
+scripts/datasets.json

@@ -249,6 +249,7 @@ class ModelParams(_base._ModelParams):
             'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
             'SmoothL1': torch.nn.SmoothL1Loss,
             'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
+            'CoxProportionalHazardsLoss': torch_utils.CoxProportionalHazardsLoss,
         }
         self.AllLossDict = {
             'CrossEntropy': torch.nn.CrossEntropyLoss,
@@ -272,6 +273,7 @@ class ModelParams(_base._ModelParams):
             'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
             'SmoothL1': torch.nn.SmoothL1Loss,
             'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
+            'CoxProportionalHazardsLoss': torch_utils.CoxProportionalHazardsLoss,
         }
         super().__init__(loss=loss, **kwargs)
         assert self.model in self.ModelDict.keys() or self.model.startswith('timm_')
@@ -319,7 +321,8 @@ class ModelParams(_base._ModelParams):
         pretrain: Optional[str] = None,
         checkpoint: Optional[str] = None
     ) -> torch.nn.Module:
-
+        if self.model_type() == 'survival':
+            num_slide_features = num_slide_features - 1
         assert num_classes is not None or labels is not None
         if num_classes is None:
             assert labels is not None
@@ -389,7 +392,7 @@ class ModelParams(_base._ModelParams):
         #check if loss is custom_[type] and returns type
         if self.loss.startswith('custom'):
             return self.loss[7:]
-        elif self.loss == 'NLL':
+        elif self.loss == 'CoxProportionalHazardsLoss':
             return 'survival'
         elif self.loss in self.RegressionLossDict:
             return 'regression'
@@ -491,6 +494,11 @@ class Trainer:
                 Defaults to 8.
         """
         self.hp = hp
+        self.slides = list(labels.keys())
+        self.slide_input = slide_input
+        self.feature_names = feature_names
+        self.feature_sizes = feature_sizes
+        self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
         self.outdir = outdir
         self.labels = labels
         self.patients = dict()  # type: Dict[str, str]
@@ -507,6 +515,14 @@ class Trainer:
         self.num_workers = num_workers
         self.chunk_size = chunk_size
         self._reset_training_params()
+        # Slide-level input args
+        if slide_input:
+            self.slide_input = {
+                k: [float(vi) for vi in v]
+                for k, v in slide_input.items()
+            }
+        else:
+            self.slide_input = None  # type: ignore
 
         if custom_objects is not None:
             log.warn("custom_objects argument ignored in PyTorch backend.")
@@ -517,17 +533,8 @@ class Trainer:
         torch.backends.cudnn.allow_tf32 = allow_tf32  # type: ignore
         self._allow_tf32 = allow_tf32
 
-        # Slide-level input args
-        if slide_input:
-            self.slide_input = {
-                k: [float(vi) for vi in v]
-                for k, v in slide_input.items()
-            }
-        else:
-            self.slide_input = None  # type: ignore
-        self.feature_names = feature_names
-        self.feature_sizes = feature_sizes
-        self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
+        self._process_outcome_labels(outcome_names)
+        self._setup_inputs()
 
         self.normalizer = self.hp.get_normalizer()
         if self.normalizer:
@@ -537,7 +544,6 @@ class Trainer:
             os.makedirs(outdir)
 
         self._process_transforms(transform)
-        self._process_outcome_labels(outcome_names)
         if isinstance(labels, pd.DataFrame):
             cat_assign = self._process_category_assignments()
 
@@ -632,6 +638,26 @@ class Trainer:
         if 'val' not in transform:
             transform['val'] = None
         self.transform = transform
+
+    def _setup_inputs(self) -> None:
+        if self.num_slide_features:
+            assert self.slide_input is not None
+            try:
+                if self.num_slide_features:
+                    log.info(f'Training with both images and '
+                             f'{self.num_slide_features} slide-level input'
+                             'features')
+            except KeyError:
+                raise errors.ModelError("Unable to find slide-level input at "
+                                        "'input' key in annotations")
+            for slide in self.slides:
+                if len(self.slide_input[slide]) != self.num_slide_features:
+                    num_in_feature_table = len(self.slide_input[slide])
+                    raise errors.ModelError(
+                        f'Length of input for slide {slide} does not match '
+                        f'feature_sizes; expected {self.num_slide_features}, '
+                        f'got {num_in_feature_table}'
+                    )
 
     def _process_outcome_labels(
         self,
@@ -864,6 +890,11 @@ class Trainer:
         if self.hp.model_type() == 'classification':
             epoch_metrics.update({'accuracy': acc})
         return {f'{label}_metrics': epoch_metrics}
+    
+    def _update_loss(self, pred, labels, running_loss, size):
+        labels = self._labels_to_device(labels, self.device)
+        loss = self._calculate_loss(pred, labels, self.loss_fn)
+        return running_loss + (loss.item() * size)
 
     def _val_metrics(self, **kwargs) -> Dict[str, Dict[str, float]]:
         """Evaluate model and calculate metrics.
@@ -900,14 +931,9 @@ class Trainer:
             else:
                 return 0
 
-        def update_loss(pred, labels, running_loss, size):
-            labels = self._labels_to_device(labels, self.device)
-            loss = self._calculate_loss(pred, labels, self.loss_fn)
-            return running_loss + (loss.item() * size)
-
         torch_args = types.SimpleNamespace(
             update_corrects=update_corrects,
-            update_loss=update_loss,
+            update_loss=self._update_loss,
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input,
             normalizer=(self.normalizer if self._has_gpu_normalizer() else None),
@@ -1152,7 +1178,6 @@ class Trainer:
 
     def _mid_training_validation(self) -> None:
         """Perform mid-epoch validation, if appropriate."""
-
         if not self.validate_on_batch:
             return
         elif not (
@@ -1173,6 +1198,7 @@ class Trainer:
             val_img, val_label, slides, *_ = next(self.mid_train_val_dts)  # type:ignore
             val_img = val_img.to(self.device)
             val_img = val_img.to(memory_format=torch.channels_last)
+            val_label = self._labels_to_device(val_label, self.device)
 
             with torch.inference_mode():
                 _mp = (self.mixed_precision and self.device.type in ('cuda', 'cpu'))
@@ -1182,16 +1208,7 @@ class Trainer:
                     if self._has_gpu_normalizer():
                         val_img = self.normalizer.preprocess(val_img)
 
-                    if self.num_slide_features:
-                        _slide_in = [self.slide_input[s] for s in slides]
-                        inp = (val_img, Tensor(_slide_in).to(self.device))
-                    else:
-                        inp = (val_img,)  # type: ignore
-                    val_outputs = self.inference_model(*inp)
-                    val_label = self._labels_to_device(val_label, self.device)
-                    val_batch_loss = self._calculate_loss(
-                        val_outputs, val_label, self.loss_fn
-                    )
+                    val_outputs, val_batch_loss = self._forward_pass_and_loss(slides, val_img, val_label, inference_model=True)
 
             running_val_loss += val_batch_loss.item() * val_img.size(0)
             if self.hp.model_type() == 'classification':
@@ -1388,6 +1405,21 @@ class Trainer:
         else:
             log.debug('Validation during training: None')
 
+    def _forward_pass_and_loss(self, slides, images, labels, inference_model=False) -> Tuple[Tensor, Tensor]: 
+        """Forward pass and loss calculation for a single batch."""
+        # Slide-level features
+        if self.num_slide_features:
+            _slide_in = [self.slide_input[s] for s in slides]
+            inp = (images, Tensor(_slide_in).to(self.device))
+        else:
+            inp = (images,)  # type: ignore
+        if inference_model:
+            outputs = self.inference_model(*inp)
+        else:
+            outputs = self.model(*inp)
+        loss = self._calculate_loss(outputs, labels, self.loss_fn)
+        return outputs, loss
+
     def _training_step(self, pb: Progress) -> None:
         assert self.model is not None
         images, labels, slides = next(self.dataloaders['train'])
@@ -1407,14 +1439,7 @@ class Trainer:
                                  and 'n' in self.hp.augment)
                     )
 
-                # Slide-level features
-                if self.num_slide_features:
-                    _slide_in = [self.slide_input[s] for s in slides]
-                    inp = (images, Tensor(_slide_in).to(self.device))
-                else:
-                    inp = (images,)  # type: ignore
-                outputs = self.model(*inp)
-                loss = self._calculate_loss(outputs, labels, self.loss_fn)
+                outputs, loss = self._forward_pass_and_loss(slides, images, labels)
 
             # Update weights
             if self.mixed_precision and self.device.type == 'cuda':
@@ -1778,6 +1803,29 @@ class Trainer:
             pool.close()
         return results
 
+    def _update_log_epoch_metrics(self, results, save_model) -> None:
+        loss = self.running_loss / self.epoch_records
+        epoch_metrics = {'train_metrics': {'loss': loss}}
+        if self.hp.model_type() == 'classification':
+            acc, acc_desc = self._calculate_accuracy(
+                self.running_corrects, self.epoch_records
+            )
+            epoch_metrics['train_metrics'].update({
+                'accuracy': self._accuracy_as_numpy(acc)  # type: ignore
+            })
+        elif self.hp.model_type() == 'regression':
+            acc, acc_desc = 0, ''  # type: ignore
+        else:
+            raise errors.ModelError(
+                f"Model type {self.hp.model_type()} not recognized"
+            )
+        results['epochs'][f'epoch{self.epoch}'].update(epoch_metrics)
+        self._log_epoch('train', self.epoch, loss, acc_desc)
+        self._log_to_neptune(loss, acc, 'train', 'epoch')
+        if save_model and (self.epoch in self.hp.epochs or self.early_stop):
+            self._save_model()
+        return results
+
     def train(
         self,
         train_dts: "sf.Dataset",
@@ -2011,23 +2059,7 @@ class Trainer:
                     self.step += 1
                     self.global_step += 1
 
-            # Update and log epoch metrics ------------------------------------
-            loss = self.running_loss / self.epoch_records
-            epoch_metrics = {'train_metrics': {'loss': loss}}
-            if self.hp.model_type() == 'classification':
-                acc, acc_desc = self._calculate_accuracy(
-                    self.running_corrects, self.epoch_records
-                )
-                epoch_metrics['train_metrics'].update({
-                    'accuracy': self._accuracy_as_numpy(acc)  # type: ignore
-                })
-            else:
-                acc, acc_desc = 0, ''  # type: ignore
-            results['epochs'][f'epoch{self.epoch}'].update(epoch_metrics)
-            self._log_epoch('train', self.epoch, loss, acc_desc)
-            self._log_to_neptune(loss, acc, 'train', 'epoch')
-            if save_model and (self.epoch in self.hp.epochs or self.early_stop):
-                self._save_model()
+            results = self._update_log_epoch_metrics(results, save_model) # FIXME:
 
             # Full evaluation -------------------------------------------------
             # Perform full evaluation if the epoch is one of the
@@ -2076,11 +2108,114 @@ class RegressionTrainer(Trainer):
 
 class SurvivalTrainer(Trainer):
 
-    """Cox proportional hazards (CPH) models are not yet implemented, but are
-    planned for a future update."""
+    """Cox Proportional Hazards model. Requires that the user provide event
+    data as the first input feature, and time to outcome as the linear outcome.
+    Uses concordance index as the evaluation metric."""
 
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError
+    _model_type = 'survival'
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if not self.num_slide_features:
+            raise errors.ModelError('Model error - Survival models must '
+                                    'include event input')
+        
+    def _setup_inputs(self) -> None:
+        # Setup slide-level input
+        num_features = self.num_slide_features - 1
+        if num_features > 0:
+            log.info(f'Training with both images and {num_features} '
+                        'categories of slide-level input')
+            log.info('Interpreting first feature as event for CPH model')
+        elif num_features == 0:
+            log.info('Training with images alone. Interpreting first '
+                        'feature as event for CPH model')
+        elif num_features == - 1:
+            log.info('Training with images alone. Interpreting first '
+                        'feature as event for CPH model')
+            raise errors.ModelError('CPH models must have at least one input head which will be used as the event indicator')
+        else:
+            raise errors.ModelError("Unable to find slide-level input at "
+                                    "'input' key in annotations")
+        assert self.slide_input is not None
+        for slide in self.slides:
+            if len(self.slide_input[slide]) != self.num_slide_features:
+                num_in_feature_table = len(self.slide_input[slide])
+                raise errors.ModelError(
+                    f'Length of input for slide {slide} does not match '
+                    f'feature_sizes; expected {self.num_slide_features}, got '
+                    f'{num_in_feature_table}'
+                )
+
+    def _print_model_summary(self, train_dts) -> None:
+        """Prints model summary and logs to neptune."""
+        if self.model is None:
+            raise ValueError("Model has not yet been initialized.")
+        empty_inp = [torch.empty(
+            [self.hp.batch_size, 3, train_dts.tile_px, train_dts.tile_px]
+        )]
+        if (self.num_slide_features - 1):
+            empty_inp += [
+                torch.empty([self.hp.batch_size, (self.num_slide_features - 1)])
+            ]
+        if sf.getLoggingLevel() <= 20:
+            model_summary = torch_utils.print_module_summary(
+                self.model, empty_inp
+            )
+            if self.neptune_run:
+                self.neptune_run['summary'] = model_summary
+
+    def _update_loss(self, pred, labels, event_indicator, running_loss, size) -> float:
+        labels = self._labels_to_device(labels, self.device)
+        event_indicator = Tensor(event_indicator).to(self.device)
+        loss = self._calculate_loss(pred, labels, event_indicator, self.loss_fn)
+        return running_loss + (loss.item() * size)
+
+    def _calculate_loss(
+        self,
+        outputs: Union[Tensor, List[Tensor]],
+        labels: Union[Tensor, Dict[Any, Tensor]],
+        event_indicator: Tensor,
+        loss_fn: torch.nn.modules.loss._Loss
+    ) -> Tensor:
+        """Calculates loss for Cox Proportional Hazards model."""
+        y_true = torch.cat((labels, event_indicator.unsqueeze(1)), dim=1)
+        loss = loss_fn(outputs, y_true)
+        return loss
+
+    def _forward_pass_and_loss(self, slides, images, labels, inference_model=False) -> Tuple[Tensor, Tensor]: 
+        """Forward pass and loss calculation for a single batch."""
+        # Slide-level features
+        if self.num_slide_features == 1:
+            inp = (images,)  # type: ignore
+        elif self.num_slide_features > 1:
+            # if slide features are present, pass but exclude the event indicator
+            _slide_in = [self.slide_input[s][1:] for s in slides]
+            inp = (images, Tensor(_slide_in).to(self.device))
+        if inference_model:
+            outputs = self.inference_model(*inp)
+        else:
+            outputs = self.model(*inp)
+
+        # Get the event indicator for CPH loss calculation
+        event_indicator = [self.slide_input[s][0] for s in slides]
+        event_indicator = Tensor(event_indicator).to(self.device)
+
+        loss = self._calculate_loss(
+            outputs, labels, event_indicator, self.loss_fn)
+        return outputs, loss
+
+    def _update_log_epoch_metrics(self, results, save_model) -> None:
+        loss = self.running_loss / self.epoch_records
+        epoch_metrics = {'train_metrics': {'loss': loss}}
+        acc, acc_desc = 0, ''
+        # here a running c-index could be calculated
+        results['epochs'][f'epoch{self.epoch}'].update(epoch_metrics)
+        self._log_epoch('train', self.epoch, loss, acc_desc)
+        self._log_to_neptune(loss, acc, 'train', 'epoch')
+        if save_model and (self.epoch in self.hp.epochs or self.early_stop):
+            self._save_model()
+        return results 
 
 # -----------------------------------------------------------------------------
 

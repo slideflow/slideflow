@@ -18,7 +18,7 @@ from slideflow.util import colors as col
 @click.option('--all', 'all_tests', help='Perform all tests.',
               required=False, type=bool)
 @click.option('--unit', help='Run unit tests.',
-              required=False, type=bool, default=True)
+              required=False, type=bool, default=False)
 @click.option('--extract', help='Test tile extraction.',
               required=False, type=bool)
 @click.option('--reader', help='Test TFRecord readers.',

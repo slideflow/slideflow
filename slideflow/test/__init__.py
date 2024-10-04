@@ -105,7 +105,7 @@ class TestSuite:
         self.buffer = buffer
 
         # Rebuild tfrecord indices
-        self.project.dataset(self.tile_px, 1208).build_index(True)
+        self.project.dataset(self.tile_px, 604).build_index(True)
 
         # Set up training keyword arguments.
         self.train_kwargs = dict(
@@ -166,13 +166,13 @@ class TestSuite:
         elif model_type == 'survival':
             loss = ('negative_log_likelihood'
                     if sf.backend() == 'tensorflow'
-                    else 'NLL')
+                    else 'CoxProportionalHazardsLoss')
 
         # Create batch train file
         if sweep:
             self.project.create_hp_sweep(
                 tile_px=self.tile_px,
-                tile_um=1208,
+                tile_um=604,
                 epochs=[1, 3],
                 toplayer_epochs=[0],
                 model=["mobilenet_v2"],
@@ -199,7 +199,7 @@ class TestSuite:
         # Create single hyperparameter combination
         hp = sf.ModelParams(
             tile_px=self.tile_px,
-            tile_um=1208,
+            tile_um=604,
             epochs=1,
             toplayer_epochs=0,
             model="mobilenet_v2",
@@ -232,7 +232,7 @@ class TestSuite:
             try:
                 self.project.extract_tiles(
                     tile_px=self.tile_px,
-                    tile_um=1208,
+                    tile_um=604,
                     buffer=self.buffer,
                     source=['TEST'],
                     roi_method='ignore',
@@ -243,7 +243,7 @@ class TestSuite:
                 )
                 self.project.extract_tiles(
                     tile_px=self.tile_px,
-                    tile_um="2.5x",
+                    tile_um="10x",
                     buffer=self.buffer,
                     source=['TEST'],
                     roi_method='ignore',
@@ -469,7 +469,7 @@ class TestSuite:
             with TaskWrapper("Training with single regression outcome...") as test:
                 try:
                     results = self.project.train(
-                        outcomes=['regression1'],
+                        outcomes=['continuous1'],
                         val_k=1,
                         params=self.setup_hp('regression'),
                         pretrain=None,
@@ -485,7 +485,7 @@ class TestSuite:
             with TaskWrapper("Training multiple regression outcomes...") as test:
                 try:
                     results = self.project.train(
-                        outcomes=['regression1', 'regression2'],
+                        outcomes=['continuous1', 'continuous2'],
                         val_k=1,
                         params=self.setup_hp('regression'),
                         pretrain=None,
@@ -513,46 +513,39 @@ class TestSuite:
                 except Exception as e:
                     log.error(traceback.format_exc())
                     test.fail()
-
         if survival:
             with TaskWrapper("Training a survival model...") as test:
-                if sf.backend() == 'tensorflow':
-                    try:
-                        results = self.project.train(
-                            exp_label='survival',
-                            outcomes='time',
-                            input_header='event',
-                            params=self.setup_hp('survival'),
-                            val_k=1,
-                            pretrain=None,
-                            **train_kwargs
-                        )
-                        _assert_valid_results(results)
-                    except Exception as e:
-                        log.error(traceback.format_exc())
-                        test.fail()
-                else:
-                    test.skip()
+                try:
+                    results = self.project.train(
+                        exp_label='survival',
+                        outcomes='time',
+                        input_header='event',
+                        params=self.setup_hp('survival'),
+                        val_k=1,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
 
         if multi_survival:
-            with TaskWrapper("Training a multi-input survival model...") as test:
-                if sf.backend() == 'tensorflow':
-                    try:
-                        results = self.project.train(
-                            exp_label='multi_survival',
-                            outcomes='time',
-                            input_header=['event', 'category1'],
-                            params=self.setup_hp('survival'),
-                            val_k=1,
-                            pretrain=None,
-                            **train_kwargs
-                        )
-                        _assert_valid_results(results)
-                    except Exception as e:
-                        log.error(traceback.format_exc())
-                        test.fail()
-                else:
-                    test.skip()
+            with TaskWrapper("Training a multi-input Survival model...") as test:
+                try:
+                    results = self.project.train(
+                        exp_label='multi_survival',
+                        outcomes='time',
+                        input_header=['event', 'category1'],
+                        params=self.setup_hp('survival'),
+                        val_k=1,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
         if from_wsi:
             # Test training from slides without TFRecords
             msg = "Training model directly from slides (from_wsi=True)..."
@@ -594,7 +587,7 @@ class TestSuite:
 
         assert self.project is not None
         multi_cat_model = self._get_model('category1-category2-HP0-kfold1')
-        multi_lin_model = self._get_model('regression1-regression2-HP0-kfold1')
+        multi_lin_model = self._get_model('continuous1-continuous2-HP0-kfold1')
         multi_inp_model = self._get_model('category1-multi_input-HP0-kfold1')
         f_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
 
@@ -642,7 +635,7 @@ class TestSuite:
                 sf.test.functional.evaluation_tester,
                 project=self.project,
                 model=multi_lin_model,
-                outcomes=['regression1', 'regression2'],
+                outcomes=['continuous1', 'continuous2'],
                 save_predictions=True,
                 **eval_kwargs
             )
@@ -764,7 +757,7 @@ class TestSuite:
                 test.skip()
             else:
                 try:
-                    dataset = self.project.dataset(self.tile_px, 1208)
+                    dataset = self.project.dataset(self.tile_px, 604)
                     train_dts, val_dts = dataset.split(val_fraction=0.3)
                     import slideflow.mil
                     config = sf.mil.mil_config('attention_mil', epochs=5, lr=1e-4, drop_last=False)
@@ -838,7 +831,7 @@ class TestSuite:
             pass
 
         print("Running unit tests...")
-        runner = unittest.TextTestRunner()
+        runner = unittest.TextTestRunner(verbosity=2)
         all_tests = [
             unittest.TestLoader().loadTestsFromModule(module)
             for module in (norm_test, dataset_test, stats_test, model_test)

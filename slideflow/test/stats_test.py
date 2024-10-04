@@ -184,7 +184,7 @@ class TestMetrics(unittest.TestCase):
         self.assertIn('patient', dfs['patient'].columns)
         return dfs
 
-    def _assert_categorical_metrics(self, metrics, outcomes, lengths):
+    def _assert_classification_metrics(self, metrics, outcomes, lengths):
         for outcome, length in zip(outcomes, lengths):
             self.assertTrue(metrics is not None)
             self.assertIsInstance(metrics, dict)
@@ -212,18 +212,18 @@ class TestMetrics(unittest.TestCase):
         )
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
-            self._assert_categorical_metrics(metrics, ['out0'], [self.n_labels1])
+            metrics = sf.stats.metrics.classification_metrics(_df, level=level)
+            self._assert_classification_metrics(metrics, ['out0'], [self.n_labels1])
 
     def test_single_categorical_named(self):
         tile_df = sf.stats.df_from_pred(
             *self._get_single_categorical_data()
         )
-        tile_df = sf.stats.name_columns(tile_df, 'categorical', 'Named1')
+        tile_df = sf.stats.name_columns(tile_df, 'classification', 'Named1')
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
-            self._assert_categorical_metrics(metrics, ['Named1'], [self.n_labels1])
+            metrics = sf.stats.metrics.classification_metrics(_df, level=level)
+            self._assert_classification_metrics(metrics, ['Named1'], [self.n_labels1])
 
     def test_multi_categorical(self):
         tile_df = sf.stats.df_from_pred(
@@ -231,8 +231,8 @@ class TestMetrics(unittest.TestCase):
         )
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
-            self._assert_categorical_metrics(
+            metrics = sf.stats.metrics.classification_metrics(_df, level=level)
+            self._assert_classification_metrics(
                 metrics,
                 ['out0', 'out1'],
                 [self.n_labels1, self.n_labels2]
@@ -244,13 +244,13 @@ class TestMetrics(unittest.TestCase):
         )
         tile_df = sf.stats.name_columns(
             tile_df,
-            'categorical',
+            'classification',
             ['Named1', 'Named2']
         )
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
-            self._assert_categorical_metrics(
+            metrics = sf.stats.metrics.classification_metrics(_df, level=level)
+            self._assert_classification_metrics(
                 metrics,
                 ['Named1', 'Named2'],
                 [self.n_labels1, self.n_labels2]
@@ -260,7 +260,7 @@ class TestMetrics(unittest.TestCase):
         tile_df = sf.stats.df_from_pred(
             *self._get_single_continuous_data()
         )
-        tile_df = sf.stats.name_columns(tile_df, 'continuous', ['NamedContinuous1'])
+        tile_df = sf.stats.name_columns(tile_df, 'regression', ['NamedContinuous1'])
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
             metrics = sf.stats.metrics.regression_metrics(_df, level=level)
@@ -272,7 +272,7 @@ class TestMetrics(unittest.TestCase):
         )
         tile_df = sf.stats.name_columns(
             tile_df,
-            'continuous',
+            'regression',
             ['NamedContinuous1', 'NamedContinuous2']
         )
         dfs = self._group_reduce(tile_df)
