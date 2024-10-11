@@ -294,11 +294,11 @@ class _cuCIMReader:
                     spacing_unit = self.metadata[prop_key]['spacing_units']
                     if isinstance(spacing_unit, (list, tuple)):
                         spacing_unit = spacing_unit[0]
-                    if spacing_unit in ('mm', 'millimeters'):
+                    if spacing_unit in ('mm', 'millimeters', 'millimeter'):
                         self._mpp = ps * 1000
-                    elif spacing_unit in ('cm', 'centimeters'):
+                    elif spacing_unit in ('cm', 'centimeters', 'centimeter'):
                         self._mpp = ps * 10000
-                    elif spacing_unit in ('um', 'microns', 'micrometers'):
+                    elif spacing_unit in ('um', 'microns', 'micrometers', 'micrometer'):
                         self._mpp = ps
                     else:
                         continue
