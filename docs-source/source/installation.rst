@@ -44,21 +44,21 @@ The ``cupy`` package name depends on the installed CUDA version; `see here <http
 Run a Docker container
 **********************
 
-Alternatively, pre-configured `docker images <https://hub.docker.com/repository/docker/slideflow/slideflow>`_ are available with cuCIM, Libvips, and either PyTorch 1.11 or Tensorflow 2.9 pre-installed. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
+Alternatively, pre-configured `docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ are available with cuCIM, Libvips, and either PyTorch 1.11 or Tensorflow 2.9 pre-installed. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
 
 To run a Docker container with the Tensorflow backend:
 
 .. code-block:: bash
 
-    docker pull slideflow/slideflow:latest-tf
-    docker run -it --gpus all slideflow/slideflow:latest-tf
+    docker pull jamesdolezal/slideflow:latest-tf
+    docker run -it --gpus all jamesdolezal/slideflow:latest-tf
 
 To run a Docker container with the PyTorch backend:
 
 .. code-block:: bash
 
-    docker pull slideflow/slideflow:latest-torch
-    docker run -it --shm-size=2g --gpus all slideflow/slideflow:latest-torch
+    docker pull jamesdolezal/slideflow:latest-torch
+    docker run -it --shm-size=2g --gpus all jamesdolezal/slideflow:latest-torch
 
 Build from source
 *****************
