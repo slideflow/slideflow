@@ -101,7 +101,7 @@ def random_jpeg_compression(
     """
     q = (torch.rand(1)[0] * q_min) + (q_max - q_min)
     img = torchvision.io.encode_jpeg(img, quality=q)
-    return torchvision.io.decode_image(img)
+    return torchvision.io.decode_jpeg(img)
 
 
 def compose_color_distortion(s=1.0):

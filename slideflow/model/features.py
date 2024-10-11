@@ -1748,7 +1748,7 @@ class _FeatureGenerator:
                 model_output = self._calculate_feature_batch(batch_img)
                 q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
                 if pb:
-                    pb.advance(task, self.batch_size)
+                    pb.advance(task, batch_img.shape[0])
         q.put((None, None, None))
         batch_proc_thread.join()
         if hasattr(dataset, 'close'):
