@@ -60,18 +60,18 @@ The `cupy` package name depends on the installed CUDA version; [see here](https:
 
 ### Method 2: Docker image
 
-Alternatively, pre-configured [docker images](https://hub.docker.com/repository/docker/slideflow/slideflow) are available with OpenSlide/Libvips and the latest version of either Tensorflow and PyTorch. To install with the Tensorflow backend:
+Alternatively, pre-configured [docker images](https://hub.docker.com/repository/docker/jamesdolezal/slideflow) are available with OpenSlide/Libvips and the latest version of either Tensorflow and PyTorch. To install with the Tensorflow backend:
 
 ```
-docker pull slideflow/slideflow:latest-tf
-docker run -it --gpus all slideflow/slideflow:latest-tf
+docker pull jamesdolezal/slideflow:latest-tf
+docker run -it --gpus all jamesdolezal/slideflow:latest-tf
 ```
 
 To install with the PyTorch backend:
 
 ```
-docker pull slideflow/slideflow:latest-torch
-docker run -it --shm-size=2g --gpus all slideflow/slideflow:latest-torch
+docker pull jamesdolezal/slideflow:latest-torch
+docker run -it --shm-size=2g --gpus all jamesdolezal/slideflow:latest-torch
 ```
 
 ### Method 3: From source
