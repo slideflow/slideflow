@@ -139,7 +139,7 @@ class IndexedInterleaver(IndexedMultiTFRecordDataset):
 
         """
         self.readers = []
-        self.tfrecords = np.array(tfrecords).astype(np.string_)
+        self.tfrecords = np.array(tfrecords).astype(np.bytes_)
         if not len(self.tfrecords):
             raise ValueError("No tfrecords provided.")
         self.indices = self._load_indices(indices)

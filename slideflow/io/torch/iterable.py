@@ -146,7 +146,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             raise ValueError(
                 f"Expected normalizer to be type StainNormalizer, got: {type(normalizer)}"
             )
-        self.tfrecords = np.array(tfrecords).astype(np.string_)
+        self.tfrecords = np.array(tfrecords).astype(np.bytes_)
         self.prob_weights = None if prob_weights is None else np.array(prob_weights)
         self.clip = clip
         self.indices = indices
