@@ -45,3 +45,4 @@ zarr
 fastai
 gdown
 triangle
+pyarrow

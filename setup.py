@@ -25,7 +25,7 @@ setuptools.setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     author="James Dolezal",
-    author_email="james.dolezal@uchospitals.edu",
+    author_email="james@slideflow.ai",
     description="Deep learning tools for digital histology",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -34,7 +34,7 @@ setuptools.setup(
     scripts=['scripts/slideflow-studio'],
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
     package_data = {
@@ -157,7 +157,8 @@ setuptools.setup(
         'parameterized',
         'zarr',
         'gdown',
-        'triangle'
+        'triangle',
+        'pyarrow'
     ],
     extras_require={
         'tf': [
