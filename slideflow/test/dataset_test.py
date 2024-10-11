@@ -79,8 +79,8 @@ class TestDataset(unittest.TestCase):
 
     def test_is_float(self):
         dataset = self.PROJECT.dataset()
-        self.assertTrue(dataset.is_float('continuous1'))
-        self.assertTrue(dataset.is_float('continuous2'))
+        self.assertTrue(dataset.is_float('regression1'))
+        self.assertTrue(dataset.is_float('regression2'))
         self.assertFalse(dataset.is_float('category1'))
         self.assertFalse(dataset.is_float('category2'))
 
@@ -209,7 +209,7 @@ class TestLabels(unittest.TestCase):
         self.assertTrue(all([isinstance(lbl, str) for lbl in unique]))
 
     def _test_continuous_labels(self, use_float):
-        labels, unique = self.dataset.labels('continuous1', use_float=use_float)
+        labels, unique = self.dataset.labels('regression1', use_float=use_float)
         self._check_label_format(labels)
         self.assertTrue(all([isinstance(lbl, list) for lbl in labels.values()]))
         self.assertTrue(all([len(lbl) == 1 for lbl in labels.values()]))
@@ -224,12 +224,12 @@ class TestLabels(unittest.TestCase):
         self._test_continuous_labels(use_float='auto')
 
     def test_continuous_labels_with_dict_float(self):
-        self._test_continuous_labels(use_float={'continuous1': True})
+        self._test_continuous_labels(use_float={'regression1': True})
 
     def _test_cat_and_continuous_labels(self, labels, unique, cat_idx, continuous_idx, cat_format):
         # Label format checks
         self._check_label_format(labels)
-        self.assertTrue('category1' in unique and 'continuous1' in unique)
+        self.assertTrue('category1' in unique and 'regression1' in unique)
         self.assertIsInstance(unique, dict)
 
         # Categorical label checks
@@ -238,38 +238,38 @@ class TestLabels(unittest.TestCase):
 
         # continuous label checks
         self.assertTrue(all([isinstance(lbl[continuous_idx], float) for lbl in labels.values()]))
-        self.assertIsInstance(unique['continuous1'], list)
-        self.assertFalse(len(unique['continuous1']))
+        self.assertIsInstance(unique['regression1'], list)
+        self.assertFalse(len(unique['regression1']))
 
     def test_categorical_and_continuous_labels_by_index(self):
         labels, unique = self.dataset.labels(
-            ['category1', 'continuous1'],
+            ['category1', 'regression1'],
             format='index',
-            use_float={'continuous1': True, 'category1': False}
+            use_float={'regression1': True, 'category1': False}
         )
         self._test_cat_and_continuous_labels(labels, unique, 0, 1, cat_format=int)
 
     def test_categorical_and_continuous_labels_by_name(self):
         labels, unique = self.dataset.labels(
-            ['category1', 'continuous1'],
+            ['category1', 'regression1'],
             format='name',
-            use_float={'continuous1': True, 'category1': False}
+            use_float={'regression1': True, 'category1': False}
         )
         self._test_cat_and_continuous_labels(labels, unique, 0, 1, cat_format=str)
 
     def test_continuous_and_categorical_labels_by_index(self):
         labels, unique = self.dataset.labels(
-            ['continuous1', 'category1'],
+            ['regression1', 'category1'],
             format='index',
-            use_float={'continuous1': True, 'category1': False}
+            use_float={'regression1': True, 'category1': False}
         )
         self._test_cat_and_continuous_labels(labels, unique, 1, 0, cat_format=int)
 
     def test_continuous_and_categorical_labels_by_name(self):
         labels, unique = self.dataset.labels(
-            ['continuous1', 'category1'],
+            ['regression1', 'category1'],
             format='name',
-            use_float={'continuous1': True, 'category1': False}
+            use_float={'regression1': True, 'category1': False}
         )
         self._test_cat_and_continuous_labels(labels, unique, 1, 0, cat_format=str)
 

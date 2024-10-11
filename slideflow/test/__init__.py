@@ -838,7 +838,7 @@ class TestSuite:
             pass
 
         print("Running unit tests...")
-        runner = unittest.TextTestRunner()
+        runner = unittest.TextTestRunner(verbosity=2)
         all_tests = [
             unittest.TestLoader().loadTestsFromModule(module)
             for module in (norm_test, dataset_test, stats_test, model_test)
