@@ -3765,9 +3765,9 @@ class Dataset:
 
     def tfrecord_report(
         self,
-        dest: str,
+        dest: Optional[str] = None,
         normalizer: Optional["StainNormalizer"] = None
-    ) -> None:
+    ) -> ExtractionReport:
         """Create a PDF report of TFRecords.
 
         Reports include 10 example tiles per TFRecord. Report is saved
@@ -3810,18 +3810,23 @@ class Dataset:
                                     tile_um=self.tile_um,
                                     ignore_thumb_errors=True)]
 
-        # Generate and save PDF
+        # Generate report
         log.info('Generating PDF (this may take some time)...')
         pdf_report = ExtractionReport(reports, title='TFRecord Report')
-        timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
-        if exists(dest) and isdir(dest):
-            filename = join(dest, f'tfrecord_report-{timestring}.pdf')
-        elif sf.util.path_to_ext(dest) == 'pdf':
-            filename = join(dest)
-        else:
-            raise ValueError(f"Could not find destination directory {dest}.")
-        pdf_report.save(filename)
-        log.info(f'TFRecord report saved to [green]{filename}')
+
+        # Save as PDF
+        if dest is not None:
+            timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
+            if exists(dest) and isdir(dest):
+                filename = join(dest, f'tfrecord_report-{timestring}.pdf')
+            elif sf.util.path_to_ext(dest) == 'pdf':
+                filename = join(dest)
+            else:
+                raise ValueError(f"Could not find destination directory {dest}.")
+            pdf_report.save(filename)
+            log.info(f'TFRecord report saved to [green]{filename}')
+
+        return pdf_report
 
     def tfrecord_heatmap(
         self,
