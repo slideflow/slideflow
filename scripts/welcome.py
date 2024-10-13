@@ -61,7 +61,7 @@ def print_welcome():
     BLUE = '\033[94m'
 
     # Print the welcome message with formatting
-    print(f"{BOLD}Welcome to Slideflow {slideflow_version}{END}")
+    print(f"{BOLD}Slideflow {slideflow_version}{END}")
     print(f"{GREEN}Tensor backend:{END} {tensor_backend}")
     print(f"{GREEN}Slide backends:{END} {slide_backends}")
     print(f"{BLUE}Additional modules:{END} {additional_modules}")
