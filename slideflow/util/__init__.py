@@ -162,7 +162,11 @@ else:
 log.addHandler(ch)
 
 # Add multiprocessing-friendly file handler
-addLoggingFileHandler("slideflow.log")
+try:
+    addLoggingFileHandler("slideflow.log")
+except Exception as e:
+    # If we can't write to the log file, just ignore it
+    pass
 
 # Workaround for duplicate logging with TF 2.9
 log.propagate = False
