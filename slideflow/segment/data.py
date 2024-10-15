@@ -271,7 +271,11 @@ class TileMaskDataset(torch.utils.data.Dataset):
         for slide in track(slides, description="Loading slides"):
             name = path_to_name(slide)
             wsi = sf.WSI(slide, **kw)
-            wsi_with_rois = sf.WSI(slide, roi_filter_method=0.1, rois=rois, **kw)
+            try:
+                wsi_with_rois = sf.WSI(slide, roi_filter_method=0.1, rois=rois, **kw)
+            except Exception as e:
+                sf.log.error("Failed to load slide {}: {}".format(slide, e))
+                raise e
 
             # Filter ROIs to only include the specified labels.
             if self.roi_labels:
@@ -290,6 +294,8 @@ class TileMaskDataset(torch.utils.data.Dataset):
                 wsi.qc('otsu')
                 coords = np.argwhere(wsi.grid).tolist()
                 wsi.remove_qc()
+            elif filter_method in ['all', 'none', None]:
+                coords = np.argwhere(wsi_with_rois.grid).tolist()
             else:
                 raise ValueError("Invalid filter method: {}. Expected one of: "
                                  "roi, otsu".format(filter_method))
