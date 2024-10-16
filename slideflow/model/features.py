@@ -185,6 +185,8 @@ class DatasetFeatures:
         self.model = model
         self.dataset = dataset
         self.feature_generator = None
+        # Store the encoded feature for each type of each column in annotation file. Example {column: {type_1: 1, type_2: 2}}
+        self.encodes = dict()
         if dataset is not None:
             self.tile_px = dataset.tile_px
             self.manifest = dataset.manifest()
@@ -1226,6 +1228,127 @@ class DatasetFeatures:
                 image_string = open(join(outdir, str(f), tile_filename), 'wb')
                 image_string.write(image.numpy())
                 image_string.close()
+
+    def add_features(
+        self,
+        annotations: Optional[Union[str, pd.DataFrame]] = None,
+        categorical_cols: Optional[List[str]] = [],
+        numerical_cols: Optional[List[str]] = [],
+        slide_col: str = 'slide'
+    ) -> None:
+        '''
+        Add features from the specified columns from annotations file.
+
+        Args:
+            annotations (str or pd.DataFrame, optional): Path to CSV file or 
+                pandas DataFrame containing annotations. If not provided, will
+                use self.dataset.annotations.
+            categorical_cols (list(str), optional): names of the categorical 
+                columns. Defaults to an empty list.
+            numerical_cols (list(str), optional): names of the numerical columns.
+                Defaults to an empty list.
+            slide_col (str): the name of the column that stores the slide name
+                in annotation file. Defaults to 'slide'
+        '''
+        if not categorical_cols and not numerical_cols:
+            return
+        
+        # Handle annotations input
+        if annotations is not None:
+            if isinstance(annotations, str):
+                annotations = pd.read_csv(annotations)
+            elif not isinstance(annotations, pd.DataFrame):
+                raise ValueError(
+                    "annotations must be either a path to a CSV file or a pandas DataFrame")
+        elif self.dataset is not None:
+            annotations = self.dataset.annotations
+        else:
+            raise ValueError(
+                "Feature object does not contain a dataset. " + 
+                "Provide annotations manually by specifying a path or providing a dataframe.")
+        
+        # Raise error if specified columns are not available
+        all_cols = set(categorical_cols).union(set(numerical_cols))
+        for col in all_cols:
+            if col not in annotations.columns:
+                raise ValueError(f"'{col}' is not present in annotations file.")
+
+        # Raise error if slide_col is not a column in annotations file
+        if (slide_col not in annotations.columns):
+            raise ValueError(f"'{slide_col}' is not present in annotations file.")
+
+        # Ensure all slides in self.activations are present in annotations
+        missing_slides = [slide for slide in self.slides if slide not in annotations[slide_col].values]
+        if missing_slides:
+            raise ValueError(f"{missing_slides} were not found in the annotations")
+
+        # Initialize the feature matrix
+        num_features = 0
+        feature_matrix = {slide: [] for slide in self.slides}
+        
+        # Keep track of feature indices
+        feature_index = self.activations[self.slides[0]].shape[1]
+
+        # Process categorical columns
+        for col in categorical_cols:
+            unique_values = annotations[col].unique()
+            num_unique_values = len(unique_values)
+            has_na = annotations[col].isna().any()
+            one_hot_encoded = pd.get_dummies(annotations[col], dummy_na=has_na).values
+            # Remove the last column to avoid redundancy
+            one_hot_encoded = one_hot_encoded[:, :-1]
+
+            for i, row in annotations.iterrows():
+                slide = row[slide_col]
+                if slide in feature_matrix:
+                    feature_matrix[slide].extend(one_hot_encoded[i])
+
+            # Print feature correspondence
+            start_index = feature_index
+            end_index = feature_index + num_unique_values - 2
+            through = f" through Feature_{end_index} " if end_index != start_index else ''
+            s = '' if through == '' else 's'
+            print(f"Feature_{start_index}{through} correspon{s} to {col}")
+            feature_index = end_index + 1
+
+            num_features += num_unique_values - 1
+
+        # Process numerical columns
+        if numerical_cols:
+            numerical_features = annotations[numerical_cols].apply(
+                lambda x: pd.to_numeric(x, errors='coerce'))
+
+            # Check for non-numerical values
+            non_numerical = numerical_features.isnull().any()
+            if non_numerical.any():
+                problematic_cols = non_numerical[non_numerical].index.tolist()
+                raise ValueError(
+                    f"The following columns have non-numerical values: {problematic_cols}")
+
+            # Add numerical features to the feature matrix
+            for slide in self.slides:
+                slide_features = numerical_features[
+                    annotations[slide_col] == slide].values
+                if slide_features.size > 0:
+                    feature_matrix[slide].extend(slide_features[0].tolist())
+
+            # Print feature correspondence for numerical columns
+            for col in numerical_cols:
+                print(f"Feature_{feature_index} corresponds to {col}")
+                feature_index += 1
+
+            num_features += len(numerical_cols)
+
+        # Update self.num_features with the number of added features
+        self.num_features = (self.activations[self.slides[0]].shape[1] 
+                            + num_features)
+
+        # Add new features to the activations
+        for slide in self.slides:
+            curr_fts = self.activations[slide]
+            ft_vector = np.tile(np.array(feature_matrix[slide]), 
+                                (curr_fts.shape[0], 1))
+            self.activations[slide] = np.hstack((curr_fts, ft_vector))
 
     # --- Deprecated functions ----------------------------------------------------
 
