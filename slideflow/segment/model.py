@@ -175,6 +175,7 @@ class SegmentModel(pl.LightningModule):
             "tn": tn,
         }
         self.outputs[stage].append(output)
+        self.log(f"{stage}_loss", loss, prog_bar=False, on_epoch=True, on_step=False)
         return output
 
     def shared_epoch_end(self, stage):
