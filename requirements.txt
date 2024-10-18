@@ -42,6 +42,7 @@ cucim
 versioneer
 cellpose<2.2
 zarr
+spacy<3.8
 fastai
 gdown
 triangle
