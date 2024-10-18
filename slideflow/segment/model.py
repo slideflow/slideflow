@@ -224,7 +224,7 @@ class SegmentModel(pl.LightningModule):
         return self.shared_epoch_end(outputs, "test")
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
+        return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
     def run_tiled_inference(self, img: np.ndarray):
         """Run inference on an image, with tiling."""
