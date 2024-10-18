@@ -32,12 +32,12 @@ RUN ln -sn libnvrtc.so.11.8.89 libnvrtc.so
 # Install slideflow & download scripts
 WORKDIR "/scripts"
 ENV SF_BACKEND=torch
-RUN pip3 install slideflow[cucim,torch]==3.0.1 cupy-cuda11x slideflow-noncommercial slideflow-gpl versioneer && \
-    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.1/scripts/test.py && \
-    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.1/scripts/slideflow-studio.py && \
-    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.1/scripts/run_project.py && \
-    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.1/scripts/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.1/scripts/qupath_roi_legacy.groovy && \
+RUN pip3 install slideflow[cucim,torch]==3.0.2 cupy-cuda11x slideflow-noncommercial slideflow-gpl versioneer && \
+    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.2/scripts/test.py && \
+    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.2/scripts/slideflow-studio.py && \
+    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.2/scripts/run_project.py && \
+    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.2/scripts/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/slideflow/slideflow/3.0.2/scripts/qupath_roi_legacy.groovy && \
     wget https://raw.githubusercontent.com/slideflow/slideflow/master/scripts/welcome.py && \
     chmod +x /scripts/welcome.py
 
