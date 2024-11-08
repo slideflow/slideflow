@@ -44,7 +44,7 @@ class VirchowFeatures(TorchFeatureExtractor):
 }
 """
 
-    def __init__(self, weights, device='cuda', **kwargs):
+    def __init__(self, weights, device=None, **kwargs):
         super().__init__(**kwargs)
 
         from slideflow.model import torch_utils

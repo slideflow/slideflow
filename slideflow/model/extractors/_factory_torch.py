@@ -330,7 +330,7 @@ class TorchImagenetLayerExtractor(TorchFeatureExtractor):
     """Feature extractor that calculates layer activations for
     imagenet-pretrained PyTorch models."""
 
-    def __init__(self, model_name: str, tile_px: int, device='cuda', **kwargs):
+    def __init__(self, model_name: str, tile_px: int, device=None, **kwargs):
         from slideflow.model import torch_utils
         from slideflow.model.torch import ModelParams, Features
 
