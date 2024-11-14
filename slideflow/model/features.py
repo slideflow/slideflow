@@ -1078,7 +1078,7 @@ class DatasetFeatures:
             slide_predictions.update({slide: int(np.argmax(slide_perc))})
         return slide_predictions
 
-    def map_activations(self, **kwargs) -> "sf.SlideMap":
+    def map_activations(self, reducer=None, **kwargs) -> "sf.SlideMap":
         """Map activations with UMAP.
 
         Keyword args:
@@ -1088,7 +1088,22 @@ class DatasetFeatures:
             sf.SlideMap
 
         """
-        return sf.SlideMap.from_features(self, **kwargs)
+
+        # if kwargs contains n_neighbors or min_dist, then we need to warn
+        if any([kwargs.get('n_neighbors') is not None, kwargs.get('min_dist') is not None]):
+            print('DEBUG: map_activations: n_neighbors or min_dist found')
+            warnings.warn(
+                'Parameters n_neighbors and min_dist are deprecated. '
+                'Please use the reducer parameter instead.',
+                DeprecationWarning
+            )
+            from slideflow.stats.slidemap_generalized import UMAPReducer
+            reducer = UMAPReducer(
+                n_neighbors=kwargs.get('n_neighbors'),
+                min_dist=kwargs.get('min_dist')
+            )
+
+        return sf.SlideMapGeneralized.from_features(self, reducer=reducer, **kwargs)
 
     def map_predictions(
         self,
