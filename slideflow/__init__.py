@@ -39,5 +39,6 @@ from slideflow.project import create as create_project
 from slideflow.project import load as load_project
 from slideflow.slide import WSI
 from slideflow.stats import SlideMap
+from slideflow.stats import SlideMapGeneralized
 from slideflow.tfrecord import TFRecord, tfrecord_loader, multi_tfrecord_loader
 from slideflow.plugin import load_plugins

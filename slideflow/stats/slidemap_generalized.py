@@ -12,6 +12,7 @@ from sklearn.cluster import KMeans
 from slideflow import errors
 from slideflow.stats import stats_utils
 from slideflow.util import log
+from slideflow.stats.dim_reducers import DimReducer, UMAPReducer
 
 if TYPE_CHECKING:
     import umap
@@ -31,6 +32,7 @@ class SlideMapGeneralized:
     def __init__(
         self,
         *,
+        reducer: Optional[DimReducer] = None,
         parametric_umap: bool = False
     ) -> None:
         """Backend for mapping slides into two dimensional space. Can use a
@@ -68,13 +70,23 @@ class SlideMapGeneralized:
         Args:
             slides (list(str)): List of slide names
         """
-        assert isinstance(parametric_umap, bool), "Expected <bool> for argument 'parametric_umap'"
+        if parametric_umap:
+            warnings.warn(
+                'The parametric_umap parameter is deprecated. Please use the reducer '
+                'parameter with a UMAPReducer instance instead.',
+                DeprecationWarning
+            )
+            assert isinstance(parametric_umap, bool), "Expected <bool> for argument 'parametric_umap'"
+            self.reducer = UMAPReducer(parametric=True)
+        else:
+            self.reducer = reducer or UMAPReducer()
+        
         self.data = None    # type: DataFrame
         self.ftrs = None    # type: Optional[DatasetFeatures]
         self.slides = None  # type: List[str]
         self.tfrecords = None  # type: List[str]
-        self.parametric_umap = parametric_umap
-        self._umap_normalized_range = None
+        # self.parametric_umap = parametric_umap
+        # self._umap_normalized_range = None
         self.map_meta = {}  # type: Dict[str, Any]
 
     @classmethod
@@ -84,12 +96,13 @@ class SlideMapGeneralized:
         *,
         exclude_slides: Optional[List[str]] = None,
         map_slide: Optional[str] = None,
-        parametric_umap: bool = False,
-        umap_dim: int = 2,
-        umap: Optional[Any] = None,
+        parametric_umap: bool = False,  # For backwards compatibility
+        umap_dim: int = 2,              # For backwards compatibility
+        umap: Optional[Any] = None,     # For backwards compatibility
         recalculate: Optional[bool] = None, # Deprecated
         cache: Optional[str] = None,        # Deprecated
-        **umap_kwargs: Any
+        reducer: Optional[DimReducer] = None,
+        **reducer_kwargs: Any
     ) -> "SlideMapGeneralized":
         """Initializes map from dataset features.
 
@@ -97,14 +110,18 @@ class SlideMapGeneralized:
             ftrs (:class:`slideflow.DatasetFeatures`): DatasetFeatures.
             exclude_slides (list, optional): List of slides to exclude.
             map_slide (str, optional): Either None, 'centroid', or 'average'.
-                If None, will map all tiles from each slide. Defaults to None.
-            umap_dim (int, optional): Number of dimensions for UMAP. Defaults
-                to 2.
-            umap (umap.UMAP, optional): Fit UMAP, to be used instead of fitting
-                a new UMAP.
+            reducer (DimReducer, optional): Dimensionality reduction method
+            
+            parametric_umap (bool): Deprecated. Use reducer parameter instead.
+            umap_dim (int): Deprecated. Use reducer parameter instead.
+            umap (umap.UMAP): Deprecated. Use reducer parameter instead.
+            
             cache (str, optional): Deprecated.
             recalculate (bool, optional): Deprecated
+
+            **reducer_kwargs: Additional arguments for the reducer
         """
+        print('DEBUG: from_features')
         if recalculate or cache:
             warnings.warn(
                 'Arguments "recalculate" and "cache" are deprecated for SlideMap. '
@@ -112,6 +129,30 @@ class SlideMapGeneralized:
                 'save and load maps with SlideMap.save() and SlideMap.load()',
                 DeprecationWarning
             )
+        umap_args = False
+        # if reducer_kwargs contains n_neighbors or min_dist, then we need to warn
+        if any([reducer_kwargs.get('n_neighbors') is not None, reducer_kwargs.get('min_dist') is not None]):
+            warnings.warn(
+                'Parameters n_neighbors and min_dist are deprecated. '
+                'Please use the reducer parameter instead.',
+                DeprecationWarning
+            )
+            umap_args = True
+
+        if any([parametric_umap, umap_dim != 2, umap is not None, umap_args]):
+            warnings.warn(
+                'Parameters parametric_umap, umap_dim, and umap are deprecated. '
+                'Please use the reducer parameter instead.',
+                DeprecationWarning
+            )
+            reducer = UMAPReducer(
+                dim=umap_dim,
+                parametric=parametric_umap,
+                **reducer_kwargs
+            )
+            if umap is not None:
+                reducer.reducer = umap
+
         if map_slide is not None and map_slide not in ('centroid', 'average'):
             raise errors.SlideMapError(
                 "map_slide must be None, 'centroid' or 'average', (got "
@@ -122,20 +163,17 @@ class SlideMapGeneralized:
         else:
             slides = [s for s in ftrs.slides if s not in exclude_slides]
 
-        obj = cls()
+        obj = cls(reducer=reducer)
         obj.slides = slides
         obj.ftrs = ftrs
-        obj.umap = umap  # type: ignore
-        obj.parametric_umap = parametric_umap
+
         if map_slide:
             # not implemented
             print("not implemented")
             return None
         else:
-            obj._calculate_from_tiles(
-                dim=umap_dim,
-                **umap_kwargs
-            )
+            obj._calculate_from_tiles()
+            
         return obj
     
     @property
@@ -148,32 +186,19 @@ class SlideMapGeneralized:
         """Y coordinates of map."""
         return self.data.y.values
 
-    def _calculate_from_tiles(
-        self,
-        **umap_kwargs: Any
-    ) -> None:
-        """Internal function to guide calculation of UMAP from final layer
-        features / activations, as provided by DatasetFeatures.
-
-        Keyword Args:
-            dim (int): Number of dimensions for UMAP. Defaults to 2.
-            n_neighbors (int): Number of neighbors for UMAP. Defaults to 50.
-            min_dist (float): Minimum distance for UMAP. Defaults to 0.1.
-            metric (str): UMAP metric. Defaults to 'cosine'.
-            **umap_kwargs (optional): Additional keyword arguments for the
-                UMAP function.
-        """
+    def _calculate_from_tiles(self) -> None:
+        """Internal function to calculate reduced dimensions from features."""
         assert self.ftrs is not None
 
-        # Calculate UMAP
+        # Calculate reduced dimensions
         node_activations = np.concatenate([
             self.ftrs.activations[slide] for slide in self.slides
         ])
 
         self.map_meta['num_features'] = self.ftrs.num_features
-        log.info("Calculating UMAP...")
+        log.info("Calculating reduced dimensions...")
 
-        coordinates = self.umap_transform(node_activations, **umap_kwargs)
+        coordinates = self.reducer.fit_transform(node_activations)
 
         # Assemble dataframe
         tfrecord_indices = np.concatenate([
@@ -190,6 +215,8 @@ class SlideMapGeneralized:
             'x': pd.Series(coordinates[:, 0]),
             'tfr_index': pd.Series(tfrecord_indices),
         }
+        
+        # Add additional data if available
         if self.ftrs.locations:
             locations = np.concatenate([
                 self.ftrs.locations[slide] for slide in self.slides
@@ -204,7 +231,8 @@ class SlideMapGeneralized:
                 'predicted_class': pd.Series(np.argmax(predictions, axis=1)),
                 'predictions': pd.Series([l for l in predictions]).astype(object),
             })
-        if self.ftrs.uq and self.ftrs.uncertainty != {}:  # type: ignore
+            
+        if self.ftrs.uq and self.ftrs.uncertainty != {}:
             uncertainty = np.concatenate([
                 self.ftrs.uncertainty[slide] for slide in self.slides
             ])
@@ -213,10 +241,12 @@ class SlideMapGeneralized:
                     [u for u in uncertainty]
                 ).astype(object)
             })
-        if 'dim' not in umap_kwargs or umap_kwargs['dim'] > 1:
+            
+        if coordinates.shape[1] > 1:
             data_dict.update({
                 'y': pd.Series(coordinates[:, 1]),
             })
+            
         self.data = pd.DataFrame(data_dict)
 
     def activations(self) -> np.ndarray:
@@ -240,64 +270,13 @@ class SlideMapGeneralized:
 
         self.data = self.data.loc[self.data.slide.isin(slides)]
 
-    def umap_transform(
-        self,
-        array: np.ndarray,
-        *,
-        dim: int = 2,
-        n_neighbors: int = 50,
-        min_dist: float = 0.1,
-        metric: str = 'cosine',
-        **kwargs: Any
-    ) -> np.ndarray:
-        """Transforms a given array using UMAP projection. If a UMAP has not
-        yet been fit, this will fit a new UMAP on the given data.
-
-        Args:
-            array (np.ndarray): Array to transform with UMAP dimensionality
-                reduction.
-
-        Keyword Args:
-            dim (int, optional): Number of dimensions for UMAP. Defaults to 2.
-            n_neighbors (int, optional): Number of neighbors for UMAP
-                algorithm. Defaults to 50.
-            min_dist (float, optional): Minimum distance argument for UMAP
-                algorithm. Defaults to 0.1.
-            metric (str, optional): Metric for UMAP algorithm. Defaults to
-                'cosine'.
-            **kwargs (optional): Additional keyword arguments for the
-                UMAP function.
-        """
-        import umap  # Imported in this function due to long import time
-        if not len(array):
-            raise errors.StatsError("Unable to perform UMAP on empty array.")
-        if self.umap is None:  # type: ignore
-            fn = umap.UMAP if not self.parametric_umap else umap.ParametricUMAP
-            self.umap = fn(
-                n_components=dim,
-                verbose=(sf.getLoggingLevel() <= 20),
-                n_neighbors=n_neighbors,
-                min_dist=min_dist,
-                metric=metric,
-                **kwargs
-            )
-            layout = self.umap.fit_transform(array)  # type: ignore
-            (normalized,
-             self._umap_normalized_range,
-             self._umap_normalized_clip) = stats_utils.normalize_layout(layout)
-        else:
-            layout = self.umap.transform(array)  # type: ignore
-            if self._umap_normalized_range is not None:
-                normalized = stats_utils.normalize(
-                    layout,
-                    norm_range=self._umap_normalized_range,
-                    norm_clip=self._umap_normalized_clip)
-            else:
-                log.info("No range/clip information available; unable to "
-                         "normalize UMAP output.")
-                return layout
-
-        return normalized
+    def umap_transform(self, array: np.ndarray, **kwargs: Any) -> np.ndarray:
+        """Deprecated. Use reducer.transform() instead."""
+        warnings.warn(
+            'umap_transform() is deprecated. Use reducer.transform() instead.',
+            DeprecationWarning
+        )
+        return self.reducer.transform(array)
 
     def label_by_uncertainty(self, index: int = 0) -> None:
         """Labels each point with the tile-level uncertainty, if available.
