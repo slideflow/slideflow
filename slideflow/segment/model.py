@@ -203,7 +203,7 @@ class SegmentModel(pl.LightningModule):
             f"{stage}_dataset_iou": dataset_iou.to(self.device).float(),
         }
 
-        self.log_dict(metrics, prog_bar=True, sync_dist=True)
+        self.log_dict(metrics, prog_bar=True, sync_dist=False)
         self.outputs[stage].clear()
 
     def training_step(self, batch, batch_idx):
