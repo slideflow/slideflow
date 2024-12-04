@@ -159,7 +159,8 @@ def predict_mil(
         )
 
     # Prepare labels.
-    labels, _ = utils.get_labels(dataset, outcomes, config.is_classification(), format='id')
+    categorical = config.model_type() in ['classification', 'ordinal']
+    labels, _ = utils.get_labels(dataset, outcomes, categorical, format='id')
 
     # Prepare bags and targets.
     slides = list(labels.keys())
@@ -896,7 +897,8 @@ def get_mil_tile_predictions(
     model.to(device)
 
     if outcomes is not None:
-        labels, _ = utils.get_labels(dataset, outcomes, config.is_classification(), format='id')
+        categorical = config.model_type() in ['classification', 'ordinal']
+        labels, _ = utils.get_labels(dataset, outcomes, categorical, format='id')
 
     # Prepare bags.
     slides = dataset.slides()

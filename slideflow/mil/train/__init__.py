@@ -126,7 +126,10 @@ def build_fastai_learner(
     """
     from . import _fastai
 
-    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_classification())
+    if config.model_type() in ['classification', 'ordinal']:
+        categorical = True
+
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, categorical)
 
     # Prepare bags
     if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
