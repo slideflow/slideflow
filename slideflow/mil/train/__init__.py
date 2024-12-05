@@ -322,6 +322,117 @@ def build_multimodal_learner(
     else:
         return learner
 
+def build_mixed_learner(
+    config: TrainerConfig,
+    train_dataset: Dataset,
+    val_dataset: Dataset,
+    outcomes: Union[str, List[str]],
+    bags: Union[str, np.ndarray, List[str]],
+    *,
+    outdir: str = 'mil',
+    return_shape: bool = False,
+    **kwargs
+) -> "Learner":
+    # TODO:m implement this
+    """Build a FastAI Learner for training an MIL model.
+
+    Does not execute training. Useful for customizing a Learner object
+    prior to training.
+
+    Args:
+        train_dataset (:class:`slideflow.Dataset`): Training dataset.
+        val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+        outcomes (str): Outcome column (annotation header) from which to
+            derive category labels.
+        bags (str): list of paths to individual \*.pt files. Each file should
+            contain exported feature vectors, with each file containing all tile
+            features for one patient.
+
+    Keyword args:
+        outdir (str): Directory in which to save model and results.
+        return_shape (bool): Return the input and output shapes of the model.
+            Defaults to False.
+        exp_label (str): Experiment label, used for naming the subdirectory
+            in the ``outdir`` folder, where training history
+            and the model will be saved.
+        lr (float): Learning rate, or maximum learning rate if
+            ``fit_one_cycle=True``.
+        epochs (int): Maximum epochs.
+        **kwargs: Additional keyword arguments to pass to the FastAI learner.
+
+    Returns:
+        fastai.learner.Learner, and optionally a tuple of input and output shapes
+        if ``return_shape=True``.
+
+    """
+    from . import _fastai
+
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_classification())
+
+    # Prepare bags
+    if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
+        train_bags = train_dataset.get_bags(bags)
+        if val_dataset is train_dataset:
+            bags = train_bags
+        else:
+            val_bags = val_dataset.get_bags(bags)
+            bags = np.concatenate((train_bags, val_bags))
+    else:
+        bags = np.array(bags)
+
+    train_slides = train_dataset.slides()
+    val_slides = val_dataset.slides()
+
+    if config.aggregation_level == 'slide':
+        # Aggregate feature bags across slides.
+        bags, targets, train_idx, val_idx = utils.aggregate_trainval_bags_by_slide(
+            bags,  # type: ignore
+            labels,
+            train_slides,
+            val_slides,
+            log_manifest=(join(outdir, 'slide_manifest.csv') if outdir else None)
+        )
+
+    elif config.aggregation_level == 'patient':
+        # Associate patients and their slides.
+        # This is a dictionary where each key is a slide name and each value
+        # is a patient code. Multiple slides can match to the same patient.
+        slide_to_patient = { **train_dataset.patients(),
+                             **val_dataset.patients() }
+
+        # Aggregate feature bags across patients.
+        n_slide_bags = len(bags)
+        bags, targets, train_idx, val_idx = utils.aggregate_trainval_bags_by_patient(
+            bags,  # type: ignore
+            labels,
+            train_slides,
+            val_slides,
+            slide_to_patient=slide_to_patient,
+            log_manifest=(join(outdir, 'slide_manifest.csv') if outdir else None)
+        )
+        log.info(f"Aggregated {n_slide_bags} slide bags to {len(bags)} patient bags.")
+
+    log.info("Training dataset: {} merged bags (from {} possible slides)".format(
+        len(train_idx), len(train_slides)))
+    log.info("Validation dataset: {} merged bags (from {} possible slides)".format(
+        len(val_idx), len(val_slides)))
+
+    # Build FastAI Learner
+    learner, (n_in, n_out) = _fastai.build_learner(
+        config,
+        bags=bags,
+        targets=targets,
+        train_idx=train_idx,
+        val_idx=val_idx,
+        unique_categories=unique,
+        outdir=outdir,
+        **kwargs
+    )
+    if return_shape:
+        return learner, (n_in, n_out)
+    else:
+        return learner
+
 # ------------------------------------------------------------------------------
 # Internal training functions.
 
@@ -521,6 +632,92 @@ def _train_multimodal_mil(
         utils._export_attention(join(outdir, 'attention'), attention, df.slide.values)
 
     return learner
+
+def _train_multimodal_mixed_mil(
+    config: TrainerConfig,
+    train_dataset: Dataset,
+    val_dataset: Dataset,
+    outcomes: Union[str, List[str]],
+    bags: Union[str, List[str]],
+    *,
+    outdir: str = 'mil',
+    attention_heatmaps: bool = False,
+    uq: bool = False,
+    device: Optional[str] = None,
+    **heatmap_kwargs
+) -> "Learner":
+    # TODO:m implment this
+    """Train an MIL model using FastAI.
+
+    Args:
+        train_dataset (:class:`slideflow.Dataset`): Training dataset.
+        val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+        outcomes (str): Outcome column (annotation header) from which to
+            derive category labels.
+        bags (str): Either a path to directory with \*.pt files, or a list
+            of paths to individual \*.pt files. Each file should contain
+            exported feature vectors, with each file containing all tile
+            features for one patient.
+
+    Keyword args:
+        outdir (str): Directory in which to save model and results.
+        exp_label (str): Experiment label, used for naming the subdirectory
+            in the ``{project root}/mil`` folder, where training history
+            and the model will be saved.
+        lr (float): Learning rate, or maximum learning rate if
+            ``fit_one_cycle=True``.
+        epochs (int): Maximum epochs.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+
+    Returns:
+        fastai.learner.Learner
+    """
+    from . import _fastai
+
+    # Prepare validation bags.
+    if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
+        val_bags = val_dataset.get_bags(bags)
+    else:
+        val_bags = np.array([b for b in bags if sf.util.path_to_name(b) in val_dataset.slides()])
+
+    # Build learner.
+    learner, (n_in, n_out) = build_mixed_learner(
+        config,
+        train_dataset,
+        val_dataset,
+        outcomes,
+        bags=bags,
+        outdir=outdir,
+        device=device,
+        return_shape=True
+    )
+
+    # Save MIL settings.
+    # Attempt to read the unique categories from the learner.
+    if not hasattr(learner.dls.train_ds, 'encoder'):
+        unique = None
+    else:
+        encoder = learner.dls.train_ds.encoder
+        if encoder is not None:
+            unique = encoder.categories_[0].tolist()
+        else:
+            unique = None
+    _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir)
+
+    # Train.
+    _fastai.train(learner, config)
+
+    # let's leave this empty for now
 
 # ------------------------------------------------------------------------------
 

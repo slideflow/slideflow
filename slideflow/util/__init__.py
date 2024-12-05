@@ -891,9 +891,9 @@ def log_manifest(
     """Saves the training manifest in CSV format and returns as a string.
 
     Args:
-        train_tfrecords (list(str)], optional): List of training TFRecords.
+        train_tfrecords (list(str], optional): List of training TFRecords.
             Defaults to None.
-        val_tfrecords (list(str)], optional): List of validation TFRecords.
+        val_tfrecords (list(str], optional): List of validation TFRecords.
             Defaults to None.
 
     Keyword args:
@@ -1774,3 +1774,93 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
     tessellated_vertices = tessellated_vertices.astype('float32')
 
     return tessellated_vertices
+
+def prepare_multimodal_mixed_bags(path: str) -> pd.DataFrame:
+    """Prepare multimodal mixed bags from a dataframe file.
+
+    Processes a dataframe containing multimodal features where some modalities may be
+    missing (represented as None/NaN) for certain samples. The function handles padding,
+    creates masks for missing data, and ensures consistent feature array lengths.
+
+    Args:
+        path (str): Path to dataframe file (.csv, .parquet, or .xlsx). The dataframe
+            must have:
+            - A 'slide' column containing unique identifiers
+            - Feature columns containing lists/arrays or None/NaN values
+            - All non-None feature arrays within a column must have the same length
+
+    Returns:
+        pd.DataFrame: Processed dataframe with:
+            - Original feature columns padded to max length with zeros
+            - None values replaced with zero arrays
+            - A 'mask' column containing binary lists indicating present (1) and 
+              missing (0) modalities for each sample
+            - Original 'slide' column preserved
+            - A copy saved as 'bags.pt' in the same directory as input file
+
+    Raises:
+        ValueError: If:
+            - File extension is not supported (.csv, .parquet, .pt, or .xlsx)
+            - File cannot be read
+            - Required 'slide' column is missing
+            - No feature columns are found
+            - Feature arrays within a column have inconsistent lengths
+    """
+    # Read the dataframe based on file extension
+    try:
+        if path.endswith('.csv'):
+            df = pd.read_csv(path)
+        elif path.endswith('.parquet') or path.endswith('.pt'):
+            df = pd.read_parquet(path)
+        elif path.endswith('.xlsx'):
+            df = pd.read_excel(path)
+        else:
+            raise ValueError(f"Unsupported file extension in {path}")
+    except Exception as e:
+        raise ValueError(f"Error reading file {path}: {str(e)}")
+
+    # Verify slide column exists and matches index
+    if 'slide' not in df.columns:
+        raise ValueError("DataFrame must contain 'slide' column")
+
+    # Get feature columns (all except 'slide')
+    feature_cols = [col for col in df.columns if col != 'slide']
+    if not feature_cols:
+        raise ValueError("No feature columns found in DataFrame")
+
+    # Verify all columns contain arrays of same length or NaN
+    max_len = 0
+    for col in feature_cols:
+        non_nan_vals = df[col].dropna()
+        if len(non_nan_vals) > 0:
+            # Check all non-NaN values are arrays of same length
+            lengths = non_nan_vals.apply(len)
+            if not (lengths == lengths.iloc[0]).all():
+                raise ValueError(
+                    f"Column {col} contains arrays of different lengths")
+            max_len = max(max_len, lengths.iloc[0])
+
+    # Get feature columns (all except 'slide')
+    feature_cols = [col for col in df.columns if col != 'slide']
+
+    # Create mask column (1 for non-NaN, 0 for NaN)
+    df['mask'] = df[feature_cols].notna().astype(int).values.tolist()
+
+    # Pad arrays to max_len
+    def pad_array(x):
+        if x is None:  # Handle None/NaN values
+            return None
+        return np.pad(x, (0, max_len - len(x)), mode='constant').tolist()
+
+    # Apply padding to each feature column
+    for col in feature_cols:
+        df[col] = df[col].apply(pad_array)
+
+    # Replace None values with zero arrays of appropriate length
+    for col in feature_cols:
+        df[col] = df[col].apply(lambda x: np.zeros(max_len).tolist() if x is None else x)
+
+    # save in the same directory as the input file
+    df.to_parquet(os.path.dirname(path) + '/bags.pt')
+    
+    return df

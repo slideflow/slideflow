@@ -350,7 +350,7 @@ class TrainerConfig:
                 separately. Defaults to None.
 
         """
-        from slideflow.mil.train import _train_mil, _train_multimodal_mil
+        from slideflow.mil.train import _train_mil, _train_multimodal_mil, _train_multimodal_mixed_mil
 
         # Prepare output directory
         outdir = self.prepare_training(outcomes, exp_label, outdir)
@@ -365,6 +365,8 @@ class TrainerConfig:
         # Check if multimodal training
         if self.is_multimodal:
             train_fn = _train_multimodal_mil
+        elif self.is_mm_mixed:
+            train_fn = _train_multimodal_mixed_mil
         else:
             train_fn = _train_mil
 
