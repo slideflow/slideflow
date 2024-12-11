@@ -49,6 +49,22 @@ def build_multibag_dataset(bags, targets, encoder, bag_size, use_lens=False, max
     dataset.encoder = encoder
     return dataset
 
+def build_multimodal_mixed_bag_dataset(bags, targets, encoder, bag_size, use_lens=False, max_bag_size=None, dtype=torch.float32): # FIXME:m 
+    """Build a dataset for mixed multimodal bags where some modalities may be missing."""
+    assert len(bags) == len(targets)
+
+    def _zip(bag_data, targets):
+        _targets = targets if encoder is None else targets.squeeze()
+        return (*bag_data, _targets)
+
+    dataset = MapDataset(
+        _zip,
+        MixedMultiBagDataset(bags, dtype=dtype),
+        EncodedDataset(encoder, targets),
+    )
+    dataset.encoder = encoder
+    return dataset
+
 # -----------------------------------------------------------------------------
 
 def _to_fixed_size_bag(
@@ -290,3 +306,43 @@ class EncodedDataset(MapDataset):
         return torch.tensor(
             self.encode.transform(np.array(x).reshape(1, -1)), dtype=torch.float32
         )
+
+# -----------------------------------------------------------------------------
+
+class MixedMultiBagDataset(Dataset):
+    """Dataset for mixed multimodal bags where some modalities may be missing."""
+
+    def __init__(
+        self,
+        bags: List[str],
+        bag_size: Optional[int] = None,
+        max_bag_size: Optional[int] = None,
+        dtype: torch.dtype = torch.float32
+    ):
+        super().__init__()
+        if bag_size and max_bag_size:
+            raise ValueError("Cannot specify both bag_size and max_bag_size")
+        self.bags = bags
+        self.bag_size = bag_size
+        self.max_bag_size = max_bag_size
+        self.dtype = dtype
+
+    def __len__(self):
+        return len(self.bags)
+
+    def __getitem__(self, index: int):
+        # Load the multimodal bag dictionary
+        bag_dict = torch.load(self.bags[index])
+        
+        # Get the modality mask
+        mask = bag_dict['mask']
+        
+        # Process each feature modality
+        processed_features = []
+        for i in range(1, len(mask) + 1):  # Use mask length to determine number of features
+            feat_key = f'feature{i}'
+            features = bag_dict[feat_key].to(self.dtype)
+
+            processed_features.append(features)
+
+        return (*processed_features, mask)

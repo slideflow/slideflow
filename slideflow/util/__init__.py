@@ -891,9 +891,9 @@ def log_manifest(
     """Saves the training manifest in CSV format and returns as a string.
 
     Args:
-        train_tfrecords (list(str)], optional): List of training TFRecords.
+        train_tfrecords (list(str], optional): List of training TFRecords.
             Defaults to None.
-        val_tfrecords (list(str)], optional): List of validation TFRecords.
+        val_tfrecords (list(str], optional): List of validation TFRecords.
             Defaults to None.
 
     Keyword args:
@@ -1774,3 +1774,99 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
     tessellated_vertices = tessellated_vertices.astype('float32')
 
     return tessellated_vertices
+
+def prepare_multimodal_mixed_bags(path: str) -> None:
+    """Prepare multimodal mixed bags from a dataframe file.
+
+    Processes a dataframe containing multimodal features where some modalities may be
+    missing (represented as None/NaN) for certain samples. Creates one .pt file per slide
+    containing features and a mask indicating present/missing modalities.
+
+    Args:
+        path (str): Path to dataframe file (.csv, .parquet, or .xlsx). The dataframe
+            must have:
+            - A 'slide' column containing unique identifiers
+            - Feature columns containing arrays/lists or None/NaN values
+
+    Example structure of saved .pt files:
+        {
+            'feature1': torch.tensor([...]),  # Original features or zeros if missing
+            'feature2': torch.tensor([...]),  # Original features or zeros if missing
+            'feature3': torch.tensor([...]),  # Original features or zeros if missing
+            'mask': torch.tensor([True, False, True])  # Boolean vector showing present features
+        }
+    """
+    import torch
+    from os.path import dirname, join
+
+    # Read the dataframe based on file extension
+    try:
+        if path.endswith('.csv'):
+            df = pd.read_csv(path)
+        elif path.endswith('.parquet') or path.endswith('.pt'):
+            df = pd.read_parquet(path)
+        elif path.endswith('.xlsx'):
+            df = pd.read_excel(path)
+        else:
+            raise ValueError(f"Unsupported file extension in {path}")
+    except Exception as e:
+        raise ValueError(f"Error reading file {path}: {str(e)}")
+
+    # Verify slide column exists
+    if 'slide' not in df.columns:
+        raise ValueError("DataFrame must contain 'slide' column")
+
+    # Get feature columns (all except 'slide') and rename them
+    feature_cols = [col for col in df.columns if col != 'slide']
+    if not feature_cols:
+        raise ValueError("No feature columns found in DataFrame")
+    
+    # Create mapping of original column names to feature1, feature2, etc.
+    feature_map = {col: f'feature{i+1}' for i, col in enumerate(feature_cols)}
+    
+    # Create output directory
+    outdir = join(dirname(path), 'bags')
+    os.makedirs(outdir, exist_ok=True)
+
+    # First pass: determine feature dimensions for each modality
+    feature_dims = {}
+    for col in feature_cols:
+        for value in df[col]:
+            if not (value is None or (isinstance(value, (float, str)) and pd.isna(value))):
+                if isinstance(value, (list, np.ndarray)):
+                    feature_dims[col] = len(value)
+                    break
+
+    # Process each slide
+    for slide in df.slide.unique():
+        slide_data = df[df.slide == slide].iloc[0]
+        
+        # Initialize dictionary for this slide
+        slide_dict = {}
+        
+        # Create mask showing which features are present
+        mask = []
+        
+        # Process each feature
+        for orig_feat, new_feat in feature_map.items():
+            value = slide_data[orig_feat]
+            # Check if feature is present (not None/NaN)
+            if value is None or (isinstance(value, (float, str)) and pd.isna(value)):
+                # Create zero tensor of appropriate size
+                slide_dict[new_feat] = torch.zeros(feature_dims[orig_feat], dtype=torch.float32).reshape(-1)
+                mask.append(False)
+            else:
+                # Convert to tensor if not already
+                if isinstance(value, (list, np.ndarray)):
+                    slide_dict[new_feat] = torch.tensor(value, dtype=torch.float32)
+                else:
+                    slide_dict[new_feat] = value
+                mask.append(True)
+        
+        # Add boolean mask to dictionary
+        slide_dict['mask'] = torch.tensor(mask, dtype=torch.bool)
+        
+        # Save to .pt file
+        torch.save(slide_dict, join(outdir, f"{slide}.pt"))
+
+    log.info(f"Saved {len(df.slide.unique())} slide feature files to {outdir}")

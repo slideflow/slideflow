@@ -421,3 +421,123 @@ class UQ_MultiModal_Attention_MIL(MultiModal_Attention_MIL):
             getattr(self, f'prehead_{i}')(torch.sum(mas * emb, dim=1)) * uncertainty_weights[:, i].unsqueeze(-1)
             for i, (mas, emb) in enumerate(zip(masked_attention_scores, embeddings))
         ], dim=1)
+
+# -----------------------------------------------------------------------------
+
+class MultiModal_Mixed_Attention_MIL(nn.Module):
+    """Attention-based MIL model for mixed modality inputs with potential missing modalities."""
+
+    use_lens = True
+
+    def __init__(
+        self,
+        n_feats: List[int],
+        n_out: int,
+        z_dim: int = 256,
+        *,
+        dropout_p: float = 0.5,
+        temperature: float = 1.
+    ) -> None:
+        super().__init__()
+        
+        self.n_modalities = len(n_feats)
+        self.z_dim = z_dim
+        self.n_feats = n_feats  # Save feature lengths for each modality
+        
+        # Create an encoder for each modality that projects to shared z_dim space
+        self.encoders = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(nf, z_dim),
+                nn.ReLU()
+            ) for nf in n_feats
+        ])
+        
+        # Single attention mechanism for the shared embedding space
+        self.attention = Attention(z_dim)
+        
+        # Final prediction head
+        self.head = nn.Sequential(
+            nn.Flatten(),
+            nn.BatchNorm1d(z_dim),
+            nn.Dropout(dropout_p),
+            nn.Linear(z_dim, n_out)
+        )
+        
+        self._neg_inf = torch.tensor(-torch.inf)
+        self.temperature = temperature
+
+    def forward(self, *inputs, attention=False):
+        """Forward pass through the network.
+        
+        Args:
+            *inputs: Variable number of arguments where:
+                - The first N-1 arguments are tensors for each modality
+                - The last argument is the modality mask
+        """
+        modalities = inputs[:-1]  # All but last input are modality tensors
+        modality_mask = inputs[-1]  # Last input is the mask
+        
+        # Encode each modality to shared embedding space
+        embeddings = []
+        for i, modality in enumerate(modalities):
+            # Encode to shared space
+            embedded = self.encoders[i](modality)  # Shape: (batch_size, z_dim)
+            # Add dimension for concatenation (batch_size, 1, z_dim)
+            embeddings.append(embedded.unsqueeze(1))  
+        
+        # Stack encoded vectors for attention
+        # Shape: (batch_size, n_modalities, z_dim)
+        stacked_embeddings = torch.cat(embeddings, dim=1)
+        
+        # Calculate masked attention scores
+        masked_attention = self._masked_attention_scores(
+            stacked_embeddings, 
+            modality_mask,
+            apply_softmax=True
+        )
+        
+        # Apply attention weights to embeddings
+        weighted_embeddings = (masked_attention * stacked_embeddings)
+        
+        # Sum across modalities
+        pooled_embeddings = weighted_embeddings.sum(dim=1)  # Shape: (batch_size, z_dim)
+        
+        # Final prediction
+        predictions = self.head(pooled_embeddings)
+
+        if attention:
+            return predictions, masked_attention
+        return predictions
+
+    def _masked_attention_scores(self, embeddings, modality_mask, *, apply_softmax=True):
+        """Calculate masked attention scores.
+        
+        Args:
+            embeddings: Tensor of shape (batch_size, n_modalities, z_dim)
+            modality_mask: Tensor of shape (batch_size, n_modalities)
+            apply_softmax: Whether to apply softmax to the masked attention scores
+        
+        Returns:
+            Tensor of shape (batch_size, n_modalities, 1) containing attention scores
+        """
+        attention_scores = self.attention(embeddings)  # Shape: (batch_size, n_modalities, 1)
+        
+        # Mask out attention for missing modalities
+        masked_attention = torch.where(
+            modality_mask.unsqueeze(-1),
+            attention_scores,
+            torch.full_like(attention_scores, self._neg_inf)
+        )
+        
+        if apply_softmax:
+            return torch.softmax(masked_attention / self.temperature, dim=1)
+        return masked_attention
+
+    def relocate(self):
+        device = get_device()
+        self.to(device)
+        self._neg_inf = self._neg_inf.to(device)
+
+    def plot(*args, **kwargs):
+        pass
+
