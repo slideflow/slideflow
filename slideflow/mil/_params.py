@@ -596,6 +596,66 @@ class TrainerConfig:
 
 # -----------------------------------------------------------------------------
 
+class HierarchicalLoss(nn.Module):
+    """Custom hierarchical loss function for multi-level classification.
+    
+    Handles 3 levels of classification:
+    - Level 1: Group classification (As/Bs/TC)
+    - Level 2a: As subtype classification (A/AB) - only for As samples
+    - Level 2b: Bs subtype classification (B1/B2/B3) - only for Bs samples
+    
+    The loss is calculated as:
+    total_loss = level1_loss + 0.5 * (as_loss + bs_loss)
+    where as_loss and bs_loss are only calculated for relevant samples.
+    """
+    def __init__(self):
+        super().__init__()
+        self.ce = nn.CrossEntropyLoss()
+
+    def forward(self, logits, targets):
+    
+        # Get targets for each level
+        level1_target = torch.argmax(targets[:, :3], dim=1)  # Get As/Bs/TC from first 3 dims
+        as_target = torch.argmax(targets[:, 3:5], dim=1)     # Get A/AB from next 2 dims
+        bs_target = torch.argmax(targets[:, 5:8], dim=1)     # Get B1/B2/B3 from last 3 dims
+
+        # Split logits
+        level1_logits = logits[:, :3]  # 3 classes: As, Bs, TC
+        as_logits = logits[:, 3:5]     # 2 classes: A, AB
+        bs_logits = logits[:, 5:8]     # 3 classes: B1, B2, B3
+        
+        # Level 1 loss
+        level1_loss = self.ce(level1_logits, level1_target)
+        
+        # Level 2 losses - only compute for relevant samples
+        as_mask = (level1_target == 0)  # As samples
+        bs_mask = (level1_target == 1)  # Bs samples
+        
+        as_loss = torch.tensor(0.0).to(logits.device)
+        bs_loss = torch.tensor(0.0).to(logits.device)
+        
+
+        debug_a_flag = False
+        debug_b_flag = False
+        if as_mask.sum() > 0:
+            debug_a_flag = True
+            debug_as_logits_masked = as_logits[as_mask]
+            debug_as_target_masked = as_target[as_mask]
+            as_loss = self.ce(as_logits[as_mask], as_target[as_mask])
+        
+        if bs_mask.sum() > 0:
+            debug_b_flag = True
+            debug_bs_logits_masked = bs_logits[bs_mask]
+            debug_bs_target_masked = bs_target[bs_mask]
+            bs_loss = self.ce(bs_logits[bs_mask], bs_target[bs_mask])
+        
+
+        total_loss = level1_loss + 0.5 * (as_loss + bs_loss)
+        # if (debug_a_flag or debug_b_flag) and total_loss == 0:
+        #     print('debug')
+        return total_loss
+
+
 class MILModelConfig:
 
     losses = {
@@ -604,6 +664,7 @@ class MILModelConfig:
         'mae': nn.L1Loss,
         'huber': nn.SmoothL1Loss,
         'BCE_ordinal': nn.BCEWithLogitsLoss,
+        'custom_loss': HierarchicalLoss,  # Points to our custom loss class
     }
 
     def __init__(
@@ -692,8 +753,9 @@ class MILModelConfig:
     @property
     def model_type(self):
         """Type of model (classification or regression)."""
-        # TODO:m ordinal classification same as classification?
-        if self.loss == 'cross_entropy':
+        if self.loss == 'custom_loss':
+            return 'hierarchical'
+        elif self.loss == 'cross_entropy':
             return 'classification'
         elif self.loss == 'BCE_ordinal':
             return 'ordinal'
@@ -781,6 +843,11 @@ class MILModelConfig:
 
         """
         log.info(f"Building model {self.rich_name} (n_in={n_in}, n_out={n_out})")
+        
+        # Override n_out for hierarchical model to ensure 8 outputs
+        if self.model_type == 'hierarchical':
+            n_out = 8  # 3 for level1 + 2 for As + 3 for Bs
+            
         return self.model_fn(n_in, n_out, **kwargs)
 
     def _build_dataloader(

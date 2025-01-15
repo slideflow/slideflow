@@ -126,7 +126,7 @@ def build_fastai_learner(
     """
     from . import _fastai
 
-    if config.model_type() in ['classification', 'ordinal']:
+    if config.model_type() in ['classification', 'ordinal', 'hierarchical']:
         categorical = True
 
     labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, categorical)
