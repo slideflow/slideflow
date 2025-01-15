@@ -55,7 +55,6 @@ class TrainerConfig:
         drop_last: bool = True,
         save_monitor: str = 'valid_loss',
         weighted_loss: bool = True,
-        ordinal: bool = False,
         **kwargs
     ):
         r"""Training configuration for FastAI MIL models.
@@ -102,9 +101,6 @@ class TrainerConfig:
         self.drop_last = drop_last
         self.save_monitor = save_monitor
         self.weighted_loss = weighted_loss
-        self.ordinal = ordinal
-        if ordinal:
-            kwargs['loss'] = 'BCEWithLogitsLoss'
         if isinstance(model, str):
             self.model_config = build_model_config(model, **kwargs)
         else:
@@ -607,7 +603,7 @@ class MILModelConfig:
         'mse': nn.MSELoss,
         'mae': nn.L1Loss,
         'huber': nn.SmoothL1Loss,
-        'BCEWithLogitsLoss': nn.BCEWithLogitsLoss,
+        'BCE_ordinal': nn.BCEWithLogitsLoss,
     }
 
     def __init__(
@@ -699,7 +695,7 @@ class MILModelConfig:
         # TODO:m ordinal classification same as classification?
         if self.loss == 'cross_entropy':
             return 'classification'
-        elif self.loss == 'BCEWithLogitsLoss':
+        elif self.loss == 'BCE_ordinal':
             return 'ordinal'
         else:
             return 'regression'

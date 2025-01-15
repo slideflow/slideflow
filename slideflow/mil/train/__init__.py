@@ -432,7 +432,7 @@ def _train_mil(
         utils.create_preds(df)
 
     # Print classification metrics, including per-category accuracy
-    utils.rename_df_cols(df, outcomes, categorical=categorical, inplace=True) # TODO:m change to model type
+    utils.rename_df_cols(df, outcomes, categorical=categorical, inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export attention to numpy arrays

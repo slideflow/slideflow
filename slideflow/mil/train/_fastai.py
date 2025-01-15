@@ -173,7 +173,7 @@ def build_learner(
 
     if config.is_classification():
         encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
-    elif config.model_type() == 'ordinal': # TODO:m create function
+    elif config.model_type() == 'ordinal':
         encoder = OrdinalClassEncoder().fit(unique_categories.reshape(-1, 1))
     else:
         encoder = None
