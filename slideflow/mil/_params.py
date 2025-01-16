@@ -634,25 +634,14 @@ class HierarchicalLoss(nn.Module):
         as_loss = torch.tensor(0.0).to(logits.device)
         bs_loss = torch.tensor(0.0).to(logits.device)
         
-
-        debug_a_flag = False
-        debug_b_flag = False
         if as_mask.sum() > 0:
-            debug_a_flag = True
-            debug_as_logits_masked = as_logits[as_mask]
-            debug_as_target_masked = as_target[as_mask]
             as_loss = self.ce(as_logits[as_mask], as_target[as_mask])
         
         if bs_mask.sum() > 0:
-            debug_b_flag = True
-            debug_bs_logits_masked = bs_logits[bs_mask]
-            debug_bs_target_masked = bs_target[bs_mask]
             bs_loss = self.ce(bs_logits[bs_mask], bs_target[bs_mask])
         
 
         total_loss = level1_loss + 0.5 * (as_loss + bs_loss)
-        # if (debug_a_flag or debug_b_flag) and total_loss == 0:
-        #     print('debug')
         return total_loss
 
 
