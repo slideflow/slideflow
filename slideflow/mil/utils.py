@@ -457,6 +457,64 @@ def create_preds(df: pd.DataFrame) -> None:
         if col not in [f'y_pred{i}' for i in range(n_classes)]:
             df.drop(columns=[col], inplace=True)
 
+
+def create_preds_hierarchical(df: pd.DataFrame) -> None:
+    """Convert hierarchical predictions to class probabilities.
+    
+    Input columns: y_pred0 through y_pred7
+    - y_pred0-2: As, Bs, TC probabilities
+    - y_pred3-4: A, AB probabilities
+    - y_pred5-7: B1, B2, B3 probabilities
+    
+    Output columns: y_pred0 through y_pred5
+    - y_pred0: A (As > Bs,TC and A > AB)
+    - y_pred1: AB (As > Bs,TC and AB > A)
+    - y_pred2: B1 (Bs > As,TC and B1 > B2,B3)
+    - y_pred3: B2 (Bs > As,TC and B2 > B1,B3)
+    - y_pred4: B3 (Bs > As,TC and B3 > B1,B2)
+    - y_pred5: TC (TC > As,Bs)
+    """
+    
+    # First rename the columns to be more descriptive
+    rename_map = {
+        'y_pred0': 'As',
+        'y_pred1': 'Bs',
+        'y_pred2': 'TC',
+        'y_pred3': 'A',
+        'y_pred4': 'AB',
+        'y_pred5': 'B1',
+        'y_pred6': 'B2',
+        'y_pred7': 'B3'
+    }
+    df.rename(columns=rename_map, inplace=True)
+    
+    # Create the new predictions
+    # A: As is max of level1 AND A > AB
+    df['y_pred0'] = ((df['As'] > df[['Bs', 'TC']].max(axis=1)) & 
+                     (df['A'] > df['AB'])).astype(int)
+    
+    # AB: As is max of level1 AND AB > A
+    df['y_pred1'] = ((df['As'] > df[['Bs', 'TC']].max(axis=1)) & 
+                     (df['AB'] > df['A'])).astype(int)
+    
+    # B1: Bs is max of level1 AND B1 is max of Bs subtypes
+    df['y_pred2'] = ((df['Bs'] > df[['As', 'TC']].max(axis=1)) & 
+                     (df['B1'] > df[['B2', 'B3']].max(axis=1))).astype(int)
+    
+    # B2: Bs is max of level1 AND B2 is max of Bs subtypes
+    df['y_pred3'] = ((df['Bs'] > df[['As', 'TC']].max(axis=1)) & 
+                     (df['B2'] > df[['B1', 'B3']].max(axis=1))).astype(int)
+    
+    # B3: Bs is max of level1 AND B3 is max of Bs subtypes
+    df['y_pred4'] = ((df['Bs'] > df[['As', 'TC']].max(axis=1)) & 
+                     (df['B3'] > df[['B1', 'B2']].max(axis=1))).astype(int)
+    
+    # TC: TC is max of level1
+    df['y_pred5'] = (df['TC'] > df[['As', 'Bs']].max(axis=1)).astype(int)
+    
+    # Drop the intermediate columns
+    df.drop(columns=['As', 'Bs', 'TC', 'A', 'AB', 'B1', 'B2', 'B3'], inplace=True)
+
 # -----------------------------------------------------------------------------
 
 def _find_weights_path(path: str, mil_params: Dict) -> str:

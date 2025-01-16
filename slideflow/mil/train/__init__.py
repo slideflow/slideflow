@@ -426,10 +426,13 @@ def _train_mil(
         df.to_parquet(pred_out)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
 
-    categorical = True if config.model_type() in ['classification', 'ordinal'] else False
+    categorical = True if config.model_type() in ['classification', 'ordinal', 'hierarchical'] else False
         
     if config.model_type() == 'ordinal':
         utils.create_preds(df)
+
+    if config.model_type() == 'hierarchical':
+        utils.create_preds_hierarchical(df)
 
     # Print classification metrics, including per-category accuracy
     utils.rename_df_cols(df, outcomes, categorical=categorical, inplace=True)
