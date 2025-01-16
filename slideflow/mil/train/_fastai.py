@@ -121,8 +121,8 @@ class OrdinalClassEncoder(_BaseEncoder):
         result = np.array([self.ordinal_map_[x] for x in X_list[0]])
         
         return result
-
-class CustomClassEncoder(_BaseEncoder):
+    
+class CustomClassEncoder8(_BaseEncoder):
     """Encode hierarchical classes into 8-dimensional vectors.
     
     Encoding scheme:
@@ -139,6 +139,57 @@ class CustomClassEncoder(_BaseEncoder):
     def __init__(self):
         self.categories_ = None
         self.encoding_map_ = None
+
+    def fit(self, X):
+        """Fit the encoder to X."""
+        X_list, n_samples, n_features = self._check_X(X)
+
+        if n_features != 1:
+            raise ValueError("X should have exactly one feature")
+
+        # Get unique categories and create encoding map
+        self.categories_ = [np.unique(X_list[0])]
+
+        self.encoding_map_ = {
+            'A':  [1,0,0, 1,0, 0,0,0],
+            'AB': [1,0,0, 0,1, 0,0,0],
+            'B1': [0,1,0, 0,0, 1,0,0],
+            'B2': [0,1,0, 0,0, 0,1,0],
+            'B3': [0,1,0, 0,0, 0,0,1],
+            'TC': [0,0,1, 0,0, 0,0,0]
+        }
+        
+        return self
+
+    def transform(self, X):
+        """Transform X using the encoding scheme."""
+        X_list, n_samples, n_features = self._check_X(X)
+
+        if n_features != 1:
+            raise ValueError("X should have exactly one feature")
+
+        # Convert to numpy array of encodings
+        result = np.array([self.encoding_map_[x] for x in X_list[0]])
+
+        return result
+
+class CustomClassEncoder(_BaseEncoder):
+    """Encode hierarchical classes into 7-dimensional vectors.
+    
+    Encoding scheme:
+    [level1_As, level1_Bs, level1_TC, As_A, As_AB, Bs_B1, Bs_B2, Bs_B3]
+    
+    Examples:
+    A  -> [1,0,0, 1,0, 0,0]  # As group, A subtype
+    AB -> [1,0,0, 0,1, 0,0]  # As group, AB subtype
+    B1 -> [0,1,0, 0,0, 1,0]  # Bs group, B1 subtype
+    B2 -> [0,1,0, 0,0, 0,1]  # Bs group, B2 subtype
+    B3 -> [0,1,0, 0,0, 1,1]  # Bs group, B3 subtype
+    TC -> [0,0,1, 0,0, 0,0]  # TC group
+    """
+    def __init__(self):
+        self.categories_ = None
+        self.encoding_map_ = None
     
     def fit(self, X):
         """Fit the encoder to X."""
@@ -151,12 +202,12 @@ class CustomClassEncoder(_BaseEncoder):
         self.categories_ = [np.unique(X_list[0])]
         
         self.encoding_map_ = {
-            'A':  [1,0,0, 1,0, 0,0,0],
-            'AB': [1,0,0, 0,1, 0,0,0],
-            'B1': [0,1,0, 0,0, 1,0,0],
-            'B2': [0,1,0, 0,0, 0,1,0],
-            'B3': [0,1,0, 0,0, 0,0,1],
-            'TC': [0,0,1, 0,0, 0,0,0]
+            'A':  [1,0,0, 1,0, 0,0],
+            'AB': [1,0,0, 0,1, 0,0],
+            'B1': [0,1,0, 0,0, 0,0],
+            'B2': [0,1,0, 0,0, 0,1],
+            'B3': [0,1,0, 0,0, 1,1],
+            'TC': [0,0,1, 0,0, 0,0]
         }
             
         return self
