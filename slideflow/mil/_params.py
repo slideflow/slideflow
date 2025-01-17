@@ -154,10 +154,6 @@ class TrainerConfig:
     def _verify_eval_params(self, **kwargs):
         pass
 
-    def model_type(self):
-        """Model type."""
-        return self.model_config.model_type
-
     def is_classification(self):
         """Whether the model is a classification model."""
         return self.model_config.is_classification()
