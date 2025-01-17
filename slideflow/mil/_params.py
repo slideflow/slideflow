@@ -602,27 +602,24 @@ class HierarchicalLoss(nn.Module):
     Handles 3 levels of classification:
     - Level 1: Group classification (As/Bs/TC)
     - Level 2a: As subtype classification (A/AB) - only for As samples
-    - Level 2b: Bs subtype classification (B1/B2/B3) - only for Bs samples
-    
-    The loss is calculated as:
-    total_loss = level1_loss + 0.5 * (as_loss + bs_loss)
-    where as_loss and bs_loss are only calculated for relevant samples.
+    - Level 2b: Bs subtype classification (B1/B2/B3) - only for Bs samples using ordinal logic
     """
     def __init__(self):
         super().__init__()
         self.ce = nn.CrossEntropyLoss()
+        self.bce = nn.BCEWithLogitsLoss()
 
     def forward(self, logits, targets):
     
         # Get targets for each level
         level1_target = torch.argmax(targets[:, :3], dim=1)  # Get As/Bs/TC from first 3 dims
         as_target = torch.argmax(targets[:, 3:5], dim=1)     # Get A/AB from next 2 dims
-        bs_target = torch.argmax(targets[:, 5:8], dim=1)     # Get B1/B2/B3 from last 3 dims
+        bs_target = targets[:, 5:7]                          # Get B1/B2/B3 ordinal bits
 
         # Split logits
         level1_logits = logits[:, :3]  # 3 classes: As, Bs, TC
         as_logits = logits[:, 3:5]     # 2 classes: A, AB
-        bs_logits = logits[:, 5:8]     # 3 classes: B1, B2, B3
+        bs_logits = logits[:, 5:7]     # 2 bits for ordinal B1/B2/B3
         
         # Level 1 loss
         level1_loss = self.ce(level1_logits, level1_target)
@@ -638,9 +635,8 @@ class HierarchicalLoss(nn.Module):
             as_loss = self.ce(as_logits[as_mask], as_target[as_mask])
         
         if bs_mask.sum() > 0:
-            bs_loss = self.ce(bs_logits[bs_mask], bs_target[bs_mask])
+            bs_loss = self.bce(bs_logits[bs_mask], bs_target[bs_mask])
         
-
         total_loss = level1_loss + 0.5 * (as_loss + bs_loss)
         return total_loss
 
@@ -835,7 +831,7 @@ class MILModelConfig:
         
         # Override n_out for hierarchical model to ensure 8 outputs
         if self.model_type == 'hierarchical':
-            n_out = 8  # 3 for level1 + 2 for As + 3 for Bs
+            n_out = 7  # 3 for level1 + 2 for As + 2 for Bs
             
         return self.model_fn(n_in, n_out, **kwargs)
 
