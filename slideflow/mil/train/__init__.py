@@ -126,7 +126,10 @@ def build_fastai_learner(
     """
     from . import _fastai
 
-    if config.model_type() in ['classification', 'ordinal']:
+    categorical = False
+    debug = config.model_type
+    print(f"DEBUG: {debug}")
+    if config.model_type in ['classification', 'ordinal']:
         categorical = True
 
     labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, categorical)
@@ -426,9 +429,9 @@ def _train_mil(
         df.to_parquet(pred_out)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
 
-    categorical = True if config.model_type() in ['classification', 'ordinal'] else False
+    categorical = True if config.model_type in ['classification', 'ordinal'] else False
         
-    if config.model_type() == 'ordinal':
+    if config.model_type == 'ordinal':
         utils.create_preds(df)
 
     # Print classification metrics, including per-category accuracy
