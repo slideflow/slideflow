@@ -460,7 +460,32 @@ def create_preds(df: pd.DataFrame) -> None:
 
 
 def create_preds_hierarchical(df: pd.DataFrame) -> None:
-    """Convert hierarchical predictions to class probabilities."""
+    """Convert hierarchical predictions to class probabilities.
+    
+    Input columns: y_pred0 through y_pred6
+    - y_pred0-2: As, Bs, TC probabilities
+    - y_pred3-4: A, AB probabilities
+    - y_pred5-6: B1/B2/B3 ordinal bits
+    
+    For Bs subtypes (B1/B2/B3), we use ordinal classification with 3 classes,
+    requiring 2 binary predictions. The conversion follows this logic:
+    - First class (B1): product of (1-x_i) for all i
+    - Middle class (B2): (1-x1)*x2
+    - Last class (B3): product of x_i for all i
+    
+    Example for B subtypes (using bits x1, x2):
+    P(B1) = (1-x1)*(1-x2)
+    P(B2) = (1-x1)*x2
+    P(B3) = x1*x2
+    
+    Output columns: y_pred0 through y_pred5
+    - y_pred0: A (As > Bs,TC and A > AB)
+    - y_pred1: AB (As > Bs,TC and AB > A)
+    - y_pred2: B1 (Bs > As,TC and highest ordinal prob)
+    - y_pred3: B2 (Bs > As,TC and highest ordinal prob)
+    - y_pred4: B3 (Bs > As,TC and highest ordinal prob)
+    - y_pred5: TC (TC > As,Bs)
+    """
     import torch
     import torch.nn.functional as F
     
@@ -562,7 +587,6 @@ def _load_bag(
     else:
         raise ValueError(
             "Unrecognized bag type '{}'".format(type(bag))
-        )
 
 
 def _detect_device(
