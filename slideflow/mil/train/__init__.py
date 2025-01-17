@@ -432,7 +432,7 @@ def _train_mil(
     if config.model_type == 'ordinal':
         utils.create_preds(df)
 
-    if config.model_type() == 'hierarchical':
+    if config.model_type == 'hierarchical':
         utils.create_preds_hierarchical(df)
 
     # Print classification metrics, including per-category accuracy
