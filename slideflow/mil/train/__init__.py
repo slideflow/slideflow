@@ -127,8 +127,6 @@ def build_fastai_learner(
     from . import _fastai
 
     categorical = False
-    debug = config.model_type
-    print(f"DEBUG: {debug}")
     if config.model_type in ['classification', 'ordinal']:
         categorical = True
 
