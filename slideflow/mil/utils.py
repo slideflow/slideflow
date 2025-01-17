@@ -587,7 +587,7 @@ def _load_bag(
     else:
         raise ValueError(
             "Unrecognized bag type '{}'".format(type(bag))
-
+        )
 
 def _detect_device(
     model: "torch.nn.Module",

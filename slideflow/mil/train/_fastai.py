@@ -273,11 +273,11 @@ def build_learner(
         oh_kw = {"sparse_output": False}
 
     # Choose encoder based on model type
-    if config.model_type() == 'hierarchical':
+    if config.model_type == 'hierarchical':
         encoder = CustomClassEncoder().fit(unique_categories.reshape(-1, 1))
     elif config.is_classification():
         encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
-    elif config.model_type() == 'ordinal':
+    elif config.model_type == 'ordinal':
         encoder = OrdinalClassEncoder().fit(unique_categories.reshape(-1, 1))
     else:
         encoder = None
