@@ -600,10 +600,12 @@ class HierarchicalLoss(nn.Module):
     - Level 2a: As subtype classification (A/AB) - only for As samples
     - Level 2b: Bs subtype classification (B1/B2/B3) - only for Bs samples using ordinal logic
     """
-    def __init__(self):
+    def __init__(self, a_weight=1.0, b_weight=1.0):
         super().__init__()
         self.ce = nn.CrossEntropyLoss()
         self.bce = nn.BCEWithLogitsLoss()
+        self.a_weight = a_weight
+        self.b_weight = b_weight
 
     def forward(self, logits, targets):
     
@@ -633,7 +635,7 @@ class HierarchicalLoss(nn.Module):
         if bs_mask.sum() > 0:
             bs_loss = self.bce(bs_logits[bs_mask], bs_target[bs_mask])
         
-        total_loss = level1_loss + 0.5 * (as_loss + bs_loss)
+        total_loss = level1_loss + self.a_weight * as_loss + self.b_weight * bs_loss
         return total_loss
 
 
@@ -687,6 +689,9 @@ class MILModelConfig:
         self._apply_softmax = apply_softmax
         self.model_kwargs = model_kwargs
         self.loss = loss
+        if loss == 'custom_loss':
+            self.a_weight = kwargs.get('a_weight', None)
+            self.b_weight = kwargs.get('b_weight', None)
         if use_lens is None and (hasattr(self.model_fn, 'use_lens')
                                  and self.model_fn.use_lens):
             self.use_lens = True

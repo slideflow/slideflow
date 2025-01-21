@@ -325,6 +325,8 @@ def build_learner(
             list(map(weights.get, encoder.categories_[0])), dtype=torch.float32
         ).to(device)
         loss_kw = {"weight": weights}
+    elif config.model_type == 'hierarchical' and config.model_config.a_weight and config.model_config.b_weight:
+        loss_kw = {"a_weight": config.model_config.a_weight, "b_weight": config.model_config.b_weight}
     else:
         loss_kw = {}
     loss_func = config.loss_fn(**loss_kw)
