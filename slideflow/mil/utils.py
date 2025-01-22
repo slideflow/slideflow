@@ -441,7 +441,6 @@ def create_preds(df: pd.DataFrame) -> None:
             y.append(term)
         
         # Last class: product of x_i for all i
-        debug = np.prod(row)
         y.append(np.prod(row))
         
         new_preds.append(y)
