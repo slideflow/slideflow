@@ -596,6 +596,15 @@ class TrainerConfig:
 
 # -----------------------------------------------------------------------------
 
+class MultimodalLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.ce = nn.CrossEntropyLoss()
+
+    def forward(self, *inputs):
+        # TODO:m
+        pass
+
 class MILModelConfig:
 
     losses = {
@@ -604,6 +613,7 @@ class MILModelConfig:
         'mae': nn.L1Loss,
         'huber': nn.SmoothL1Loss,
         'BCE_ordinal': nn.BCEWithLogitsLoss,
+        'mm_loss': MultimodalLoss,
     }
 
     def __init__(
@@ -702,6 +712,8 @@ class MILModelConfig:
             return 'classification'
         elif self.loss == 'BCE_ordinal':
             return 'ordinal'
+        elif self.loss == 'mm_loss':
+            return 'multimodal'
         else:
             return 'regression'
 
@@ -916,7 +928,7 @@ class MILModelConfig:
             outdir (str): Output directory for saving metrics.
 
         """
-        if self.model_type in ['classification', 'ordinal']:
+        if self.model_type in ['classification', 'ordinal', 'multimodal']:
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
         else:
             sf.stats.metrics.regression_metrics(df, level=level, data_dir=outdir)

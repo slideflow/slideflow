@@ -699,3 +699,7 @@ def _export_attention(
             np.save(out_path, att)
 
     log.info(f"Attention scores exported to [green]{out_path}[/]")
+
+def _create_preds_mm(df: pd.DataFrame) -> None:
+    """Convert binary ordinal predictions to class probabilities."""
+    pass

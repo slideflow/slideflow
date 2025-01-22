@@ -536,8 +536,6 @@ class MultiModal_Mixed_Attention_MIL(nn.Module):
                 - The first N-1 arguments are tensors for each modality
                 - The last argument is the modality mask
         """
-        decode = False # FIXME:m 
-
         modalities = inputs[:-1]  # All but last input are modality tensors
         modality_mask = inputs[-1]  # Last input is the mask
         
