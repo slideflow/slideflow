@@ -840,7 +840,7 @@ class MILModelConfig:
             apply_softmax = self.apply_softmax
 
         pred_fn = predict_from_multimodal_bags if self.is_multimodal else predict_from_bags
-        if self.is_mixed_bags: # FIXME:m 
+        if self.is_mixed_bags:
             pred_fn = predict_from_mixed_bags
         return pred_fn(
             model,
