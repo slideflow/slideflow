@@ -173,6 +173,7 @@ class TrainerConfig:
 
         model_metrics = self.model_config.get_metrics()
 
+        # FIXME:m classification and ordinal are the same
         if self.is_classification():
             fallback = [RocAuc()]
         else:
@@ -601,7 +602,8 @@ class MILModelConfig:
         'cross_entropy': nn.CrossEntropyLoss,
         'mse': nn.MSELoss,
         'mae': nn.L1Loss,
-        'huber': nn.SmoothL1Loss
+        'huber': nn.SmoothL1Loss,
+        'BCE_ordinal': nn.BCEWithLogitsLoss,
     }
 
     def __init__(
@@ -695,8 +697,11 @@ class MILModelConfig:
     @property
     def model_type(self):
         """Type of model (classification or regression)."""
+        # TODO:m ordinal classification same as classification?
         if self.loss == 'cross_entropy':
             return 'classification'
+        elif self.loss == 'BCE_ordinal':
+            return 'ordinal'
         else:
             return 'regression'
 
@@ -911,7 +916,7 @@ class MILModelConfig:
             outdir (str): Output directory for saving metrics.
 
         """
-        if self.is_classification():
+        if self.model_type in ['classification', 'ordinal']:
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
         else:
             sf.stats.metrics.regression_metrics(df, level=level, data_dir=outdir)
