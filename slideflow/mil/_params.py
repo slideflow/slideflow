@@ -171,8 +171,7 @@ class TrainerConfig:
 
         model_metrics = self.model_config.get_metrics()
 
-        # FIXME:m classification and ordinal are the same
-        if self.is_classification():
+        if self.model_config.model_type in ['classification', 'ordinal']:
             fallback = [RocAuc()]
         else:
             fallback = [mse, PearsonCorrCoef()]
@@ -688,7 +687,6 @@ class MILModelConfig:
     @property
     def model_type(self):
         """Type of model (classification or regression)."""
-        # TODO:m ordinal classification same as classification?
         if self.loss == 'cross_entropy':
             return 'classification'
         elif self.loss == 'BCE_ordinal':
