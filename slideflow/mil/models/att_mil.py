@@ -567,11 +567,14 @@ class MultiModal_Mixed_Attention_MIL(nn.Module):
         else:
             res = predictions
 
+        if not self.training:
+            return res
+
         if decode:
             # Get latent representations through reparameterization
             zs = self.reparameterize(mus, vars)
             # Decode latent representations back to modality space
-            res = res, self.decode_all(zs), modality_mask
+            res = res, self.decode_all(zs), modalities, modality_mask
 
         return res
 
@@ -601,14 +604,17 @@ class MultiModal_Mixed_Attention_MIL(nn.Module):
             z: Tensor of shape (batch_size, z_dim) or list of such tensors
             
         Returns:
-            reconstructions: List of tensors, one for each modality's reconstruction
+            reconstructions: List of tensors, where reconstructions[i] contains 
+                reconstructions into modality i's space.
+                Shape is (batch_size, n_modalities, modality_i_dim)
         """
-        # If z is a list (e.g., from encode_all), use respective z for each modality
         if isinstance(z, list):
-            return [self.decoders[i](z[i]) for i in range(self.n_modalities)]
-        # If z is a single tensor, use it for all decoders
-        else:
-            return [self.decoders[i](z) for i in range(self.n_modalities)]
+            reconstructions = [ 
+                torch.stack([self.decoders[i](z_i) for z_i in z], dim=1) 
+                for i in range(self.n_modalities)
+            ] # (batch_size, n_modalities, modality_i_dim)
+
+            return reconstructions
 
     def reparameterize(self, mus, logvars):
         """Reparameterize for each modality using the respective mu and logvar.

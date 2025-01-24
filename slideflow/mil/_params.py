@@ -597,13 +597,71 @@ class TrainerConfig:
 # -----------------------------------------------------------------------------
 
 class MultimodalLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, reconstruction_weight: float = 0.1):
+        """Loss function for multimodal MIL models.
+        
+        Args:
+            reconstruction_weight (float): Weight for the reconstruction loss component.
+                Defaults to 0.1.
+        """
         super().__init__()
         self.ce = nn.CrossEntropyLoss()
+        self.mse = nn.MSELoss(reduction='none')
+        self.reconstruction_weight = reconstruction_weight
 
-    def forward(self, *inputs):
-        # TODO:m
-        pass
+    def forward(self, logits, targets):
+        # if logits is not tuple
+        if not isinstance(logits, tuple):
+            predictions = logits
+            return self.ce(predictions, targets)
+        else:
+            # Unpack the input
+            predictions = logits[0]  # Classification predictions
+            reconstructions = logits[1]  # List of reconstruction tensors
+            reconstruction_targets = logits[2]  # List of target tensors 
+            modality_mask = logits[3]  # Mask indicating which modalities were present
+
+        # Calculate classification loss
+        classification_loss = self.ce(predictions, targets)
+
+        # Calculate reconstruction loss
+        reconstruction_loss = 0
+        n_valid_reconstructions = 0
+
+        for target_mod_idx, (reconstruction, target) in enumerate(zip(reconstructions, reconstruction_targets)):
+            # Expand target to match reconstruction shape
+            # reconstruction shape: (batch_size, n_modalities, modality_dim)
+            # target shape: (batch_size, modality_dim)
+            expanded_target = target.unsqueeze(1).expand(-1, reconstruction.size(1), -1)
+            
+            # Calculate MSE for this modality
+            mod_mse = self.mse(reconstruction, expanded_target)  # (batch_size, n_modalities, modality_dim)
+            
+            # Average across feature dimension
+            mod_mse = mod_mse.mean(dim=-1)  # (batch_size, n_modalities)
+            
+            # Create combined mask that accounts for both source and target modalities
+            # We only want to calculate loss when both source and target modalities are present
+            target_modality_present = modality_mask[:, target_mod_idx].unsqueeze(1)  # (batch_size, 1)
+            combined_mask = modality_mask & target_modality_present  # (batch_size, n_modalities)
+            
+            # Mask out missing modalities (both source and target)
+            masked_mse = mod_mse * combined_mask.float()
+            
+            # Sum valid reconstructions and count them
+            valid_count = combined_mask.sum()
+            if valid_count > 0:
+                reconstruction_loss += masked_mse.sum() / valid_count
+                n_valid_reconstructions += 1
+
+        # Average reconstruction loss across modalities
+        if n_valid_reconstructions > 0:
+            reconstruction_loss = reconstruction_loss / n_valid_reconstructions
+        
+        # Combine losses
+        total_loss = classification_loss + (self.reconstruction_weight * reconstruction_loss)
+
+        return total_loss
 
 class MILModelConfig:
 
