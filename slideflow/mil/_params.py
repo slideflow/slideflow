@@ -173,7 +173,7 @@ class TrainerConfig:
 
         model_metrics = self.model_config.get_metrics()
 
-        if self.model_config.model_type in ['classification', 'ordinal']:
+        if self.model_config.model_type in ['classification', 'ordinal', 'multimodal']:
             fallback = [RocAuc()]
         else:
             fallback = [mse, PearsonCorrCoef()]

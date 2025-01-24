@@ -632,7 +632,8 @@ def _train_multimodal_mixed_mil(
         log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print classification metrics, including per-category accuracy
-    utils.rename_df_cols(df, outcomes, categorical=config.is_classification(), inplace=True)
+    categorical = config.model_type in ['classification', 'ordinal', 'multimodal']
+    utils.rename_df_cols(df, outcomes, categorical=categorical, inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export attention to numpy arrays
