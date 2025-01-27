@@ -596,7 +596,7 @@ class TrainerConfig:
 # -----------------------------------------------------------------------------
 
 class MultimodalLoss(nn.Module):
-    def __init__(self, reconstruction_weight: float = 0.1):
+    def __init__(self, reconstruction_weight: float = 0.01, weight: Optional[torch.Tensor] = None):
         """Loss function for multimodal MIL models.
         
         Args:
@@ -604,9 +604,10 @@ class MultimodalLoss(nn.Module):
                 Defaults to 0.1.
         """
         super().__init__()
-        self.ce = nn.CrossEntropyLoss()
+        self.ce = nn.CrossEntropyLoss(weight=weight)
         self.mse = nn.MSELoss(reduction='none')
         self.reconstruction_weight = reconstruction_weight
+        self.weights = weight
 
     def forward(self, logits, targets):
         # if logits is not tuple

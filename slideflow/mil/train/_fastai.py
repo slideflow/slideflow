@@ -213,7 +213,7 @@ def build_learner(
         model.relocate()
 
     # Loss should weigh inversely to class occurences.
-    if config.is_classification() and config.weighted_loss:
+    if config.model_type in ['classification', 'multimodal'] and config.weighted_loss:
         counts = pd.value_counts(targets[train_idx])
         weights = counts.sum() / counts
         weights /= weights.sum()
