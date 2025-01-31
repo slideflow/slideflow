@@ -770,7 +770,7 @@ def predict_from_mixed_bags(
         with torch.inference_mode():
             # Forward pass
             if attention:
-                _pred, _att = model(*features, mask, attention=True)
+                _pred, _att = model(*features, mask, attention=True, decode=False)
                 y_att.append(_att.squeeze(0).cpu().numpy())
             else:
                 _pred = model(*features, mask)
@@ -951,7 +951,8 @@ def run_eval(
         model_dir = None
 
     # Print classification metrics, including per-category accuracy)
-    metrics_df = utils.rename_df_cols(df, outcomes, categorical=config.is_classification())
+    categorical = config.model_type in ['classification', 'ordinal', 'multimodal']
+    metrics_df = utils.rename_df_cols(df, outcomes, categorical=categorical)
     config.run_metrics(metrics_df, level='slide', outdir=model_dir)
 
     # Export attention
