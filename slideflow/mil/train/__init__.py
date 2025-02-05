@@ -626,9 +626,19 @@ def _train_multimodal_mixed_mil(
         bags=val_bags,
         attention=True
     )
+    df_train, attention_train = predict_mixed_mil(
+        learner.model,
+        dataset=train_dataset,
+        config=config,
+        outcomes=outcomes,
+        bags=bags,
+        attention=True
+    )
     if outdir:
         pred_out = join(outdir, 'predictions.parquet')
+        pred_out_train = join(outdir, 'predictions_train.parquet')
         df.to_parquet(pred_out)
+        df_train.to_parquet(pred_out_train)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print classification metrics, including per-category accuracy
