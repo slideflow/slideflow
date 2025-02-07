@@ -1798,6 +1798,7 @@ def prepare_multimodal_mixed_bags(path: str) -> None:
     """
     import torch
     from os.path import dirname, join
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 
     # Read the dataframe based on file extension
     try:
@@ -1829,6 +1830,7 @@ def prepare_multimodal_mixed_bags(path: str) -> None:
     os.makedirs(outdir, exist_ok=True)
 
     # First pass: determine feature dimensions for each modality
+    log.info("Determining feature dimensions...")
     feature_dims = {}
     for col in feature_cols:
         for value in df[col]:
@@ -1837,36 +1839,50 @@ def prepare_multimodal_mixed_bags(path: str) -> None:
                     feature_dims[col] = len(value)
                     break
 
-    # Process each slide
-    for slide in df.slide.unique():
-        slide_data = df[df.slide == slide].iloc[0]
+    # Process each slide with progress bar
+    slides = df.slide.unique()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TextColumn("•"),
+        TextColumn("[progress.remaining]{task.completed}/{task.total}"),
+    ) as progress:
+        task = progress.add_task("Processing slides...", total=len(slides))
         
-        # Initialize dictionary for this slide
-        slide_dict = {}
-        
-        # Create mask showing which features are present
-        mask = []
-        
-        # Process each feature
-        for orig_feat, new_feat in feature_map.items():
-            value = slide_data[orig_feat]
-            # Check if feature is present (not None/NaN)
-            if value is None or (isinstance(value, (float, str)) and pd.isna(value)):
-                # Create zero tensor of appropriate size
-                slide_dict[new_feat] = torch.zeros(feature_dims[orig_feat], dtype=torch.float32).reshape(-1)
-                mask.append(False)
-            else:
-                # Convert to tensor if not already
-                if isinstance(value, (list, np.ndarray)):
-                    slide_dict[new_feat] = torch.tensor(value, dtype=torch.float32)
+        for slide in slides:
+            slide_data = df[df.slide == slide].iloc[0]
+            
+            # Initialize dictionary for this slide
+            slide_dict = {}
+            
+            # Create mask showing which features are present
+            mask = []
+            
+            # Process each feature
+            for orig_feat, new_feat in feature_map.items():
+                value = slide_data[orig_feat]
+                # Check if feature is present (not None/NaN)
+                if value is None or (isinstance(value, (float, str)) and pd.isna(value)):
+                    # Create zero tensor of appropriate size
+                    slide_dict[new_feat] = torch.zeros(feature_dims[orig_feat], dtype=torch.float32).reshape(-1)
+                    mask.append(False)
                 else:
-                    slide_dict[new_feat] = value
-                mask.append(True)
-        
-        # Add boolean mask to dictionary
-        slide_dict['mask'] = torch.tensor(mask, dtype=torch.bool)
-        
-        # Save to .pt file
-        torch.save(slide_dict, join(outdir, f"{slide}.pt"))
+                    # Convert to tensor if not already
+                    if isinstance(value, (list, np.ndarray)):
+                        slide_dict[new_feat] = torch.tensor(value, dtype=torch.float32)
+                    else:
+                        slide_dict[new_feat] = value
+                    mask.append(True)
+            
+            # Add boolean mask to dictionary
+            slide_dict['mask'] = torch.tensor(mask, dtype=torch.bool)
+            
+            # Save to .pt file
+            torch.save(slide_dict, join(outdir, f"{slide}.pt"))
+            
+            # Update progress
+            progress.advance(task)
 
-    log.info(f"Saved {len(df.slide.unique())} slide feature files to {outdir}")
+    log.info(f"Saved {len(slides)} slide feature files to {outdir}")
