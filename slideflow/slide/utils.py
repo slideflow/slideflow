@@ -4,6 +4,7 @@ import slideflow as sf
 import cv2
 import csv
 import io
+import copy
 import numpy as np
 import shapely.validation as sv
 import shapely.geometry as sg
@@ -98,6 +99,37 @@ class ROI:
         self._label = label
         for h in self.holes.values():
             h.label = label
+
+    def __deepcopy__(self, memo):
+        """
+        Create a deep copy of this ROI object.
+
+        We explicitly copy the NumPy array and recursively copy the holes.
+        Cached geometries (_poly and _triangles) are set to None so that they
+        can be recalculated when needed.
+        """
+        # If this object has already been copied, return the copy.
+        if id(self) in memo:
+            return memo[id(self)]
+
+        # Deep copy the coordinates explicitly.
+        new_coordinates = self.coordinates.copy()
+
+        # Recursively deep copy all holes.
+        new_holes = {name: copy.deepcopy(hole, memo) for name, hole in self.holes.items()}
+
+        # Create the new ROI instance.
+        new_roi = ROI(name=self.name, coordinates=new_coordinates, label=self._label, holes=new_holes)
+
+        # Cache the copy in the memo dictionary.
+        memo[id(self)] = new_roi
+
+        # Reset any cached properties so they get recomputed independently.
+        new_roi._poly = None
+        new_roi._triangles = None
+
+        return new_roi
+
 
     # --- Polygons ------------------------------------------------------------
 

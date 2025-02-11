@@ -756,7 +756,7 @@ class ROIWidget:
             roi_indices = [roi_indices]
 
         # Copy to the clipboard
-        self._roi_clipboard = [self.viz.wsi.rois[idx] for idx in roi_indices]
+        self._roi_clipboard = [copy.deepcopy(self.viz.wsi.rois[idx]) for idx in roi_indices]
         self.viz.create_toast('Copied {} ROIs.'.format(len(roi_indices)), icon='info')
 
     def paste_rois(self, *, refresh_view: bool = True) -> Optional[List[int]]:
