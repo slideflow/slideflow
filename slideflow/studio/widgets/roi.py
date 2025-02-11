@@ -1696,7 +1696,7 @@ class VertexEditor:
             # The ROI is not in view.
             self._last_vertices['outer'] = None
             self._last_box_vertices['outer'] = None
-        if not (self.outer_vertices.shape == self._last_vertices['outer'].shape) or not (np.all(self.outer_vertices == self._last_vertices['outer'])):
+        elif not (self.outer_vertices.shape == self._last_vertices['outer'].shape) or not (np.all(self.outer_vertices == self._last_vertices['outer'])):
             # The ROI has changed since the last calculation.
             self.update_box_vertices(outer=True)  # This updates the ._last_box_vertices.
             self.update_box_vbo(outer=True, box_vertices=self._last_box_vertices)
