@@ -956,6 +956,7 @@ class ROIWidget:
             self.viz.wsi.rois[roi_idx].add_hole(hole)
 
         # Update the view.
+        self.refresh_labels()
         if isinstance(self.viz.viewer, SlideViewer):
             self.viz.viewer.refresh_rois()
             self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
