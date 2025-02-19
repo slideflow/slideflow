@@ -315,16 +315,17 @@ def aggregate_trainval_bags_by_patient(
 def get_labels(
     datasets: Union[sf.Dataset, List[sf.Dataset]],
     outcomes: Union[str, List[str]],
-    classification: bool,
+    model_type: str,
     *,
-    format: str = 'name'
+    format: str = 'name',
+    events: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], np.ndarray]:
     """Get labels for a dataset.
 
     Args:
         datasets (Dataset or list(Dataset)): Dataset(s) containing labels.
         outcomes (str or list(str)): Outcome(s) to extract.
-        classification (bool): Whether to treat outcomes as categorical.
+        model_type (str): Type of model to use.
 
     Keyword Args:
         format (str): Format for categorical labels. Either 'id' or 'name'.
@@ -336,13 +337,23 @@ def get_labels(
 
     # Prepare labels and slides
     labels = {}
-    if classification:
+    if model_type in ['classification', 'ordinal']:
         all_unique = []
         for dts in datasets:
             _labels, _unique = dts.labels(outcomes, format=format)
             labels.update(_labels)
             all_unique.append(_unique)
         unique = np.unique(all_unique)
+    elif model_type == 'survival':
+        if events is None:
+            raise ValueError("For survival models, 'events' parameter must be provided")
+        for dts in datasets:
+            time_labels, _ = dts.labels(outcomes, use_float=True)
+            event_labels, _ = dts.labels(events, use_float=True)
+            # Create tuples of (time, event) for each slide
+            for slide in time_labels:
+                labels[slide] = (time_labels[slide][0], event_labels[slide][0])
+        unique = None
     else:
         for dts in datasets:
             _labels, _unique = dts.labels(outcomes, use_float=True)

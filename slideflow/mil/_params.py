@@ -173,6 +173,10 @@ class TrainerConfig:
 
         if self.model_config.model_type in ['classification', 'ordinal']:
             fallback = [RocAuc()]
+        elif self.model_config.model_type == 'survival':
+            return None
+            # default_cph_loss = CoxProportionalHazardsLoss()
+            # fallback = [default_cph_loss]
         else:
             fallback = [mse, PearsonCorrCoef()]
         return model_metrics or fallback
@@ -736,6 +740,8 @@ class MILModelConfig:
             return 'classification'
         elif self.loss == 'BCE_ordinal':
             return 'ordinal'
+        elif self.loss == 'CPH':
+            return 'survival'
         else:
             return 'regression'
 
@@ -945,6 +951,9 @@ class MILModelConfig:
         """
         if self.model_type in ['classification', 'ordinal']:
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
+        elif self.model_type == 'survival':
+            pass
+            # TODO: Add survival metrics
         else:
             sf.stats.metrics.regression_metrics(df, level=level, data_dir=outdir)
 

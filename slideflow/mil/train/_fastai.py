@@ -171,7 +171,7 @@ def build_learner(
     else:
         oh_kw = {"sparse_output": False}
 
-    if config.is_classification():
+    if config.model_type == 'classification':
         encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
     elif config.model_type == 'ordinal':
         encoder = OrdinalClassEncoder().fit(unique_categories.reshape(-1, 1))
@@ -207,6 +207,7 @@ def build_learner(
     # Prepare model.
     batch = train_dl.one_batch()
     n_in, n_out = config.inspect_batch(batch)
+    n_out = 1 if config.model_type == 'survival' else n_out
     model = config.build_model(n_in, n_out).to(device)
 
     if hasattr(model, 'relocate'):

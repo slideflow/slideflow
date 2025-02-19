@@ -65,6 +65,8 @@ def train_mil(
             for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
+        events (str, optional): Annotation column which specifies the
+            event, for training a survival model.
 
     """
     if not isinstance(config, TrainerConfig):
@@ -89,6 +91,7 @@ def build_fastai_learner(
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
     *,
+    events: Optional[str] = None,
     outdir: str = 'mil',
     return_shape: bool = False,
     **kwargs
@@ -106,6 +109,8 @@ def build_fastai_learner(
         bags (str): list of paths to individual \*.pt files. Each file should
             contain exported feature vectors, with each file containing all tile
             features for one patient.
+        events (str, optional): Annotation column which specifies the
+            event, for training a survival model.
 
     Keyword args:
         outdir (str): Directory in which to save model and results.
@@ -126,11 +131,7 @@ def build_fastai_learner(
     """
     from . import _fastai
 
-    categorical = False
-    if config.model_type in ['classification', 'ordinal']:
-        categorical = True
-
-    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, categorical)
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.model_type, events=events)
 
     # Prepare bags
     if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
@@ -339,6 +340,7 @@ def _train_mil(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
+    events: Optional[str] = None,
     device: Optional[str] = None,
     **heatmap_kwargs
 ) -> "Learner":
@@ -353,6 +355,8 @@ def _train_mil(
             of paths to individual \*.pt files. Each file should contain
             exported feature vectors, with each file containing all tile
             features for one patient.
+        events (str, optional): Annotation column which specifies the
+            event, for training a survival model.
 
     Keyword args:
         outdir (str): Directory in which to save model and results.
@@ -391,6 +395,7 @@ def _train_mil(
         train_dataset,
         val_dataset,
         outcomes,
+        events=events,
         bags=bags,
         outdir=outdir,
         device=device,
@@ -418,6 +423,7 @@ def _train_mil(
         dataset=val_dataset,
         config=config,
         outcomes=outcomes,
+        # TODO:m add events to predict_mil
         bags=val_bags,
         attention=True,
         uq=uq,
