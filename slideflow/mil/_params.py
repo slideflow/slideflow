@@ -591,6 +591,50 @@ class TrainerConfig:
 
 # -----------------------------------------------------------------------------
 
+class CoxProportionalHazardsLoss(torch.nn.modules.loss._Loss):
+    """Cox proportional hazards loss.
+    Adapted from https://github.com/havakv/pycox/blob/master/pycox/models/loss.py
+    """
+    def __init__(self, reduction: str = 'mean', eps: float = 1e-7):
+        """
+        Args:
+            reduction (str): Specifies the reduction to apply to the output.
+                'none': no reduction will be applied,
+                'mean': the sum of the output will be divided by the number of elements in the output,
+                'sum': the output will be summed.
+            eps (float): Small constant value to avoid division by zero.
+        """
+        super().__init__(reduction=reduction)
+        self.eps = eps
+
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            y_pred (torch.Tensor): Predictions (log_h).
+            y_true (torch.Tensor): True labels (durations and events).
+        Returns:
+            torch.Tensor: Loss.
+        """
+        durations = y_true[:, 0]
+        events = y_true[:, 1]
+        log_h = y_pred
+
+        # Sort by descending duration
+        idx = torch.sort(durations, descending=True)[1]
+        events = events[idx]
+        log_h = log_h[idx]
+
+        events = events.view(-1)
+        log_h = log_h.view(-1)
+
+        gamma = log_h.max()
+        log_cumsum_h = log_h.sub(gamma).exp().cumsum(0).add(self.eps).log().add(gamma)
+
+        if events.sum() == 0:
+            return torch.tensor(0.0, device=log_h.device)
+        else:
+            return - log_h.sub(log_cumsum_h).mul(events).sum().div(events.sum())
+
 class MILModelConfig:
 
     losses = {
@@ -599,6 +643,7 @@ class MILModelConfig:
         'mae': nn.L1Loss,
         'huber': nn.SmoothL1Loss,
         'BCE_ordinal': nn.BCEWithLogitsLoss,
+        'CPH': CoxProportionalHazardsLoss
     }
 
     def __init__(
