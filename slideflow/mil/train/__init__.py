@@ -249,7 +249,7 @@ def build_multimodal_learner(
     num_modes = len(bags)
 
     # Prepare labels and slides
-    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_classification())
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.model_type)
 
     # --- Prepare bags --------------------------------------------------------
 
