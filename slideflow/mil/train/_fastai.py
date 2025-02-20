@@ -182,7 +182,7 @@ class CustomClassEncoder(_BaseEncoder):
     Examples:
     A  -> [1,0,0, 1,0, 0,0]  # As group, A subtype
     AB -> [1,0,0, 0,1, 0,0]  # As group, AB subtype
-    B1 -> [0,1,0, 0,0, 1,0]  # Bs group, B1 subtype
+    B1 -> [0,1,0, 0,0, 0,0]  # Bs group, B1 subtype
     B2 -> [0,1,0, 0,0, 0,1]  # Bs group, B2 subtype
     B3 -> [0,1,0, 0,0, 1,1]  # Bs group, B3 subtype
     TC -> [0,0,1, 0,0, 0,0]  # TC group
