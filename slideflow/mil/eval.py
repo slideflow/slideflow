@@ -160,7 +160,6 @@ def predict_mil(
         )
 
     # Prepare labels.
-    categorical = config.model_type in ['classification', 'ordinal']
     labels, _ = utils.get_labels(dataset, outcomes, config.model_type, events=events, format='id')
 
     # Prepare bags and targets.
