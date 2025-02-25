@@ -13,59 +13,11 @@ from ._registry import get_trainer, build_model_config
 
 if TYPE_CHECKING:
     from fastai.learner import Learner
-    
-from fastai.metrics import skm_to_fastai
-
-def c_index(y_true, y_pred):
-    """Calculate concordance index between predictions and targets.
-    
-    Args:
-        y_true (array-like): Ground truth values with shape (n_samples, 2) where
-            the first column contains time/duration and second column contains
-            event/status (1 if event occurred, 0 if censored).
-        y_pred (array-like): Predicted risk scores with shape (n_samples,).
-    
-    Returns:
-        float: Concordance index score.
-    """
-    durations = y_true[:, 0]
-    events = y_true[:, 1]
-    
-    # Get comparable pairs
-    valid_pairs = []
-    pair_risks = []
-    
-    n_samples = len(durations)
-    for i in range(n_samples):
-        for j in range(i + 1, n_samples):
-            # Only consider pairs where we cadn determine order
-            if (durations[i] < durations[j] and events[i]) or \
-               (durations[j] < durations[i] and events[j]):
-                # Get if i should be higher risk than j
-                if durations[i] < durations[j]:
-                    valid_pairs.append((i, j))
-                else:
-                    valid_pairs.append((j, i))
-                    
-    if not valid_pairs:
-        return 0.5  # No comparable pairs
-        
-    # Calculate concordant pairs
-    n_concordant = 0
-    n_ties = 0
-    n_pairs = len(valid_pairs)
-    
-    for pair in valid_pairs:
-        if y_pred[pair[0]] > y_pred[pair[1]]:
-            n_concordant += 1
-        elif y_pred[pair[0]] == y_pred[pair[1]]:
-            n_ties += 0.5
-            
-    return (n_concordant + n_ties) / n_pairs
-
 
 def concordance_index(axis=-1):
     """Concordance index metric for survival analysis."""
+    from fastai.metrics import skm_to_fastai
+    from slideflow.stats.concordance import c_index
     return skm_to_fastai(c_index, is_class=False, flatten=False)
 
 # -----------------------------------------------------------------------------
