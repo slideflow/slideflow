@@ -160,7 +160,6 @@ def predict_mil(
         )
 
     # Prepare labels.
-    categorical = config.model_type in ['classification', 'ordinal']
     labels, _ = utils.get_labels(dataset, outcomes, config.model_type, events=events, format='id')
 
     # Prepare bags and targets.
@@ -217,7 +216,6 @@ def predict_mil(
         return df, y_att
     else:
         return df
-
 
 def predict_multimodal_mil(
     model: Union[str, Callable],
@@ -318,6 +316,81 @@ def predict_multimodal_mil(
     else:
         return df
 
+def predict_mixed_mil(
+    model: Union[str, Callable],
+    dataset: "sf.Dataset",
+    outcomes: Union[str, List[str]],
+    bags: Union[str, List[str]],
+    *,
+    config: Optional[TrainerConfig] = None,
+    attention: bool = False,
+    aggregation_level: Optional[str] = None,
+    **kwargs
+) -> Union[pd.DataFrame, Tuple[pd.DataFrame, List[np.ndarray]]]:
+    """Generate predictions from a mixed multimodal MIL model.
+
+    Args:
+        model: Loaded PyTorch model or path to weights
+        dataset: Dataset containing annotations
+        outcomes: Outcome(s) to predict
+        bags: Path to directory containing mixed multimodal bags, or list of bag paths
+
+    Keyword Args:
+        config: Model configuration. If None, will attempt to load from weights
+        attention: Whether to return attention scores
+        aggregation_level: Level at which to aggregate predictions ('slide' or 'patient')
+        **kwargs: Additional arguments passed to config.predict()
+
+    Returns:
+        pd.DataFrame or Tuple[pd.DataFrame, List[np.ndarray]]: Predictions dataframe,
+            optionally with attention scores
+    """
+    # Prepare labels
+    categorical = config.model_type in ['classification', 'ordinal', 'multimodal']
+    labels, _ = utils.get_labels(dataset, outcomes, categorical, format='id')
+
+    # Prepare bags and targets
+    slides = list(labels.keys())
+    if isinstance(bags, str):
+        # If bags is a directory, get all .pt files
+        bags = dataset.get_bags(bags)
+    else:
+        # Filter bags to only include those with labels
+        bags = [b for b in bags if path_to_name(b) in slides]
+
+    # Patient-level aggregation not yet supported for mixed bags
+    if aggregation_level == 'patient':
+        raise NotImplementedError(
+            "Patient-level aggregation not yet supported for mixed multimodal bags"
+        )
+
+    # Ensure slide names are sorted according to the bags
+    slides = [path_to_name(b) for b in bags]
+    y_true = np.array([labels[s] for s in slides])
+
+    # Create prediction dataframe
+    df_dict = dict(slide=slides)
+
+    # Handle continuous outcomes
+    if len(y_true.shape) > 1:
+        for i in range(y_true.shape[-1]):
+            df_dict[f'y_true{i}'] = y_true[:, i]
+    else:
+        df_dict['y_true'] = y_true
+
+    # Inference
+    model.eval()
+    y_pred, y_att = config.predict(model, bags, attention=attention, **kwargs)
+
+    # Update dataframe with predictions
+    for i in range(y_pred.shape[-1]):
+        df_dict[f'y_pred{i}'] = y_pred[:, i]
+    df = pd.DataFrame(df_dict)
+
+    if attention:
+        return df, y_att
+    else:
+        return df
 
 def predict_slide(
     model: str,
@@ -646,6 +719,69 @@ def predict_from_multimodal_bags(
             y_pred.append(model_out.cpu().numpy())
     yp = np.concatenate(y_pred, axis=0)
     return yp, y_att
+
+def predict_from_mixed_bags(
+    model: "torch.nn.Module",
+    bags: List[str],
+    *,
+    attention: bool = False,
+    use_lens: bool = False, # for compatibility with other predict_from_bags
+    uq: bool = False, # for compatibility with other predict_from_bags
+    device: Optional[Any] = None,
+    apply_softmax: Optional[bool] = None,
+) -> Tuple[np.ndarray, List[np.ndarray]]:
+    """Generate predictions from mixed multimodal bags.
+
+    Args:
+        model: PyTorch model
+        bags: List of paths to .pt files containing mixed multimodal features
+
+    Keyword Args:
+        attention: Whether to return attention scores
+        device: Device on which to run inference
+        apply_softmax: Whether to apply softmax to outputs
+
+    Returns:
+        Tuple containing:
+        - Predictions array (shape: n_bags x n_classes)
+        - List of attention arrays (if attention=True)
+    """
+    import torch
+    
+    device = utils._detect_device(model, device, verbose=False)
+    y_pred = []
+    y_att = []
+
+    for bag in bags:
+        # Load the multimodal bag dictionary
+        bag_dict = torch.load(bag)
+        
+        # Get features and mask
+        mask = bag_dict['mask'].to(device)
+        features = []
+        for i in range(1, len(mask) + 1):
+            feat_key = f'feature{i}'
+            features.append(bag_dict[feat_key].to(device))
+
+        # Add batch dimension
+        features = [f.unsqueeze(0) for f in features]
+        mask = mask.unsqueeze(0)
+
+        with torch.inference_mode():
+            # Forward pass
+            if attention:
+                _pred, _att = model(*features, mask, attention=True, decode=False)
+                y_att.append(_att.squeeze(0).cpu().numpy())
+            else:
+                _pred = model(*features, mask)
+
+            if apply_softmax:
+                _pred = torch.nn.functional.softmax(_pred, dim=1)
+            
+            y_pred.append(_pred.cpu().numpy())
+
+    yp = np.concatenate(y_pred, axis=0)
+    return yp, y_att if attention else None
 
 # -----------------------------------------------------------------------------
 # Low-level runners for inference and evaluation.
