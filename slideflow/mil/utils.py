@@ -381,7 +381,7 @@ def rename_df_cols(df, outcomes, model_type, inplace=False):
         categorical (bool): Whether the outcomes are categorical.
 
     """
-    if model_type in ['classification', 'ordinal']:
+    if model_type in ['classification', 'ordinal', 'multimodal']:
         return _rename_categorical_df_cols(df, outcomes, inplace=inplace)
     elif model_type == 'survival':
         return _rename_survival_df_cols(df, outcomes, inplace=inplace)
