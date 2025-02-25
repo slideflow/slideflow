@@ -815,7 +815,7 @@ def run_eval(
         model_dir = None
 
     # Print classification metrics, including per-category accuracy)
-    metrics_df = utils.rename_df_cols(df, outcomes, categorical=config.is_classification())
+    metrics_df = utils.rename_df_cols(df, outcomes, model_type=config.model_type)
     config.run_metrics(metrics_df, level='slide', outdir=model_dir)
 
     # Export attention

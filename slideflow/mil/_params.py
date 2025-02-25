@@ -957,7 +957,7 @@ class MILModelConfig:
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
         elif self.model_type == 'survival':
             pass
-            # TODO: Add survival metrics
+            sf.stats.metrics.survival_metrics(df, level=level, data_dir=outdir)
         else:
             sf.stats.metrics.regression_metrics(df, level=level, data_dir=outdir)
 

@@ -438,8 +438,11 @@ def _train_mil(
     if config.model_type == 'ordinal':
         utils.create_preds(df)
 
+    if config.model_type == 'survival':
+        df['y_pred0'] = -df['y_pred0']
+
     # Print classification metrics, including per-category accuracy
-    utils.rename_df_cols(df, outcomes, categorical=categorical, inplace=True)
+    utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export attention to numpy arrays
@@ -522,7 +525,7 @@ def _train_multimodal_mil(
     )
 
     # Print classification metrics, including per-category accuracy
-    utils.rename_df_cols(df, outcomes, categorical=config.is_classification(), inplace=True)
+    utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export predictions.
