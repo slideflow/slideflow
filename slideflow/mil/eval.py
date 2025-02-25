@@ -107,6 +107,7 @@ def predict_mil(
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
     *,
+    events: Optional[str] = None,
     config: Optional[TrainerConfig] = None,
     attention: bool = False,
     aggregation_level: Optional[str] = None,
@@ -159,8 +160,7 @@ def predict_mil(
         )
 
     # Prepare labels.
-    categorical = config.model_type in ['classification', 'ordinal', 'multimodal']
-    labels, _ = utils.get_labels(dataset, outcomes, categorical, format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.model_type, events=events, format='id')
 
     # Prepare bags and targets.
     slides = list(labels.keys())
@@ -276,7 +276,7 @@ def predict_multimodal_mil(
         )
 
     # Prepare labels.
-    labels, _ = utils.get_labels(dataset, outcomes, config.is_classification(), format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.model_type, format='id')
 
     # Prepare bags and targets.
     slides = list(labels.keys())
@@ -951,8 +951,7 @@ def run_eval(
         model_dir = None
 
     # Print classification metrics, including per-category accuracy)
-    categorical = config.model_type in ['classification', 'ordinal', 'multimodal']
-    metrics_df = utils.rename_df_cols(df, outcomes, categorical=categorical)
+    metrics_df = utils.rename_df_cols(df, outcomes, model_type=config.model_type)
     config.run_metrics(metrics_df, level='slide', outdir=model_dir)
 
     # Export attention
@@ -1035,8 +1034,7 @@ def get_mil_tile_predictions(
     model.to(device)
 
     if outcomes is not None:
-        categorical = config.model_type in ['classification', 'ordinal', 'multimodal']
-        labels, _ = utils.get_labels(dataset, outcomes, categorical, format='id')
+        labels, _ = utils.get_labels(dataset, outcomes, config.model_type, format='id')
 
     # Prepare bags.
     slides = dataset.slides()

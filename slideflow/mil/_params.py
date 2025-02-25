@@ -14,6 +14,12 @@ from ._registry import get_trainer, build_model_config
 if TYPE_CHECKING:
     from fastai.learner import Learner
 
+def concordance_index(axis=-1):
+    """Concordance index metric for survival analysis."""
+    from fastai.metrics import skm_to_fastai
+    from slideflow.stats.concordance import c_index
+    return skm_to_fastai(c_index, is_class=False, flatten=False)
+
 # -----------------------------------------------------------------------------
 
 def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
@@ -175,6 +181,8 @@ class TrainerConfig:
 
         if self.model_config.model_type in ['classification', 'ordinal', 'multimodal']:
             fallback = [RocAuc()]
+        elif self.model_config.model_type == 'survival':
+            fallback = [concordance_index()]
         else:
             fallback = [mse, PearsonCorrCoef()]
         return model_metrics or fallback
@@ -595,6 +603,50 @@ class TrainerConfig:
 
 # -----------------------------------------------------------------------------
 
+class CoxProportionalHazardsLoss(torch.nn.modules.loss._Loss):
+    """Cox proportional hazards loss.
+    Adapted from https://github.com/havakv/pycox/blob/master/pycox/models/loss.py
+    """
+    def __init__(self, reduction: str = 'mean', eps: float = 1e-7):
+        """
+        Args:
+            reduction (str): Specifies the reduction to apply to the output.
+                'none': no reduction will be applied,
+                'mean': the sum of the output will be divided by the number of elements in the output,
+                'sum': the output will be summed.
+            eps (float): Small constant value to avoid division by zero.
+        """
+        super().__init__(reduction=reduction)
+        self.eps = eps
+
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            y_pred (torch.Tensor): Predictions (log_h).
+            y_true (torch.Tensor): True labels (durations and events).
+        Returns:
+            torch.Tensor: Loss.
+        """
+        durations = y_true[:, 0]
+        events = y_true[:, 1]
+        log_h = y_pred
+
+        # Sort by descending duration
+        idx = torch.sort(durations, descending=True)[1]
+        events = events[idx]
+        log_h = log_h[idx]
+
+        events = events.view(-1)
+        log_h = log_h.view(-1)
+
+        gamma = log_h.max()
+        log_cumsum_h = log_h.sub(gamma).exp().cumsum(0).add(self.eps).log().add(gamma)
+
+        if events.sum() == 0:
+            return torch.tensor(0.0, device=log_h.device, requires_grad=True)
+        else:
+            return - log_h.sub(log_cumsum_h).mul(events).sum().div(events.sum())
+
 class MultimodalLoss(nn.Module):
     def __init__(self, reconstruction_weight: float = 0.01, weight: Optional[torch.Tensor] = None):
         """Loss function for multimodal MIL models.
@@ -663,6 +715,7 @@ class MultimodalLoss(nn.Module):
 
         return total_loss
 
+
 class MILModelConfig:
 
     losses = {
@@ -671,7 +724,8 @@ class MILModelConfig:
         'mae': nn.L1Loss,
         'huber': nn.SmoothL1Loss,
         'BCE_ordinal': nn.BCEWithLogitsLoss,
-        'mm_loss': MultimodalLoss,
+        'CPH': CoxProportionalHazardsLoss,
+        'mm_loss': MultimodalLoss
     }
 
     def __init__(
@@ -769,6 +823,8 @@ class MILModelConfig:
             return 'classification'
         elif self.loss == 'BCE_ordinal':
             return 'ordinal'
+        elif self.loss == 'CPH':
+            return 'survival'
         elif self.loss == 'mm_loss':
             return 'multimodal'
         else:
@@ -987,6 +1043,9 @@ class MILModelConfig:
         """
         if self.model_type in ['classification', 'ordinal', 'multimodal']:
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
+        elif self.model_type == 'survival':
+            pass
+            sf.stats.metrics.survival_metrics(df, level=level, data_dir=outdir)
         else:
             sf.stats.metrics.regression_metrics(df, level=level, data_dir=outdir)
 
