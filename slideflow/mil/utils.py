@@ -337,7 +337,7 @@ def get_labels(
 
     # Prepare labels and slides
     labels = {}
-    if model_type in ['classification', 'ordinal']:
+    if model_type in ['classification', 'ordinal', 'multimodal']:
         all_unique = []
         for dts in datasets:
             _labels, _unique = dts.labels(outcomes, format=format)
