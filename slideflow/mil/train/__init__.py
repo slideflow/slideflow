@@ -423,7 +423,7 @@ def _train_mil(
         dataset=val_dataset,
         config=config,
         outcomes=outcomes,
-        # TODO:m add events to predict_mil
+        events=events,
         bags=val_bags,
         attention=True,
         uq=uq,
