@@ -207,7 +207,7 @@ def build_learner(
     # Prepare model.
     batch = train_dl.one_batch()
     n_in, n_out = config.inspect_batch(batch)
-    n_out = 1 if config.model_type == 'survival' else n_out
+    n_out = 1 if config.model_type in ['survival', 'multimodal_survival'] else n_out
     model = config.build_model(n_in, n_out).to(device)
 
     if hasattr(model, 'relocate'):

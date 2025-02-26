@@ -432,15 +432,11 @@ def _train_mil(
         pred_out = join(outdir, 'predictions.parquet')
         df.to_parquet(pred_out)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
-
-    categorical = True if config.model_type in ['classification', 'ordinal', 'multimodal'] else False
         
     if config.model_type == 'ordinal':
         utils.create_preds(df)
-    if config.model_type == 'survival':
+    if config.model_type in ['survival', 'multimodal_survival']:
         df['y_pred0'] = -df['y_pred0']
-    if config.model_type == 'multimodal':
-        utils.create_preds_mm(df)
 
     # Print classification metrics, including per-category accuracy
     utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)
@@ -551,6 +547,7 @@ def _train_multimodal_mixed_mil(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
+    events: Optional[str] = None,
     device: Optional[str] = None,
     **heatmap_kwargs
 ) -> "Learner":
@@ -565,6 +562,8 @@ def _train_multimodal_mixed_mil(
             of paths to individual \*.pt files. Each file should contain
             exported feature vectors, with each file containing all tile
             features for one patient.
+        events (str, optional): Annotation column which specifies the
+            event, for training a survival model.
 
     Keyword args:
         outdir (str): Directory in which to save model and results.
@@ -603,6 +602,7 @@ def _train_multimodal_mixed_mil(
         train_dataset,
         val_dataset,
         outcomes,
+        events=events,
         bags=bags,
         outdir=outdir,
         device=device,
@@ -630,6 +630,7 @@ def _train_multimodal_mixed_mil(
         dataset=val_dataset,
         config=config,
         outcomes=outcomes,
+        events=events,
         bags=val_bags,
         attention=True
     )
@@ -638,6 +639,7 @@ def _train_multimodal_mixed_mil(
         dataset=train_dataset,
         config=config,
         outcomes=outcomes,
+        events=events,
         bags=bags,
         attention=True
     )
@@ -649,7 +651,6 @@ def _train_multimodal_mixed_mil(
         log.info(f"Predictions saved to [green]{pred_out}[/]")
 
     # Print classification metrics, including per-category accuracy
-    categorical = config.model_type in ['classification', 'ordinal', 'multimodal']
     utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)
 
