@@ -122,7 +122,7 @@ class OrdinalClassEncoder(_BaseEncoder):
         
         return result
     
-class CustomClassEncoder8(_BaseEncoder):
+class CustomClassEncoderCE(_BaseEncoder):
     """Encode hierarchical classes into 8-dimensional vectors.
     
     Encoding scheme:
@@ -274,7 +274,10 @@ def build_learner(
 
     # Choose encoder based on model type
     if config.model_type == 'hierarchical':
-        encoder = CustomClassEncoder().fit(unique_categories.reshape(-1, 1))
+        if config.model_config.loss == 'custom_loss':
+            encoder = CustomClassEncoder().fit(unique_categories.reshape(-1, 1))
+        elif config.model_config.loss == 'custom_loss_ce':
+            encoder = CustomClassEncoderCE().fit(unique_categories.reshape(-1, 1))
     elif config.is_classification():
         encoder = OneHotEncoder(**oh_kw).fit(unique_categories.reshape(-1, 1))
     elif config.model_type == 'ordinal':
