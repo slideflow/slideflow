@@ -650,6 +650,9 @@ def _train_multimodal_mixed_mil(
         df_train.to_parquet(pred_out_train)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
 
+    if config.model_type in ['survival', 'multimodal_survival']:
+        df['y_pred0'] = -df['y_pred0']
+
     # Print classification metrics, including per-category accuracy
     utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)

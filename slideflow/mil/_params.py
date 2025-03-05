@@ -1103,7 +1103,7 @@ class MILModelConfig:
         """
         if self.model_type in ['classification', 'ordinal', 'multimodal']:
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
-        elif self.model_type == 'survival':
+        elif self.model_type in ['survival', 'multimodal_survival']:
             sf.stats.metrics.survival_metrics(df, level=level, data_dir=outdir)
         else:
             sf.stats.metrics.regression_metrics(df, level=level, data_dir=outdir)
