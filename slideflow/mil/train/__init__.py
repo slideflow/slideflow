@@ -433,7 +433,12 @@ def _train_mil(
         utils.create_preds(df)
 
     if config.model_type == 'hierarchical':
-        utils.create_preds_hierarchical(df)
+        if config.model_config.loss == 'custom_loss':
+            utils.create_preds_hierarchical(df)
+        elif config.model_config.loss == 'custom_loss_ce':
+            utils.create_preds_hierarchical_ce(df)
+        else:
+            raise ValueError(f"Unrecognized loss function: {config.model_config.loss}")
 
     # Print classification metrics, including per-category accuracy
     utils.rename_df_cols(df, outcomes, categorical=categorical, inplace=True)

@@ -602,11 +602,11 @@ class HierarchicalLoss(nn.Module):
     """
     def __init__(self, weight_ce=None, a_weight=1.0, b_weight=1.0):
         super().__init__()
+        self.ce_hi = nn.CrossEntropyLoss(weight=weight_ce)
         self.ce = nn.CrossEntropyLoss()
         self.bce = nn.BCEWithLogitsLoss()
         self.a_weight = a_weight
         self.b_weight = b_weight
-        self.weight_ce = weight_ce
 
     def forward(self, logits, targets):
     
@@ -621,7 +621,7 @@ class HierarchicalLoss(nn.Module):
         bs_logits = logits[:, 5:7]     # 2 bits for ordinal B1/B2/B3
         
         # Level 1 loss
-        level1_loss = self.ce(level1_logits, level1_target, weight=self.weight_ce)
+        level1_loss = self.ce_hi(level1_logits, level1_target)
         
         # Level 2 losses - only compute for relevant samples
         as_mask = (level1_target == 0)  # As samples
@@ -653,10 +653,10 @@ class HierarchicalLossCE(nn.Module):
     """
     def __init__(self, weight_ce=None, a_weight=1.0, b_weight=1.0):
         super().__init__()
+        self.ce_hi = nn.CrossEntropyLoss(weight=weight_ce)
         self.ce = nn.CrossEntropyLoss()
         self.a_weight = a_weight
         self.b_weight = b_weight
-        self.weight_ce = weight_ce
 
     def forward(self, logits, targets):
     
@@ -671,7 +671,7 @@ class HierarchicalLossCE(nn.Module):
         bs_logits = logits[:, 5:8]     # 3 classes: B1, B2, B3
         
         # Level 1 loss
-        level1_loss = self.ce(level1_logits, level1_target, weight=self.weight_ce)
+        level1_loss = self.ce_hi(level1_logits, level1_target)
         
         # Level 2 losses - only compute for relevant samples
         as_mask = (level1_target == 0)  # As samples
@@ -740,7 +740,7 @@ class MILModelConfig:
         self._apply_softmax = apply_softmax
         self.model_kwargs = model_kwargs
         self.loss = loss
-        if loss == 'custom_loss':
+        if loss in ['custom_loss', 'custom_loss_ce']:
             self.a_weight = kwargs.get('a_weight', None)
             self.b_weight = kwargs.get('b_weight', None)
         if use_lens is None and (hasattr(self.model_fn, 'use_lens')
