@@ -600,12 +600,13 @@ class HierarchicalLoss(nn.Module):
     - Level 2a: As subtype classification (A/AB) - only for As samples
     - Level 2b: Bs subtype classification (B1/B2/B3) - only for Bs samples using ordinal logic
     """
-    def __init__(self, a_weight=1.0, b_weight=1.0):
+    def __init__(self, weight_ce=None, a_weight=1.0, b_weight=1.0):
         super().__init__()
         self.ce = nn.CrossEntropyLoss()
         self.bce = nn.BCEWithLogitsLoss()
         self.a_weight = a_weight
         self.b_weight = b_weight
+        self.weight_ce = weight_ce
 
     def forward(self, logits, targets):
     
@@ -620,7 +621,7 @@ class HierarchicalLoss(nn.Module):
         bs_logits = logits[:, 5:7]     # 2 bits for ordinal B1/B2/B3
         
         # Level 1 loss
-        level1_loss = self.ce(level1_logits, level1_target)
+        level1_loss = self.ce(level1_logits, level1_target, weight=self.weight_ce)
         
         # Level 2 losses - only compute for relevant samples
         as_mask = (level1_target == 0)  # As samples
@@ -650,9 +651,12 @@ class HierarchicalLossCE(nn.Module):
     total_loss = level1_loss + 0.5 * (as_loss + bs_loss)
     where as_loss and bs_loss are only calculated for relevant samples.
     """
-    def __init__(self):
+    def __init__(self, weight_ce=None, a_weight=1.0, b_weight=1.0):
         super().__init__()
         self.ce = nn.CrossEntropyLoss()
+        self.a_weight = a_weight
+        self.b_weight = b_weight
+        self.weight_ce = weight_ce
 
     def forward(self, logits, targets):
     
@@ -667,7 +671,7 @@ class HierarchicalLossCE(nn.Module):
         bs_logits = logits[:, 5:8]     # 3 classes: B1, B2, B3
         
         # Level 1 loss
-        level1_loss = self.ce(level1_logits, level1_target)
+        level1_loss = self.ce(level1_logits, level1_target, weight=self.weight_ce)
         
         # Level 2 losses - only compute for relevant samples
         as_mask = (level1_target == 0)  # As samples
@@ -682,7 +686,7 @@ class HierarchicalLossCE(nn.Module):
         if bs_mask.sum() > 0:
             bs_loss = self.ce(bs_logits[bs_mask], bs_target[bs_mask])
         
-        total_loss = level1_loss + 0.5 * (as_loss + bs_loss)
+        total_loss = level1_loss + self.a_weight * as_loss + self.b_weight * bs_loss
         return total_loss
 
 class MILModelConfig:

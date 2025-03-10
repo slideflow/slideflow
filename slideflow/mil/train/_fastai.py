@@ -328,8 +328,34 @@ def build_learner(
             list(map(weights.get, encoder.categories_[0])), dtype=torch.float32
         ).to(device)
         loss_kw = {"weight": weights}
-    elif config.model_type == 'hierarchical' and config.model_config.a_weight and config.model_config.b_weight:
-        loss_kw = {"a_weight": config.model_config.a_weight, "b_weight": config.model_config.b_weight}
+    elif config.model_type == 'hierarchical':
+        loss_kw = {}
+        if config.model_config.a_weight:
+            loss_kw['a_weight'] = config.model_config.a_weight
+        if config.model_config.b_weight:
+            loss_kw['b_weight'] = config.model_config.b_weight
+        if config.weighted_loss:
+            mapping = {
+                'A': 'As',
+                'AB': 'As',
+                'B1': 'Bs',
+                'B2': 'Bs',
+                'B3': 'Bs',
+                'TC': 'TC'
+            }
+            mapped_targets = np.array([mapping[t] for t in targets[train_idx]])
+
+            counts = pd.value_counts(mapped_targets[train_idx])
+            # counts = pd.value_counts(targets[train_idx])
+            weights = counts.sum() / counts
+            weights /= weights.sum()
+            cats = np.array(['As', 'Bs', 'TC'])
+            weights = torch.tensor(
+                list(map(weights.get, cats)), dtype=torch.float32
+            ).to(device)
+            loss_kw['weight_ce'] = weights
+        else:
+            loss_kw = {}
     else:
         loss_kw = {}
     loss_func = config.loss_fn(**loss_kw)
