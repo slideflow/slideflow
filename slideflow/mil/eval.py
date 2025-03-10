@@ -814,7 +814,15 @@ def run_eval(
         model_dir = None
 
     # Print classification metrics, including per-category accuracy)
-    metrics_df = utils.rename_df_cols(df, outcomes, categorical=config.is_classification())
+    categorical = True if config.model_type in ['classification', 'ordinal', 'hierarchical'] else False
+    if config.model_type == 'hierarchical':
+        if config.model_config.loss == 'custom_loss':
+            utils.create_preds_hierarchical(df)
+        elif config.model_config.loss == 'custom_loss_ce':
+            utils.create_preds_hierarchical_ce(df)
+        else:
+            raise ValueError(f"Unrecognized loss function: {config.model_config.loss}")
+    metrics_df = utils.rename_df_cols(df, outcomes, categorical=categorical)
     config.run_metrics(metrics_df, level='slide', outdir=model_dir)
 
     # Export attention
