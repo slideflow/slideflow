@@ -710,6 +710,8 @@ class MILModelConfig:
         model_kwargs: Optional[dict] = None,
         validate: bool = True,
         loss: Union[str, Callable] = 'cross_entropy',
+        a_weight: float = 1,
+        b_weight: float = 1,
         **kwargs
     ) -> None:
         """Model configuration for an MIL model.
@@ -734,15 +736,16 @@ class MILModelConfig:
                 will raise an error if any unrecognized keyword arguments are
                 passed. Defaults to True.
             loss (str, Callable): Loss function. Defaults to 'cross_entropy'.
-
+            a_weight (float): Weight for As subtype classification. Defaults to 1.
+            b_weight (float): Weight for Bs subtype classification. Defaults to 1.
         """
         self.model = model
         self._apply_softmax = apply_softmax
         self.model_kwargs = model_kwargs
         self.loss = loss
         if loss in ['custom_loss', 'custom_loss_ce']:
-            self.a_weight = kwargs.get('a_weight', None)
-            self.b_weight = kwargs.get('b_weight', None)
+            self.a_weight = a_weight
+            self.b_weight = b_weight
         if use_lens is None and (hasattr(self.model_fn, 'use_lens')
                                  and self.model_fn.use_lens):
             self.use_lens = True
