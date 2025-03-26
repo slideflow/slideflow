@@ -564,7 +564,8 @@ class MILWidget(Widget):
         return True
 
     def is_classification(self) -> bool:
-        return self.mil_config is None or self.mil_config.is_classification()
+        if self.mil_config is not None:
+            return self.mil_config.is_classification() or self.mil_config.model_type == 'hierarchical'
 
     def render_attention_heatmap(self, attention: np.ndarray) -> None:
         self.viz.heatmap = _AttentionHeatmapWrapper(attention, self.viz.wsi)
@@ -673,12 +674,15 @@ class MILWidget(Widget):
 
         # Assemble outcome category labels.
         if self.is_classification():
-            imgui.text(self.mil_params['outcomes'])
-            outcome_labels = [
-                f"Outcome {i}" if 'outcome_labels' not in self.mil_params or str(i) not in self.mil_params['outcome_labels']
-                            else self.mil_params['outcome_labels'][str(i)]
-                for i in range(len(prediction))
-            ]
+            if self.mil_config.model_type == 'hierarchical':
+                outcome_labels = ['As', 'Bs', 'TC', 'A', 'AB', 'Bsb1', 'Bsb2']
+            else:
+                imgui.text(self.mil_params['outcomes'])
+                outcome_labels = [
+                    f"Outcome {i}" if 'outcome_labels' not in self.mil_params or str(i) not in self.mil_params['outcome_labels']
+                                else self.mil_params['outcome_labels'][str(i)]
+                    for i in range(len(prediction))
+                ]    
         else:
             outcome_labels = self.mil_params['outcomes']
             if isinstance(outcome_labels, str):

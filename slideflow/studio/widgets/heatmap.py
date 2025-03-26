@@ -252,6 +252,8 @@ class HeatmapWidget:
         self.show = True
 
     def get_outcome_names(self, config=None, classification=None):
+        if self.viz.mil_widget.mil_config.model_type == 'hierarchical':
+            return ['As', 'Bs', 'TC', 'A', 'AB', 'Bsb1', 'Bsb2']
         if self._outcome_names is not None and config is None:
             return self._outcome_names
         if config is None:
