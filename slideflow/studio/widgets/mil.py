@@ -472,6 +472,10 @@ class MILWidget(Widget):
 
         # Generate slide-level prediction and attention.
         self.predictions, self.attention = self._calculate_predictions(bags)
+        if self.mil_config.model_type == 'hierarchical':
+            # make predictions pass through sigmoid
+            import torch
+            self.predictions = torch.sigmoid(torch.tensor(self.predictions)).numpy()
         if self.attention:
             self.attention = self.attention[0]
 
@@ -665,6 +669,41 @@ class MILWidget(Widget):
                     imgui.text(col)
         imgui.end()
 
+    def compute_hierarchical_final_prediction(self):
+        """Convert hierarchical predictions to final class prediction.
+        
+        Input predictions are already sigmoid-activated and contain:
+        - pred[0:3]: As, Bs, TC probabilities
+        - pred[3:5]: A, AB probabilities
+        - pred[5:7]: B1/B2 bits
+        
+        Returns:
+            str: Final prediction class name ('A', 'AB', 'B1', 'B2', 'B3', or 'TC')
+        """
+        pred = self.predictions[0]
+        
+        # Check level 1 (As, Bs, TC)
+        if pred[2] > max(pred[0], pred[1]):  # TC > As,Bs
+            return 'TC'
+        elif pred[0] > pred[1]:  # As > Bs
+            # Check A vs AB
+            if pred[3] > pred[4]:  # A > AB
+                return 'A'
+            else:
+                return 'AB'
+        else:  # Bs is highest
+            # Use ordinal bits to determine B subtype
+            # B1: (1-x1)(1-x2)
+            # B2: (1-x1)x2
+            # B3: x1x2
+            x1, x2 = pred[5], pred[6]
+            b1_prob = (1-x1)*(1-x2)
+            b2_prob = (1-x1)*x2
+            b3_prob = x1*x2
+            b_probs = [b1_prob, b2_prob, b3_prob]
+            b_idx = np.argmax(b_probs)
+            return f'B{b_idx+1}'
+
     def draw_prediction(self):
         """Draw the final prediction."""
         if self.predictions is None:
@@ -702,7 +741,11 @@ class MILWidget(Widget):
         if self.is_classification():
             imgui.text("Final prediction")
             imgui.same_line(self.viz.font_size * 12)
-            imgui_utils.right_aligned_text(f"{outcome_labels[np.argmax(prediction)]}")
+            if self.mil_config.model_type == 'hierarchical':
+                final_pred = self.compute_hierarchical_final_prediction()
+                imgui_utils.right_aligned_text(final_pred)
+            else:
+                imgui_utils.right_aligned_text(f"{outcome_labels[np.argmax(prediction)]}")
 
     def draw_config_popup(self):
         viz = self.viz
