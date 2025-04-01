@@ -62,6 +62,7 @@ class TrainerConfig:
         save_monitor: str = 'valid_loss',
         weighted_loss: bool = True,
         mixed_bags: bool = False,
+        reconstruction_weight: Optional[float] = None,
         **kwargs
     ):
         r"""Training configuration for FastAI MIL models.
@@ -109,6 +110,7 @@ class TrainerConfig:
         self.save_monitor = save_monitor
         self.weighted_loss = weighted_loss
         self.mixed_bags = mixed_bags
+        self.reconstruction_weight = reconstruction_weight
         if isinstance(model, str):
             self.model_config = build_model_config(model, **kwargs)
         else:

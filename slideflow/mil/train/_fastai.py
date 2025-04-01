@@ -214,6 +214,8 @@ def build_learner(
         model.relocate()
 
     # Loss should weigh inversely to class occurences.
+    
+
     if config.model_type in ['classification', 'multimodal'] and config.weighted_loss:
         counts = pd.value_counts(targets[train_idx])
         weights = counts.sum() / counts
@@ -224,6 +226,8 @@ def build_learner(
         loss_kw = {"weight": weights}
     else:
         loss_kw = {}
+    if config.model_type in ['multimodal', 'multimodal_survival'] and config.reconstruction_weight:
+        loss_kw['reconstruction_weight'] = config.reconstruction_weight
     loss_func = config.loss_fn(**loss_kw)
 
     # Create learning and fit.
