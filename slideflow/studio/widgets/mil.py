@@ -5,6 +5,7 @@ import slideflow.mil
 import threading
 import importlib
 import traceback
+import os
 
 from functools import partial
 from tkinter.filedialog import askdirectory
@@ -71,7 +72,7 @@ def _reshape_as_heatmap(
 def reshape_bags(masked_bags):
     original_shape = masked_bags.shape
     masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
-    if len(masked_bags.mask.shape):
+    if  len(masked_bags.mask.shape):
         mask = masked_bags.mask.any(axis=1)
         valid_indices = np.where(~mask)
         bags = masked_bags[valid_indices]
@@ -545,6 +546,21 @@ class MILWidget(Widget):
         self._thread = threading.Thread(target=self._predict_slide)
         self._thread.start()
 
+    def predict_from_masked_bags(self):
+        """Initiate a prediction using pre-computed masked bags."""
+        if not self.viz.wsi:
+            return
+        self.viz.set_message(self._rendering_message)
+        self._toast = self.viz.create_toast(
+            title="Loading and generating prediction",
+            sticky=True,
+            spinner=True,
+            progress=[0 for _ in range(self.num_modes)],
+            icon='info'
+        )
+        self._thread = threading.Thread(target=self._predict_from_masked_bags)
+        self._thread.start()
+
     def verify_tile_size(self) -> bool:
         """Verify that the current slide matches the MIL model's tile size."""
         viz = self.viz
@@ -852,6 +868,14 @@ class MILWidget(Widget):
                 predict_text = "Predict Slide" if not self._triggered else f"Calculating{imgui_utils.spinner_text()}"
                 if viz.sidebar.full_button(predict_text, enabled=predict_enabled):
                     self.predict_slide()
+                
+                # Add Load and Predict button
+                load_predict_enabled = (viz.wsi is not None
+                                      and self.model_loaded
+                                      and not self._triggered)
+                load_predict_text = "Load and Predict" if not self._triggered else f"Loading{imgui_utils.spinner_text()}"
+                if viz.sidebar.full_button(load_predict_text, enabled=load_predict_enabled):
+                    self.predict_from_masked_bags()
             if viz.collapsing_header('Tile Prediction', default=True):
                 draw_tile_predictions(
                     viz,
@@ -878,3 +902,124 @@ class MILWidget(Widget):
                 is_classification=self.is_classification()
             )
             viz.set_prediction_message(pred_str)
+
+    def _load_masked_bags(self, slide_name: str) -> Optional[np.ndarray]:
+        """Load pre-computed masked bags for a slide.
+
+        Args:
+            slide_name (str): Name of the slide without extension
+
+        Returns:
+            Optional[np.ndarray]: Loaded masked bags if found, None otherwise
+        """
+        # Get the project root directory
+        masked_bags_path = os.path.join(self.viz.P.root, 'masked_bags', f"{slide_name}.npz")
+
+        if not os.path.exists(masked_bags_path):
+            self.viz.create_toast(
+                f"No pre-computed masked bags found for {slide_name}",
+                icon='error'
+            )
+            return None
+
+        try:
+            data = np.load(masked_bags_path)
+            # Reconstruct masked array from saved data and mask
+            masked_bags = np.ma.MaskedArray(data=data['data'], mask=data['mask'])
+            return masked_bags
+        except Exception as e:
+            self.viz.create_toast(
+                f"Error loading masked bags: {str(e)}",
+                icon='error'
+            )
+            return None
+
+    def _predict_from_masked_bags(self):
+        """Generate prediction using pre-computed masked bags."""
+        if not self.viz.wsi:
+            return
+
+        self._generating = True
+        self._triggered = True
+        self._progress_count = [0] * self.num_modes
+
+        # Get slide name without extension
+        slide_name = os.path.splitext(os.path.basename(self.viz.wsi.path))[0]
+
+        # Load pre-computed masked bags
+        masked_bags = self._load_masked_bags(slide_name)
+
+        if masked_bags is None:
+            self._generating = False
+            self._triggered = False
+            return
+
+        # Reshape bags
+        original_shape = masked_bags.shape
+        masked_bags = masked_bags.reshape((-1, masked_bags.shape[-1]))
+        if len(masked_bags.mask.shape):
+            mask = masked_bags.mask.any(axis=1)
+            valid_indices = np.where(~mask)[0]
+            bags = masked_bags[valid_indices]
+        else:
+            valid_indices = np.arange(masked_bags.shape[0])
+            bags = masked_bags
+        bags = np.expand_dims(bags, axis=0).astype(np.float32)
+
+        sf.log.info("Loaded feature bags for {} tiles".format(bags.shape[1]))
+
+        # Generate slide-level prediction and attention
+        self.predictions, self.attention = self._calculate_predictions(bags)
+        if self.attention:
+            self.attention = self.attention[0]
+
+            # Only show prediction and attention for tiles with non-zero
+            # attention values (tiles that passed the attention gate)
+            sf.log.debug("Masking {} zero-attention tiles:".format((self.attention == 0).sum()))
+
+            # Handle multi-dimensional attention
+            if len(self.attention.shape) < 2:
+                att_mask = (self.attention != 0)
+            else:
+                att_mask = (np.max(self.attention, axis=0) != 0)
+
+            bags = np.expand_dims(bags[0][att_mask], axis=0)
+            valid_indices = valid_indices[att_mask]
+
+            if len(self.attention.shape) < 2:
+                self.attention = self.attention[att_mask]
+                sf.log.debug("Total tiles after masking: {}".format(len(self.attention)))
+            else:
+                self.attention = self.attention[:, att_mask]
+                sf.log.debug("Total tiles after masking: {}".format(self.attention.shape[1]))
+        else:
+            self.attention = None
+
+        # Generate tile-level predictions
+        # Reshape the bags from (1, n_bags, n_feats) to (n_bags, 1, n_feats)
+        reshaped_bags = np.reshape(bags, (bags.shape[1], 1, bags.shape[2]))
+        tile_predictions, _ = self._calculate_predictions(reshaped_bags)
+
+        # Create heatmaps from tile predictions and attention
+        if len(tile_predictions.shape) == 2:
+            tile_heatmap = np.stack([
+                _reshape_as_heatmap(tile_predictions[:, n], valid_indices, original_shape, masked_bags.shape[0])
+                for n in range(tile_predictions.shape[1])
+            ], axis=2)
+        else:
+            tile_heatmap = _reshape_as_heatmap(
+                tile_predictions, valid_indices, original_shape, masked_bags.shape[0]
+            )
+        if self.attention is not None:
+            if len(self.attention.shape) == 2:
+                att_heatmap = np.stack([
+                    _reshape_as_heatmap(self.attention[n, :], valid_indices, original_shape, masked_bags.shape[0])
+                    for n in range(self.attention.shape[0])
+                ], axis=2)
+            else:
+                att_heatmap = _reshape_as_heatmap(
+                    self.attention, valid_indices, original_shape, masked_bags.shape[0]
+                )
+            self.render_dual_heatmap(att_heatmap, tile_heatmap)
+        else:
+            self.render_tile_prediction_heatmap(tile_heatmap)

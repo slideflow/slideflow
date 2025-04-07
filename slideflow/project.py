@@ -3696,6 +3696,80 @@ class Project:
             **kwargs
         )
 
+    def generate_masked_bags(
+        self,
+        mil_model_path: str,
+        dataset: Dataset,
+        outdir: str = 'masked_bags',
+        *,
+        skip_extracted: bool = False,
+        batch_size: int = 32,
+        **kwargs
+    ) -> None:
+        """Pre-compute and save masked bags for a dataset using an MIL model's extractor.
+
+        This function loads an MIL model's extractor and computes masked bags for each slide
+        in the dataset, saving them to disk. This can significantly speed up subsequent
+        predictions by avoiding recomputing these features.
+
+        Args:
+            mil_model_path (str): Path to the MIL model directory
+            dataset (Dataset): Dataset containing slides to process
+            outdir (str): Directory to save masked bags. Defaults to 'masked_bags'
+            batch_size (int): Batch size for feature extraction. Defaults to 32
+            **kwargs: Additional keyword arguments passed to the extractor
+
+        """
+        import os
+        from slideflow.model.extractors import rebuild_extractor
+        from slideflow.model import torch_utils
+        from tqdm import tqdm
+
+        # Create output directory if it doesn't exist
+        os.makedirs(outdir, exist_ok=True)
+
+        # Load the extractor and normalizer from the MIL model
+        device = torch_utils.get_device()
+        extractor, normalizer = rebuild_extractor(
+            mil_model_path,
+            native_normalizer=(sf.slide_backend()=='cucim')
+        )
+
+        # Process each slide in the dataset
+        slide_paths = dataset.slide_paths()
+        for slide_path in tqdm(slide_paths, desc="Generating masked bags"):
+            # Get slide name without extension
+            slide_name = os.path.splitext(os.path.basename(slide_path))[0]
+            output_path = os.path.join(outdir, f"{slide_name}.npz")
+
+            #Skip if already exists
+            if os.path.exists(output_path) and skip_extracted:
+                print(f"Skipping {slide_name} because it already exists")
+                continue
+
+            # Load the slide
+            wsi = sf.WSI(
+                slide_path,
+                rois=dataset.rois(),
+                tile_px=dataset.tile_px,
+                tile_um=dataset.tile_um
+            )
+
+            # Generate masked bags
+            masked_bags = extractor(
+                wsi,
+                normalizer=normalizer,
+                batch_size=batch_size,
+                **kwargs
+            )
+
+            # Save both data and mask separately
+            np.savez(
+                output_path,
+                data=masked_bags.data,
+                mask=masked_bags.mask
+            )
+
 # -----------------------------------------------------------------------------
 
 
