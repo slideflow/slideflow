@@ -6,6 +6,7 @@ import threading
 import importlib
 import traceback
 import os
+from scipy.special import softmax
 
 from functools import partial
 from tkinter.filedialog import askdirectory
@@ -369,6 +370,36 @@ class MILWidget(Widget):
             attention_pooling=('avg' if self.attention_pooling else None),
             **kwargs
         )
+        if self.mil_config.model_type == 'hierarchical':
+            # Apply softmax to the first 3 values (As, Bs, TC)
+            first_group = predictions[0, :3]
+            first_softmax = softmax(first_group)
+            predictions[0, :3] = first_softmax
+            
+            # Apply softmax to the next 2 values (A, AB)
+            second_group = predictions[0, 3:5]
+            second_softmax = softmax(second_group)
+            predictions[0, 3:5] = second_softmax
+            
+            # if shape length is 1
+            if predictions.shape[0] == 1:
+                # Compute B1, B2, B3 scores
+                x1, x2 = predictions[0, 5], predictions[0, 6]
+                b1_prob = (1-x1)*(1-x2)
+                b2_prob = (1-x1)*x2
+                b3_prob = x1*x2
+                b_probs = np.array([b1_prob, b2_prob, b3_prob])
+                
+                # Apply softmax to B1, B2, B3 scores
+                b_probs = softmax(b_probs)
+                
+                # Create new predictions array with B1, B2, B3 scores
+                new_pred = np.zeros(predictions.shape[1] - 2 + 3)
+                new_pred[0:5] = predictions[0, 0:5]  # Copy first 5 values
+                new_pred[5:8] = b_probs  # Add B1, B2, B3 scores
+                predictions = np.array([new_pred])
+
+
         return predictions, attention
     
     def _progress_callback(self, grid_idx, bar_id=0, max_val=None):
@@ -474,9 +505,17 @@ class MILWidget(Widget):
         # Generate slide-level prediction and attention.
         self.predictions, self.attention = self._calculate_predictions(bags)
         if self.mil_config.model_type == 'hierarchical':
-            # make predictions pass through sigmoid
-            import torch
-            self.predictions = torch.sigmoid(torch.tensor(self.predictions)).numpy()
+            # Apply softmax to the first 3 values (As, Bs, TC)
+            first_group = self.predictions[0, :3]
+            first_softmax = softmax(first_group)
+            self.predictions[0, :3] = first_softmax
+            
+            # Apply softmax to the next 2 values (A, AB)
+            second_group = self.predictions[0, 3:5]
+            second_softmax = softmax(second_group)
+            self.predictions[0, 3:5] = second_softmax
+            
+            # The last 2 values (indices 5, 6) are kept as is as they represent ordinal bits
         if self.attention:
             self.attention = self.attention[0]
 
@@ -730,7 +769,7 @@ class MILWidget(Widget):
         # Assemble outcome category labels.
         if self.is_classification():
             if self.mil_config.model_type == 'hierarchical':
-                outcome_labels = ['As', 'Bs', 'TC', 'A', 'AB', 'Bsb1', 'Bsb2']
+                outcome_labels = ['As', 'Bs', 'TC', 'A', 'AB', 'B1', 'B2', 'B3']
             else:
                 imgui.text(self.mil_params['outcomes'])
                 outcome_labels = [
