@@ -224,6 +224,12 @@ class TrainerConfig:
             except Exception:
                 exp_label = 'no_label'
         # Set up output model directory
+
+        # If exp_label is already a full path, use it directly
+        if exp_label and os.path.isabs(exp_label):
+            os.makedirs(exp_label, exist_ok=True)
+            return exp_label
+            
         if outdir:
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
