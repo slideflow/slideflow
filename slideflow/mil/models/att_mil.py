@@ -92,6 +92,8 @@ class Attention_MIL(nn.Module):
         # Sum of weighted embeddings.
         weighted_embeddings_sum = weighted_embeddings.sum(-2)
 
+        scores = self.head(weighted_embeddings_sum)
+
         if uq:
             # Expand embeddings 30-fold into second dimension.
             flat = self.head[0](weighted_embeddings_sum)
@@ -109,11 +111,7 @@ class Attention_MIL(nn.Module):
 
             # Average scores across 30 dropout replicates.
             pred_stds = torch.std(expanded_preds, dim=1)
-            pred_means = expanded_preds.mean(axis=1)
-            scores = (pred_means, pred_stds)
-
-        else:
-            scores = self.head(weighted_embeddings_sum)
+            scores = (scores, pred_stds)
 
         if return_attention and bags.shape[1] > 1:
             return scores, softmax_attention_scores
