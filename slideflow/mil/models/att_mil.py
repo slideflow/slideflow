@@ -49,6 +49,7 @@ class Attention_MIL(nn.Module):
 
         """
         super().__init__()
+        self.hierarchical = True if n_out == 7 else False
         self.encoder = encoder or nn.Sequential(nn.Linear(n_feats, z_dim), nn.ReLU())
         self.attention = attention or Attention(z_dim)
         self.head = head or nn.Sequential(
@@ -105,8 +106,17 @@ class Attention_MIL(nn.Module):
             self.head[2].train()
             post_dropout = self.head[2](expanded)
             expanded_preds = self.head[3](post_dropout)
-            if uq_softmax:
+            if uq_softmax and not self.hierarchical:
                 expanded_preds = torch.softmax(expanded_preds, dim=2)
+            elif uq_softmax and self.hierarchical:
+                # First group: columns 0-2 (softmax among themselves)
+                group1 = torch.softmax(expanded_preds[..., :3], dim=2)
+                # Second group: columns 3-4 (softmax among themselves)
+                group2 = torch.softmax(expanded_preds[..., 3:5], dim=2)
+                # Third group: columns 5-6 (sigmoid)
+                group3 = torch.sigmoid(expanded_preds[..., 5:7])
+                # Combine all groups
+                expanded_preds = torch.cat([group1, group2, group3], dim=2)
             self.train(_prior_status)
 
             # Average scores across 30 dropout replicates.
