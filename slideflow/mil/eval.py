@@ -32,6 +32,7 @@ def eval_mil(
     bags: Union[str, List[str]],
     config: Optional[TrainerConfig] = None,
     *,
+    events: Optional[str] = None,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
@@ -92,6 +93,7 @@ def eval_mil(
         dataset,
         outcomes,
         bags,
+        events=events,
         outdir=outdir,
         attention_heatmaps=attention_heatmaps,
         uq=uq,
@@ -211,6 +213,9 @@ def predict_mil(
         for i in range(y_uq.shape[-1]):
             df_dict[f'uncertainty{i}'] = y_uq[:, i]
     df = pd.DataFrame(df_dict)
+
+    if config.model_type == 'survival':
+        df['y_pred0'] = -df['y_pred0']
 
     if attention:
         return df, y_att
@@ -884,6 +889,7 @@ def run_eval(
     bags: Union[str, List[str]],
     config: TrainerConfig,
     *,
+    events: Optional[str] = None,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
@@ -926,6 +932,7 @@ def run_eval(
         dataset=dataset,
         config=config,
         outcomes=outcomes,
+        events=events,
         bags=bags,
         attention=True,
         aggregation_level=aggregation_level

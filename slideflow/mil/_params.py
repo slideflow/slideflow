@@ -406,6 +406,7 @@ class TrainerConfig:
         outcomes: Union[str, List[str]],
         bags: Union[str, List[str]],
         *,
+        events: Optional[str] = None,
         outdir: str = 'mil',
         attention_heatmaps: bool = False,
         uq: bool = False,
@@ -465,6 +466,7 @@ class TrainerConfig:
             config=self,
             outdir=outdir,
             params=params,
+            events=events,
             aggregation_level=(aggregation_level or self.aggregation_level)
         )
 
