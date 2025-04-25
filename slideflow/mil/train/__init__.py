@@ -437,8 +437,6 @@ def _train_mil(
         
     if config.model_type == 'ordinal':
         utils.create_preds(df)
-    if config.model_type == 'multimodal':
-        utils.create_preds_mm(df)
 
     # Print classification metrics, including per-category accuracy
     utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)
