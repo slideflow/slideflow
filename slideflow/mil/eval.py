@@ -327,6 +327,7 @@ def predict_mixed_mil(
     outcomes: Union[str, List[str]],
     bags: Union[str, List[str]],
     *,
+    events: Optional[str] = None,
     config: Optional[TrainerConfig] = None,
     attention: bool = False,
     aggregation_level: Optional[str] = None,
@@ -351,8 +352,7 @@ def predict_mixed_mil(
             optionally with attention scores
     """
     # Prepare labels
-    categorical = config.model_type in ['classification', 'ordinal', 'multimodal']
-    labels, _ = utils.get_labels(dataset, outcomes, categorical, format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.model_type, events=events, format='id')
 
     # Prepare bags and targets
     slides = list(labels.keys())
