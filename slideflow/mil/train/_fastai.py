@@ -207,13 +207,15 @@ def build_learner(
     # Prepare model.
     batch = train_dl.one_batch()
     n_in, n_out = config.inspect_batch(batch)
-    n_out = 1 if config.model_type == 'survival' else n_out
+    n_out = 1 if config.model_type in ['survival', 'multimodal_survival'] else n_out
     model = config.build_model(n_in, n_out).to(device)
 
     if hasattr(model, 'relocate'):
         model.relocate()
 
     # Loss should weigh inversely to class occurences.
+    
+
     if config.model_type in ['classification', 'multimodal'] and config.weighted_loss:
         counts = pd.value_counts(targets[train_idx])
         weights = counts.sum() / counts
@@ -224,6 +226,8 @@ def build_learner(
         loss_kw = {"weight": weights}
     else:
         loss_kw = {}
+    if config.model_type in ['multimodal', 'multimodal_survival'] and config.reconstruction_weight:
+        loss_kw['reconstruction_weight'] = config.reconstruction_weight
     loss_func = config.loss_fn(**loss_kw)
 
     # Create learning and fit.

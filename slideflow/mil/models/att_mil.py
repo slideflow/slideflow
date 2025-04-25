@@ -1,9 +1,10 @@
 import torch
 from torch import nn
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from slideflow import log
 from slideflow.model.torch_utils import get_device
+
 
 # -----------------------------------------------------------------------------
 
@@ -435,8 +436,8 @@ class MultiModal_Mixed_Attention_MIL(nn.Module):
         n_out: int,
         z_dim: int = 256, # latent space dimension
         *,
-        hidden_dim: List[int] = None, # same length as n_feats
-        n_layers: List[int] = None, # same length as n_feats
+        hidden_dim: Optional[Union[List[int], int]] = None, # same length as n_feats if None
+        n_layers: Optional[Union[List[int], int]] = None, 
         dropout_p: float = 0.5,
         temperature: float = 1.
     ) -> None:
@@ -444,8 +445,12 @@ class MultiModal_Mixed_Attention_MIL(nn.Module):
         
         if hidden_dim is None:
             hidden_dim = [z_dim] * len(n_feats)
-        if n_layers is None:
+        if isinstance(hidden_dim, int):
+            hidden_dim = [hidden_dim] * len(n_feats)
+        if n_layers is None: # default is 1 layer
             n_layers = [1] * len(n_feats)
+        if isinstance(n_layers, int):
+            n_layers = [n_layers] * len(n_feats)
 
         # check if hidden_dim is same length as n_feats
         if len(hidden_dim) != len(n_feats) or len(n_layers) != len(n_feats):

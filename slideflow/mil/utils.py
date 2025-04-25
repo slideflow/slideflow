@@ -337,14 +337,14 @@ def get_labels(
 
     # Prepare labels and slides
     labels = {}
-    if model_type in ['classification', 'ordinal']:
+    if model_type in ['classification', 'ordinal', 'multimodal']:
         all_unique = []
         for dts in datasets:
             _labels, _unique = dts.labels(outcomes, format=format)
             labels.update(_labels)
             all_unique.append(_unique)
         unique = np.unique(all_unique)
-    elif model_type == 'survival':
+    elif model_type in ['survival', 'multimodal_survival']:
         if events is None:
             raise ValueError("For survival models, 'events' parameter must be provided")
         for dts in datasets:
@@ -381,9 +381,9 @@ def rename_df_cols(df, outcomes, model_type, inplace=False):
         categorical (bool): Whether the outcomes are categorical.
 
     """
-    if model_type in ['classification', 'ordinal']:
+    if model_type in ['classification', 'ordinal', 'multimodal']:
         return _rename_categorical_df_cols(df, outcomes, inplace=inplace)
-    elif model_type == 'survival':
+    elif model_type in ['survival', 'multimodal_survival']:
         return _rename_survival_df_cols(df, outcomes, inplace=inplace)
     else:
         return _rename_continuous_df_cols(df, outcomes, inplace=inplace)
@@ -720,6 +720,3 @@ def _export_attention(
 
     log.info(f"Attention scores exported to [green]{out_path}[/]")
 
-def _create_preds_mm(df: pd.DataFrame) -> None:
-    """Convert binary ordinal predictions to class probabilities."""
-    pass

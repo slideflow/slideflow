@@ -62,6 +62,7 @@ class TrainerConfig:
         save_monitor: str = 'valid_loss',
         weighted_loss: bool = True,
         mixed_bags: bool = False,
+        reconstruction_weight: Optional[float] = None,
         **kwargs
     ):
         r"""Training configuration for FastAI MIL models.
@@ -109,6 +110,7 @@ class TrainerConfig:
         self.save_monitor = save_monitor
         self.weighted_loss = weighted_loss
         self.mixed_bags = mixed_bags
+        self.reconstruction_weight = reconstruction_weight
         if isinstance(model, str):
             self.model_config = build_model_config(model, **kwargs)
         else:
@@ -181,7 +183,7 @@ class TrainerConfig:
 
         if self.model_config.model_type in ['classification', 'ordinal', 'multimodal']:
             fallback = [RocAuc()]
-        elif self.model_config.model_type == 'survival':
+        elif self.model_config.model_type in ['survival', 'multimodal_survival']:
             fallback = [concordance_index()]
         else:
             fallback = [mse, PearsonCorrCoef()]
@@ -222,6 +224,12 @@ class TrainerConfig:
             except Exception:
                 exp_label = 'no_label'
         # Set up output model directory
+
+        # If exp_label is already a full path, use it directly
+        if exp_label and os.path.isabs(exp_label):
+            os.makedirs(exp_label, exist_ok=True)
+            return exp_label
+            
         if outdir:
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
@@ -649,18 +657,68 @@ class CoxProportionalHazardsLoss(torch.nn.modules.loss._Loss):
         else:
             return - log_h.sub(log_cumsum_h).mul(events).sum().div(events.sum())
 
-class MultimodalLoss(nn.Module):
+class BaseMultimodalLoss(nn.Module):
+    """Base class for multimodal losses with reconstruction component."""
+    
+    def __init__(self, reconstruction_weight: float = 0.01):
+        super().__init__()
+        self.mse = nn.MSELoss(reduction='none')
+        self.reconstruction_weight = reconstruction_weight
+        
+    def _calculate_reconstruction_loss(self, reconstructions, reconstruction_targets, modality_mask):
+        """Calculate reconstruction loss for multimodal inputs.
+        
+        Args:
+            reconstructions: List of reconstruction tensors
+            reconstruction_targets: List of target tensors
+            modality_mask: Mask indicating which modalities were present
+            
+        Returns:
+            float: Reconstruction loss value
+        """
+        reconstruction_loss = 0
+        n_valid_reconstructions = 0
+
+        for target_mod_idx, (reconstruction, target) in enumerate(zip(reconstructions, reconstruction_targets)):
+            # Expand target to match reconstruction shape
+            expanded_target = target.unsqueeze(1).expand(-1, reconstruction.size(1), -1)
+            
+            # Calculate MSE for this modality
+            mod_mse = self.mse(reconstruction, expanded_target)  # (batch_size, n_modalities, modality_dim)
+            
+            # Average across feature dimension
+            mod_mse = mod_mse.mean(dim=-1)  # (batch_size, n_modalities)
+            
+            # Create combined mask that accounts for both source and target modalities
+            target_modality_present = modality_mask[:, target_mod_idx].unsqueeze(1)  # (batch_size, 1)
+            combined_mask = modality_mask & target_modality_present  # (batch_size, n_modalities)
+            
+            # Mask out missing modalities (both source and target)
+            masked_mse = mod_mse * combined_mask.float()
+            
+            # Sum valid reconstructions and count them
+            valid_count = combined_mask.sum()
+            if valid_count > 0:
+                reconstruction_loss += masked_mse.sum() / valid_count
+                n_valid_reconstructions += 1
+
+        # Average reconstruction loss across modalities
+        if n_valid_reconstructions > 0:
+            reconstruction_loss = reconstruction_loss / n_valid_reconstructions
+            
+        return reconstruction_loss
+
+class MultimodalLoss(BaseMultimodalLoss):
     def __init__(self, reconstruction_weight: float = 0.01, weight: Optional[torch.Tensor] = None):
         """Loss function for multimodal MIL models.
         
         Args:
             reconstruction_weight (float): Weight for the reconstruction loss component.
-                Defaults to 0.1.
+                Defaults to 0.01.
+            weight (torch.Tensor, optional): Class weights for cross entropy loss.
         """
-        super().__init__()
+        super().__init__(reconstruction_weight=reconstruction_weight)
         self.ce = nn.CrossEntropyLoss(weight=weight)
-        self.mse = nn.MSELoss(reduction='none')
-        self.reconstruction_weight = reconstruction_weight
         self.weights = weight
 
     def forward(self, logits, targets):
@@ -679,44 +737,51 @@ class MultimodalLoss(nn.Module):
         classification_loss = self.ce(predictions, targets)
 
         # Calculate reconstruction loss
-        reconstruction_loss = 0
-        n_valid_reconstructions = 0
-
-        for target_mod_idx, (reconstruction, target) in enumerate(zip(reconstructions, reconstruction_targets)):
-            # Expand target to match reconstruction shape
-            # reconstruction shape: (batch_size, n_modalities, modality_dim)
-            # target shape: (batch_size, modality_dim)
-            expanded_target = target.unsqueeze(1).expand(-1, reconstruction.size(1), -1)
-            
-            # Calculate MSE for this modality
-            mod_mse = self.mse(reconstruction, expanded_target)  # (batch_size, n_modalities, modality_dim)
-            
-            # Average across feature dimension
-            mod_mse = mod_mse.mean(dim=-1)  # (batch_size, n_modalities)
-            
-            # Create combined mask that accounts for both source and target modalities
-            # We only want to calculate loss when both source and target modalities are present
-            target_modality_present = modality_mask[:, target_mod_idx].unsqueeze(1)  # (batch_size, 1)
-            combined_mask = modality_mask & target_modality_present  # (batch_size, n_modalities)
-            
-            # Mask out missing modalities (both source and target)
-            masked_mse = mod_mse * combined_mask.float()
-            
-            # Sum valid reconstructions and count them
-            valid_count = combined_mask.sum()
-            if valid_count > 0:
-                reconstruction_loss += masked_mse.sum() / valid_count
-                n_valid_reconstructions += 1
-
-        # Average reconstruction loss across modalities
-        if n_valid_reconstructions > 0:
-            reconstruction_loss = reconstruction_loss / n_valid_reconstructions
+        reconstruction_loss = self._calculate_reconstruction_loss(
+            reconstructions, reconstruction_targets, modality_mask
+        )
         
         # Combine losses
         total_loss = classification_loss + (self.reconstruction_weight * reconstruction_loss)
 
         return total_loss
 
+class MultimodalSurvivalLoss(BaseMultimodalLoss):
+    def __init__(self, reconstruction_weight: float = 0.01, weight: Optional[torch.Tensor] = None):
+        """Loss function for multimodal survival MIL models.
+        
+        Args:
+            reconstruction_weight (float): Weight for the reconstruction loss component.
+                Defaults to 0.01.
+            weight (torch.Tensor, optional): Not used, included for API consistency.
+        """
+        super().__init__(reconstruction_weight=reconstruction_weight)
+        self.cph = CoxProportionalHazardsLoss(reduction='none')
+
+    def forward(self, logits, targets):
+        # If logits is not tuple, apply CPH loss directly
+        if not isinstance(logits, tuple):
+            predictions = logits
+            return self.cph(predictions, targets)
+        else:
+            # Unpack the input
+            predictions = logits[0]  # Survival predictions (log hazards)
+            reconstructions = logits[1]  # List of reconstruction tensors
+            reconstruction_targets = logits[2]  # List of target tensors 
+            modality_mask = logits[3]  # Mask indicating which modalities were present
+
+        # Calculate survival loss using Cox Proportional Hazards
+        survival_loss = self.cph(predictions, targets)
+
+        # Calculate reconstruction loss
+        reconstruction_loss = self._calculate_reconstruction_loss(
+            reconstructions, reconstruction_targets, modality_mask
+        )
+        
+        # Combine losses
+        total_loss = survival_loss + (self.reconstruction_weight * reconstruction_loss)
+
+        return total_loss
 
 class MILModelConfig:
 
@@ -727,7 +792,8 @@ class MILModelConfig:
         'huber': nn.SmoothL1Loss,
         'BCE_ordinal': nn.BCEWithLogitsLoss,
         'CPH': CoxProportionalHazardsLoss,
-        'mm_loss': MultimodalLoss
+        'mm_loss': MultimodalLoss,
+        'mm_survival_loss': MultimodalSurvivalLoss
     }
 
     def __init__(
@@ -829,6 +895,8 @@ class MILModelConfig:
             return 'survival'
         elif self.loss == 'mm_loss':
             return 'multimodal'
+        elif self.loss == 'mm_survival_loss':
+            return 'multimodal_survival'
         else:
             return 'regression'
 
@@ -1045,7 +1113,7 @@ class MILModelConfig:
         """
         if self.model_type in ['classification', 'ordinal', 'multimodal']:
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
-        elif self.model_type == 'survival':
+        elif self.model_type in ['survival', 'multimodal_survival']:
             sf.stats.metrics.survival_metrics(df, level=level, data_dir=outdir)
         else:
             sf.stats.metrics.regression_metrics(df, level=level, data_dir=outdir)
