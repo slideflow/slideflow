@@ -357,3 +357,25 @@ def _preprocess_scoring_data(event_times, predicted_scores, event_observed):
             raise ValueError("NaNs detected in inputs, please correct or drop.")
 
     return event_times, predicted_scores, event_observed
+
+def c_index(y_true, y_pred):
+    """Wrapper for concordance index calculation
+    
+    This function is used to calculate the concordance index in MIL models.
+    
+    Args:
+        y_true (array-like): Ground truth values with shape (n_samples, 2) where
+            the first column contains time/duration and second column contains
+            event/status (1 if event occurred, 0 if censored).
+        y_pred (array-like): Predicted risk scores with shape (n_samples,).
+    
+    Returns:
+        float: Concordance index score.
+    """    
+    durations = y_true[:, 0]
+    events = y_true[:, 1]
+    
+    # Higher hazard = higher risk = worse prognosis
+    # But concordance_index expects higher predictions to mean better prognosis
+    # So we negate the predictions
+    return concordance_index(durations, -y_pred, events)

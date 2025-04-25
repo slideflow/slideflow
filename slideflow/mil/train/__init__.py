@@ -11,7 +11,7 @@ from slideflow.util import path_to_name
 from os.path import join, isdir
 
 from .. import utils
-from ..eval import predict_mil, predict_multimodal_mil, generate_attention_heatmaps
+from ..eval import predict_mil, predict_mixed_mil, predict_multimodal_mil, generate_attention_heatmaps
 from .._params import TrainerConfig
 
 if TYPE_CHECKING:
@@ -65,6 +65,8 @@ def train_mil(
             for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
             If 'two_slope', normalizes values less than 0 and greater than 0
             separately. Defaults to None.
+        events (str, optional): Annotation column which specifies the
+            event, for training a survival model.
 
     """
     if not isinstance(config, TrainerConfig):
@@ -89,6 +91,7 @@ def build_fastai_learner(
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
     *,
+    events: Optional[str] = None,
     outdir: str = 'mil',
     return_shape: bool = False,
     **kwargs
@@ -106,6 +109,8 @@ def build_fastai_learner(
         bags (str): list of paths to individual \*.pt files. Each file should
             contain exported feature vectors, with each file containing all tile
             features for one patient.
+        events (str, optional): Annotation column which specifies the
+            event, for training a survival model.
 
     Keyword args:
         outdir (str): Directory in which to save model and results.
@@ -126,7 +131,7 @@ def build_fastai_learner(
     """
     from . import _fastai
 
-    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_classification())
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.model_type, events=events)
 
     # Prepare bags
     if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
@@ -244,7 +249,7 @@ def build_multimodal_learner(
     num_modes = len(bags)
 
     # Prepare labels and slides
-    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.is_classification())
+    labels, unique = utils.get_labels((train_dataset, val_dataset), outcomes, config.model_type)
 
     # --- Prepare bags --------------------------------------------------------
 
@@ -335,6 +340,7 @@ def _train_mil(
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
+    events: Optional[str] = None,
     device: Optional[str] = None,
     **heatmap_kwargs
 ) -> "Learner":
@@ -349,6 +355,8 @@ def _train_mil(
             of paths to individual \*.pt files. Each file should contain
             exported feature vectors, with each file containing all tile
             features for one patient.
+        events (str, optional): Annotation column which specifies the
+            event, for training a survival model.
 
     Keyword args:
         outdir (str): Directory in which to save model and results.
@@ -387,6 +395,7 @@ def _train_mil(
         train_dataset,
         val_dataset,
         outcomes,
+        events=events,
         bags=bags,
         outdir=outdir,
         device=device,
@@ -414,6 +423,7 @@ def _train_mil(
         dataset=val_dataset,
         config=config,
         outcomes=outcomes,
+        events=events,
         bags=val_bags,
         attention=True,
         uq=uq,
@@ -422,9 +432,12 @@ def _train_mil(
         pred_out = join(outdir, 'predictions.parquet')
         df.to_parquet(pred_out)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
+        
+    if config.model_type == 'ordinal':
+        utils.create_preds(df)
 
     # Print classification metrics, including per-category accuracy
-    utils.rename_df_cols(df, outcomes, categorical=config.is_classification(), inplace=True)
+    utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export attention to numpy arrays
@@ -507,7 +520,7 @@ def _train_multimodal_mil(
     )
 
     # Print classification metrics, including per-category accuracy
-    utils.rename_df_cols(df, outcomes, categorical=config.is_classification(), inplace=True)
+    utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)
     config.run_metrics(df, level='slide', outdir=outdir)
 
     # Export predictions.
@@ -519,6 +532,146 @@ def _train_multimodal_mil(
     # Export attention.
     if attention and outdir:
         utils._export_attention(join(outdir, 'attention'), attention, df.slide.values)
+
+    return learner
+
+def _train_multimodal_mixed_mil(
+    config: TrainerConfig,
+    train_dataset: Dataset,
+    val_dataset: Dataset,
+    outcomes: Union[str, List[str]],
+    bags: Union[str, List[str]],
+    *,
+    outdir: str = 'mil',
+    attention_heatmaps: bool = False,
+    uq: bool = False,
+    events: Optional[str] = None,
+    device: Optional[str] = None,
+    **heatmap_kwargs
+) -> "Learner":
+    """Train an MIL model using FastAI.
+
+    Args:
+        train_dataset (:class:`slideflow.Dataset`): Training dataset.
+        val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+        outcomes (str): Outcome column (annotation header) from which to
+            derive category labels.
+        bags (str): Either a path to directory with \*.pt files, or a list
+            of paths to individual \*.pt files. Each file should contain
+            exported feature vectors, with each file containing all tile
+            features for one patient.
+        events (str, optional): Annotation column which specifies the
+            event, for training a survival model.
+
+    Keyword args:
+        outdir (str): Directory in which to save model and results.
+        exp_label (str): Experiment label, used for naming the subdirectory
+            in the ``{project root}/mil`` folder, where training history
+            and the model will be saved.
+        lr (float): Learning rate, or maximum learning rate if
+            ``fit_one_cycle=True``.
+        epochs (int): Maximum epochs.
+        attention_heatmaps (bool): Generate attention heatmaps for slides.
+            Defaults to False.
+        interpolation (str, optional): Interpolation strategy for smoothing
+            attention heatmaps. Defaults to 'bicubic'.
+        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
+            valid matplotlib colormap. Defaults to 'inferno'.
+        norm (str, optional): Normalization strategy for assigning heatmap
+            values to colors. Either 'two_slope', or any other valid value
+            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
+            If 'two_slope', normalizes values less than 0 and greater than 0
+            separately. Defaults to None.
+
+    Returns:
+        fastai.learner.Learner
+    """
+    from . import _fastai
+
+    # Prepare validation bags.
+    if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
+        val_bags = val_dataset.get_bags(bags)
+    else:
+        raise ValueError("Bags must be a path to a directory with .pt files")
+
+    # Build learner.
+    learner, (n_in, n_out) = build_fastai_learner(
+        config,
+        train_dataset,
+        val_dataset,
+        outcomes,
+        events=events,
+        bags=bags,
+        outdir=outdir,
+        device=device,
+        return_shape=True
+    )
+
+    # Save MIL settings.
+    # Attempt to read the unique categories from the learner.
+    if not hasattr(learner.dls.train_ds, 'encoder'):
+        unique = None
+    else:
+        encoder = learner.dls.train_ds.encoder
+        if encoder is not None:
+            unique = encoder.categories_[0].tolist()
+        else:
+            unique = None
+    _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir)
+
+    # Train.
+    _fastai.train(learner, config)
+
+    # Generate validation predictions.
+    df, attention = predict_mixed_mil(
+        learner.model,
+        dataset=val_dataset,
+        config=config,
+        outcomes=outcomes,
+        events=events,
+        bags=val_bags,
+        attention=True
+    )
+    df_train, attention_train = predict_mixed_mil(
+        learner.model,
+        dataset=train_dataset,
+        config=config,
+        outcomes=outcomes,
+        events=events,
+        bags=bags,
+        attention=True
+    )
+    if outdir:
+        pred_out = join(outdir, 'predictions.parquet')
+        pred_out_train = join(outdir, 'predictions_train.parquet')
+        df.to_parquet(pred_out)
+        df_train.to_parquet(pred_out_train)
+        log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    if config.model_type in ['survival', 'multimodal_survival']:
+        df['y_pred0'] = -df['y_pred0']
+
+    # Print classification metrics, including per-category accuracy
+    utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)
+    config.run_metrics(df, level='slide', outdir=outdir)
+
+    # Export attention to numpy arrays
+    if attention and outdir:
+        utils._export_attention(
+            join(outdir, 'attention'),
+            attention,
+            [path_to_name(b) for b in val_bags]
+        )
+
+    # Attention heatmaps.
+    if attention and attention_heatmaps and outdir:
+        generate_attention_heatmaps(
+            outdir=join(outdir, 'heatmaps'),
+            dataset=val_dataset,
+            bags=val_bags,
+            attention=attention,
+            **heatmap_kwargs
+        )
 
     return learner
 

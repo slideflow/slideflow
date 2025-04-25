@@ -22,6 +22,9 @@ from ._backend import backend, slide_backend
 # Import logging functions required for other submodules
 from slideflow.util import getLoggingLevel, log, setLoggingLevel, about
 
+# Import utility functions
+from slideflow.util import prepare_multimodal_mixed_bags
+
 ...
 from slideflow import io, model, norm, stats, gan
 from slideflow.dataset import Dataset

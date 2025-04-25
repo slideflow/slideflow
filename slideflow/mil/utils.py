@@ -4,6 +4,7 @@ import os
 import inspect
 import slideflow as sf
 import numpy as np
+import pandas as pd
 
 from os.path import exists, join, isdir
 from typing import Optional, Tuple, Union, Dict, List, Any, TYPE_CHECKING
@@ -310,19 +311,21 @@ def aggregate_trainval_bags_by_patient(
 
     return bags, targets, train_idx, val_idx
 
+
 def get_labels(
     datasets: Union[sf.Dataset, List[sf.Dataset]],
     outcomes: Union[str, List[str]],
-    classification: bool,
+    model_type: str,
     *,
-    format: str = 'name'
+    format: str = 'name',
+    events: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], np.ndarray]:
     """Get labels for a dataset.
 
     Args:
         datasets (Dataset or list(Dataset)): Dataset(s) containing labels.
         outcomes (str or list(str)): Outcome(s) to extract.
-        classification (bool): Whether to treat outcomes as categorical.
+        model_type (str): Type of model to use.
 
     Keyword Args:
         format (str): Format for categorical labels. Either 'id' or 'name'.
@@ -334,13 +337,23 @@ def get_labels(
 
     # Prepare labels and slides
     labels = {}
-    if classification:
+    if model_type in ['classification', 'ordinal', 'multimodal']:
         all_unique = []
         for dts in datasets:
             _labels, _unique = dts.labels(outcomes, format=format)
             labels.update(_labels)
             all_unique.append(_unique)
         unique = np.unique(all_unique)
+    elif model_type in ['survival', 'multimodal_survival']:
+        if events is None:
+            raise ValueError("For survival models, 'events' parameter must be provided")
+        for dts in datasets:
+            time_labels, _ = dts.labels(outcomes, use_float=True)
+            event_labels, _ = dts.labels(events, use_float=True)
+            # Create tuples of (time, event) for each slide
+            for slide in time_labels:
+                labels[slide] = (time_labels[slide][0], event_labels[slide][0])
+        unique = None
     else:
         for dts in datasets:
             _labels, _unique = dts.labels(outcomes, use_float=True)
@@ -349,7 +362,7 @@ def get_labels(
     return labels, unique
 
 
-def rename_df_cols(df, outcomes, categorical, inplace=False):
+def rename_df_cols(df, outcomes, model_type, inplace=False):
     """Rename columns of a DataFrame based on outcomes.
 
     This standarization of column names enables metrics calculation
@@ -368,8 +381,10 @@ def rename_df_cols(df, outcomes, categorical, inplace=False):
         categorical (bool): Whether the outcomes are categorical.
 
     """
-    if categorical:
+    if model_type in ['classification', 'ordinal', 'multimodal']:
         return _rename_categorical_df_cols(df, outcomes, inplace=inplace)
+    elif model_type in ['survival', 'multimodal_survival']:
+        return _rename_survival_df_cols(df, outcomes, inplace=inplace)
     else:
         return _rename_continuous_df_cols(df, outcomes, inplace=inplace)
 
@@ -388,6 +403,79 @@ def _rename_continuous_df_cols(df, outcomes, inplace=False):
     cols_to_rename = {f'y_pred{o}': f"{outcomes[o]}-y_pred" for o in range(len(outcomes))}
     cols_to_rename.update({f'y_true{o}': f"{outcomes[o]}-y_true" for o in range(len(outcomes))})
     return df.rename(columns=cols_to_rename, inplace=inplace)
+
+def _rename_survival_df_cols(df, outcomes, inplace=False):
+    df = df.rename(columns={
+        'y_true0': 'time-y_true',
+        'y_true1': 'event-y_true',
+        'y_pred0': 'time-y_pred'
+    }, inplace=inplace)
+    return df
+
+def create_preds(df: pd.DataFrame) -> None:
+    """Convert binary ordinal predictions to class probabilities.
+    
+    For ordinal classification with n classes, the model outputs n-1 binary predictions.
+    This function first applies sigmoid to the raw outputs, then converts these binary 
+    predictions into n class probabilities that sum to 1.
+    
+    The conversion follows this logic for N classes (requiring N-1 binary predictions):
+    - First class (0): product of (1-x_i) for all i
+    - Middle class k: product of (1-x_i) for i<N-k and x_i for i>=N-k
+    - Last class (N-1): product of x_i for all i
+    
+    Example for 3 classes (requiring 2 binary predictions x1, x2):
+    P(class 0) = (1-x1)*(1-x2)
+    P(class 1) = (1-x1)*x2
+    P(class 2) = x1*x2
+    """
+    import torch
+    import torch.nn.functional as F
+    
+    # Get number of binary predictions (n-1 where n is number of classes)
+    binary_cols = [col for col in df.columns if col.startswith('y_pred')]
+    n_binary = len(binary_cols)
+    n_classes = n_binary + 1
+    
+    # Get binary predictions as numpy array
+    binary_preds = df[binary_cols].values
+    
+    # Apply sigmoid
+    binary_preds = torch.sigmoid(torch.tensor(binary_preds)).numpy()
+    
+    # Convert each row of predictions
+    new_preds = []
+    for row in binary_preds:
+        # First class: product of (1-x_i) for all i
+        y = [np.prod([1-xi for xi in row])]
+        
+        # Middle classes: start flipping from the right side
+        for k in range(1, len(row)):
+            term = 1
+            # multiply (1-x_i) for i < N-k
+            for i in range(len(row)-k):
+                term *= (1-row[i])
+            # multiply x_i for i >= N-k
+            for i in range(len(row)-k, len(row)):
+                term *= row[i]
+            y.append(term)
+        
+        # Last class: product of x_i for all i
+        y.append(np.prod(row))
+        
+        new_preds.append(y)
+    
+    # Convert to tensor, apply softmax, and back to numpy
+    new_preds = F.softmax(torch.tensor(new_preds), dim=1).numpy()
+    
+    # Update dataframe with new predictions
+    for i in range(n_classes):
+        df[f'y_pred{i}'] = new_preds[:, i]
+    
+    # Remove the original binary prediction columns
+    for col in binary_cols:
+        if col not in [f'y_pred{i}' for i in range(n_classes)]:
+            df.drop(columns=[col], inplace=True)
 
 # -----------------------------------------------------------------------------
 
@@ -631,3 +719,4 @@ def _export_attention(
             np.save(out_path, att)
 
     log.info(f"Attention scores exported to [green]{out_path}[/]")
+

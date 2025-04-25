@@ -3678,7 +3678,8 @@ class Project:
                 for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
                 If 'two_slope', normalizes values less than 0 and greater than 0
                 separately. Defaults to None.
-
+            events (str, optional): Annotation column which specifies the
+                event, for training a survival.
         """
         from .mil import train_mil
 

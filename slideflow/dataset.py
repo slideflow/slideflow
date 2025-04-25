@@ -2840,6 +2840,42 @@ class Dataset:
         if (len(unique_slides_with_bags) != len(slides)) and warn_missing:
             log.warning(f"Bags missing for {len(slides) - len(unique_slides_with_bags)} slides.")
         return bags
+    
+    def get_mixed_bags(self, bags_path: str) -> np.ndarray:
+        """Get mixed multimodal feature bags for slides in this dataset.
+
+        Assumes the input parquet file has been preprocessed with 
+        prepare_multimodal_mixed_bags(), which handles padding and masking.
+
+        Args:
+            bags_path (str): Path to parquet file containing mixed multimodal bags.
+                The dataframe must have:
+                - A 'slide' column containing unique identifiers
+                - Feature columns containing feature arrays
+                - A 'mask' column containing binary lists indicating modality presence
+
+        Returns:
+            np.ndarray: Array of feature bags for slides in this dataset, with shape
+                (n_slides, n_modalities). Each element is a numpy array of features.
+        """
+        # Read the dataframe
+        df = pd.read_parquet(bags_path)
+
+        # Get feature columns (all except 'slide' and 'mask')
+        feature_cols = [col for col in df.columns if col not in ('slide', 'mask')]
+
+        # Filter to only include slides in this dataset
+        dataset_slides = self.slides()
+        df = df[df.slide.isin(dataset_slides)]
+
+        # Convert feature arrays to numpy arrays
+        bags = []
+        for slide in dataset_slides:
+            slide_row = df[df.slide == slide].iloc[0]
+            slide_features = [np.array(slide_row[col]) for col in feature_cols]
+            bags.append(slide_features)
+
+        return np.array(bags)
 
     def read_tfrecord_by_location(
         self,
