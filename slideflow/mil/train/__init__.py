@@ -11,7 +11,7 @@ from slideflow.util import path_to_name
 from os.path import join, isdir
 
 from .. import utils
-from ..eval import predict_mil, predict_mixed_mil, predict_multimodal_mil, generate_attention_heatmaps
+from ..eval import predict_mil, predict_multimodal_mil, generate_attention_heatmaps
 from .._params import TrainerConfig
 
 if TYPE_CHECKING:
@@ -623,7 +623,7 @@ def _train_multimodal_mixed_mil(
     _fastai.train(learner, config)
 
     # Generate validation predictions.
-    df, attention = predict_mixed_mil(
+    df, attention = predict_mil(
         learner.model,
         dataset=val_dataset,
         config=config,
@@ -632,7 +632,7 @@ def _train_multimodal_mixed_mil(
         bags=val_bags,
         attention=True
     )
-    df_train, attention_train = predict_mixed_mil(
+    df_train, attention_train = predict_mil(
         learner.model,
         dataset=train_dataset,
         config=config,
@@ -647,9 +647,6 @@ def _train_multimodal_mixed_mil(
         df.to_parquet(pred_out)
         df_train.to_parquet(pred_out_train)
         log.info(f"Predictions saved to [green]{pred_out}[/]")
-
-    if config.model_type in ['survival', 'multimodal_survival']:
-        df['y_pred0'] = -df['y_pred0']
 
     # Print classification metrics, including per-category accuracy
     utils.rename_df_cols(df, outcomes, model_type=config.model_type, inplace=True)

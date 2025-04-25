@@ -173,6 +173,10 @@ def predict_mil(
 
     # Aggregate bags by slide or patient.
     if aggregation_level == 'patient':
+        if config.model_type == 'multimodal_survival':
+            raise NotImplementedError(
+                "Patient-level aggregation not yet supported for multimodal survival models"
+            )
         # Get nested list of bags, aggregated by slide.
         slide_to_patient = dataset.patients()
         n_slide_bags = len(bags)
@@ -214,7 +218,7 @@ def predict_mil(
             df_dict[f'uncertainty{i}'] = y_uq[:, i]
     df = pd.DataFrame(df_dict)
 
-    if config.model_type == 'survival':
+    if config.model_type in ['survival', 'multimodal_survival']:
         df['y_pred0'] = -df['y_pred0']
 
     if attention:
@@ -312,82 +316,6 @@ def predict_multimodal_mil(
     y_pred, y_att = config.predict(model, bags, attention=attention, **kwargs)
 
     # Update dataframe with predictions.
-    for i in range(y_pred.shape[-1]):
-        df_dict[f'y_pred{i}'] = y_pred[:, i]
-    df = pd.DataFrame(df_dict)
-
-    if attention:
-        return df, y_att
-    else:
-        return df
-
-def predict_mixed_mil(
-    model: Union[str, Callable],
-    dataset: "sf.Dataset",
-    outcomes: Union[str, List[str]],
-    bags: Union[str, List[str]],
-    *,
-    events: Optional[str] = None,
-    config: Optional[TrainerConfig] = None,
-    attention: bool = False,
-    aggregation_level: Optional[str] = None,
-    **kwargs
-) -> Union[pd.DataFrame, Tuple[pd.DataFrame, List[np.ndarray]]]:
-    """Generate predictions from a mixed multimodal MIL model.
-
-    Args:
-        model: Loaded PyTorch model or path to weights
-        dataset: Dataset containing annotations
-        outcomes: Outcome(s) to predict
-        bags: Path to directory containing mixed multimodal bags, or list of bag paths
-
-    Keyword Args:
-        config: Model configuration. If None, will attempt to load from weights
-        attention: Whether to return attention scores
-        aggregation_level: Level at which to aggregate predictions ('slide' or 'patient')
-        **kwargs: Additional arguments passed to config.predict()
-
-    Returns:
-        pd.DataFrame or Tuple[pd.DataFrame, List[np.ndarray]]: Predictions dataframe,
-            optionally with attention scores
-    """
-    # Prepare labels
-    labels, _ = utils.get_labels(dataset, outcomes, config.model_type, events=events, format='id')
-
-    # Prepare bags and targets
-    slides = list(labels.keys())
-    if isinstance(bags, str):
-        # If bags is a directory, get all .pt files
-        bags = dataset.get_bags(bags)
-    else:
-        # Filter bags to only include those with labels
-        bags = [b for b in bags if path_to_name(b) in slides]
-
-    # Patient-level aggregation not yet supported for mixed bags
-    if aggregation_level == 'patient':
-        raise NotImplementedError(
-            "Patient-level aggregation not yet supported for mixed multimodal bags"
-        )
-
-    # Ensure slide names are sorted according to the bags
-    slides = [path_to_name(b) for b in bags]
-    y_true = np.array([labels[s] for s in slides])
-
-    # Create prediction dataframe
-    df_dict = dict(slide=slides)
-
-    # Handle continuous outcomes
-    if len(y_true.shape) > 1:
-        for i in range(y_true.shape[-1]):
-            df_dict[f'y_true{i}'] = y_true[:, i]
-    else:
-        df_dict['y_true'] = y_true
-
-    # Inference
-    model.eval()
-    y_pred, y_att = config.predict(model, bags, attention=attention, **kwargs)
-
-    # Update dataframe with predictions
     for i in range(y_pred.shape[-1]):
         df_dict[f'y_pred{i}'] = y_pred[:, i]
     df = pd.DataFrame(df_dict)
