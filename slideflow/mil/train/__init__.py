@@ -437,8 +437,6 @@ def _train_mil(
         
     if config.model_type == 'ordinal':
         utils.create_preds(df)
-    if config.model_type == 'survival':
-        df['y_pred0'] = -df['y_pred0']
     if config.model_type == 'multimodal':
         utils.create_preds_mm(df)
 
