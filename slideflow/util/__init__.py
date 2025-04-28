@@ -1599,7 +1599,12 @@ def get_new_model_dir(root: str, model_name: str) -> str:
 
 
 def create_new_model_dir(root: str, model_name: str) -> str:
-    path = get_new_model_dir(root, model_name)
+    """
+    If model_name is an absolute path, create it directly and return it.
+    Otherwise, generate a new numbered folder in `root` with the name. ludo
+    """
+    if not os.path.isabs(model_name):
+        path = get_new_model_dir(root, model_name)
     if not os.path.exists(path):
         os.makedirs(path)
     return path
@@ -1775,7 +1780,7 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
 
     return tessellated_vertices
 
-def prepare_multimodal_mixed_bags(path: str) -> None:
+def prepare_multimodal_mixed_bags(path: str, bags_path: str) -> None:
     """Prepare multimodal mixed bags from a dataframe file.
 
     Processes a dataframe containing multimodal features where some modalities may be
@@ -1826,7 +1831,7 @@ def prepare_multimodal_mixed_bags(path: str) -> None:
     feature_map = {col: f'feature{i+1}' for i, col in enumerate(feature_cols)}
     
     # Create output directory
-    outdir = join(dirname(path), 'bags')
+    outdir = join(dirname(path), bags_path)
     os.makedirs(outdir, exist_ok=True)
 
     # First pass: determine feature dimensions for each modality
