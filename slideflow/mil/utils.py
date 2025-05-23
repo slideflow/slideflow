@@ -339,7 +339,7 @@ def get_labels(
         for dts in datasets:
             _labels, _unique = dts.labels(outcomes, format=format)
             labels.update(_labels)
-            all_unique.append(_unique)
+            all_unique += _unique
         unique = np.unique(all_unique)
     else:
         for dts in datasets:
