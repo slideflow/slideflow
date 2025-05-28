@@ -42,6 +42,40 @@ class EasyDict(dict):
 
 #----------------------------------------------------------------------------
 
+def compute_hierarchical_final_prediction(pred):
+    """Convert hierarchical predictions to final class prediction.
+    
+    Input predictions are already sigmoid-activated and contain:
+    - pred[0:3]: As, Bs, TC probabilities
+    - pred[3:5]: A, AB probabilities
+    - pred[5:7]: B1/B2 bits
+    
+    Returns:
+        str: Final prediction class name ('A', 'AB', 'B1', 'B2', 'B3', or 'TC')
+    """
+    
+    # Check level 1 (As, Bs, TC)
+    if pred[2] > max(pred[0], pred[1]):  # TC > As,Bs
+        return 'TC'
+    elif pred[0] > pred[1]:  # As > Bs
+        # Check A vs AB
+        if pred[3] > pred[4]:  # A > AB
+            return 'A'
+        else:
+            return 'AB'
+    else:  # Bs is highest
+        # Use ordinal bits to determine B subtype
+        # B1: (1-x1)(1-x2)
+        # B2: (1-x1)x2
+        # B3: x1x2
+        x1, x2 = pred[5], pred[6]
+        b1_prob = (1-x1)*(1-x2)
+        b2_prob = (1-x1)*x2
+        b3_prob = x1*x2
+        b_probs = [b1_prob, b2_prob, b3_prob]
+        b_idx = np.argmax(b_probs)
+        return f'B{b_idx+1}'
+
 def prediction_to_string(
     predictions: np.ndarray,
     outcomes: List[str],
@@ -50,7 +84,7 @@ def prediction_to_string(
     """Convert a prediction array to a human-readable string."""
     #TODO: support multi-outcome models
     if is_classification:
-        return f'{outcomes[str(np.argmax(predictions))]} ({np.max(predictions)*100:.1f}%)'
+        return f'{compute_hierarchical_final_prediction(predictions)}'
     else:
         return f'{predictions[0]:.2f}'
 
