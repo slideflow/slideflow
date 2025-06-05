@@ -762,7 +762,6 @@ class MILWidget(Widget):
             imgui.text("Final prediction")
             imgui.same_line(self.viz.font_size * 12)
             if self.mil_config.model_type == 'hierarchical':
-                print('here2') # FIXME: remove
                 final_pred = compute_hierarchical_final_prediction(self.predictions[0])
                 imgui_utils.right_aligned_text(final_pred)
             else:

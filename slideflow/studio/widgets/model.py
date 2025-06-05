@@ -44,7 +44,6 @@ def _draw_tile_pred_result(
 
     # Prediction string
     if is_classification:
-        print('here') # FIXME: remove
         pred_str = compute_hierarchical_final_prediction(pred_array)
     else:
         pred_str = f'{pred_array:.3f}'
