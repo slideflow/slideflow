@@ -31,7 +31,7 @@ class VirchowFeatures(TorchFeatureExtractor):
     """
 
     tag = 'virchow'
-    license = """CC-BY-NC-ND 4.0 (non-commercial use only). Please see the original license at https://huggingface.co/paige-ai/Virchow."""
+    license = """Apache License 2.0 (non-commercial use only). Please see the original license at https://huggingface.co/paige-ai/Virchow."""
     citation = """
 @misc{vorontsov2024virchowmillionslidedigitalpathology,
       title={Virchow: A Million-Slide Digital Pathology Foundation Model},
