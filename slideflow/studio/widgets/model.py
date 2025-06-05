@@ -7,7 +7,7 @@ from array import array
 from collections import defaultdict
 from slideflow.util import isnumeric
 
-from ..utils import EasyDict, LEFT_MOUSE_BUTTON
+from ..utils import EasyDict, LEFT_MOUSE_BUTTON, compute_hierarchical_final_prediction
 from ..gui import imgui_utils
 
 # -----------------------------------------------------------------------------
@@ -18,7 +18,6 @@ def scale_uncertainty_bar(val, max_width, range=(0, 1)):
     _normalized = (val - _min) / (_max - _min)
     _clipped = max(0, min(1, _normalized))
     return int(_clipped * max_width)
-
 
 def _draw_tile_pred_result(
     viz,
@@ -45,7 +44,8 @@ def _draw_tile_pred_result(
 
     # Prediction string
     if is_classification:
-        pred_str = labels[str(np.argmax(pred_array))]
+        print('here') # FIXME: remove
+        pred_str = compute_hierarchical_final_prediction(pred_array)
     else:
         pred_str = f'{pred_array:.3f}'
     imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
