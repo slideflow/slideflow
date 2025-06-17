@@ -51,7 +51,7 @@ class Hoptimus0Features(TorchFeatureExtractor):
 
         # ---------------------------------------------------------------------
         self.num_features = 1536
-        self.transform = self.build_transform(norm_mean=(0.707223, 0.578729, 0.703617),norm_std=(0.211883, 0.230117, 0.177517))
+        self.transform = self.build_transform(norm_mean=(0.707223, 0.578729, 0.703617),norm_std=(0.211883, 0.230117, 0.177517), img_size=224)
         self.preprocess_kwargs = dict(standardize=False)
         self._weights = weights
 
