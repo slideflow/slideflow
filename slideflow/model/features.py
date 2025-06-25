@@ -349,6 +349,104 @@ class DatasetFeatures:
         return obj
 
     @classmethod
+    def generate_mil_embeddings(
+        cls,
+        mil_model_path: str,
+        input_bags_path: str,
+        # output_path: str,
+        device: Optional[str] = None
+    ) -> "DatasetFeatures":
+        """Generate MIL embeddings from existing feature bags.
+        
+        This method loads existing feature bags and processes each feature vector
+        individually through a MIL model's forward_embeddings method to generate
+        z_dim embeddings. Each feature vector is treated as a single-vector bag.
+        
+        Args:
+            mil_model_path (str): Path to the trained MIL model (.pth file)
+            input_bags_path (str): Path to input feature bags directory
+            output_path (str): Path to save the MIL embeddings
+            device (str, optional): Device to use for processing. Defaults to None.
+            
+        Returns:
+            :class:`DatasetFeatures`: DatasetFeatures object with MIL embeddings
+        """
+        import torch
+        from rich.progress import track
+        
+        # Load existing bags
+        log.info(f"Loading existing bags from {input_bags_path}")
+        input_features = cls.from_bags(input_bags_path)
+        
+        # Load MIL model
+        log.info(f"Loading MIL model from {mil_model_path}")
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
+        # Load the model state dict
+        state_dict = torch.load(mil_model_path, map_location=device)
+        
+        # We need to determine the model architecture from the state dict
+        # For now, assume it's an Attention_MIL model
+        from slideflow.mil.models.att_mil import Attention_MIL
+        
+        # Infer model parameters from state dict
+        # Get input features size from encoder weight
+        n_feats = state_dict['encoder.0.weight'].shape[1]
+        # Get z_dim from encoder output size
+        z_dim = state_dict['encoder.0.weight'].shape[0]
+        # Get n_out from head output size
+        n_out = state_dict['head.3.weight'].shape[0]
+        
+        # Create model instance
+        model = Attention_MIL(n_feats=n_feats, n_out=n_out, z_dim=z_dim)
+        model.load_state_dict(state_dict)
+        model.to(device)
+        model.eval()
+        
+        log.info(f"Model loaded: n_feats={n_feats}, z_dim={z_dim}, n_out={n_out}")
+        
+        # Create output DatasetFeatures object
+        output_features = cls(None, None)
+        output_features.slides = input_features.slides
+        output_features.num_features = z_dim
+        output_features.activations = {}
+        output_features.locations = input_features.locations
+        
+        # Process each slide
+        total_vectors = sum(len(input_features.activations[slide]) for slide in input_features.slides)
+        log.info(f"Processing {total_vectors} feature vectors from {len(input_features.slides)} slides")
+        
+        with torch.no_grad():
+            for slide in track(input_features.slides, description="Processing slides"):
+                slide_activations = input_features.activations[slide]
+                slide_embeddings = []
+                
+                # Process each feature vector individually
+                for feature_vector in slide_activations:
+                    # Create a "bag" of size 1 containing just this vector
+                    bag = torch.from_numpy(feature_vector).float().unsqueeze(0).unsqueeze(0).to(device)  # Shape: (1, 1, n_feats)
+                    lens = torch.tensor([1], device=device)  # Length tensor indicating 1 vector in the bag
+                    
+                    # Get MIL embeddings using forward_embeddings
+                    embeddings = model.forward_embeddings(bag, lens)  # Shape: (1, z_dim)
+                    
+                    # Store the embedding
+                    slide_embeddings.append(embeddings.cpu().numpy().squeeze())
+                
+                # Store all embeddings for this slide
+                output_features.activations[slide] = np.array(slide_embeddings)
+        
+        # # Save the embeddings
+        # if not os.path.exists(output_path):
+        #     os.makedirs(output_path)
+        
+        # log.info(f"Saving MIL embeddings to {output_path}")
+        # output_features.to_torch(output_path)
+        
+        return output_features
+
+    @classmethod
     def concat(
         cls,
         args: Iterable["DatasetFeatures"],

@@ -130,6 +130,50 @@ class Attention_MIL(nn.Module):
         else:
             return scores
 
+    def forward_embeddings(self, bags, lens):
+        """Forward pass that returns z_dim embeddings instead of final predictions.
+        
+        This method processes the input through the encoder and attention mechanism,
+        returning the weighted sum of embeddings (z_dim) before the final head layer.
+        It ignores UQ and does not return attention scores.
+        
+        Args:
+            bags: Input bag tensor of shape (batch_size, n_instances, n_feats)
+            lens: Length tensor indicating valid instances per bag
+            
+        Returns:
+            weighted_embeddings_sum: Tensor of shape (batch_size, z_dim)
+        """
+        assert bags.ndim == 3
+        assert bags.shape[0] == lens.shape[0]
+
+        embeddings = self.encoder(bags)
+
+        masked_attention_scores = self._masked_attention_scores(embeddings, lens, apply_softmax=False)
+
+        if self.attention_gate and bags.shape[1] > 1:
+            # Attention threshold (75th percentile). Shape = (batch, )
+            attention_threshold = torch.quantile(masked_attention_scores, q=self.attention_gate, dim=1, keepdim=True)
+
+            # Indices of high-attention bags (above threshold).
+            high_attention_mask = (masked_attention_scores > attention_threshold)[:, :]
+
+            # Weighted embeddings from only high-attention bags.
+            masked_attention_scores = torch.where(
+                high_attention_mask, masked_attention_scores, torch.full_like(masked_attention_scores, self._neg_inf)
+            )
+
+        # Softmax attention. Shape = (batch, n_bags, 1)
+        softmax_attention_scores = torch.softmax(masked_attention_scores / self.temperature, dim=1)
+
+        # Weighted embeddings (attention * embeddings). Shape = (batch, n_bags, n_feats)
+        weighted_embeddings = (softmax_attention_scores * embeddings)
+
+        # Sum of weighted embeddings.
+        weighted_embeddings_sum = weighted_embeddings.sum(-2)
+
+        return weighted_embeddings_sum
+
     def calculate_attention(self, bags, lens, *, apply_softmax=None):
         """Calculate attention scores for all bags."""
         if apply_softmax is None and bags.shape[1] > 1:
