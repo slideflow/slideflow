@@ -353,7 +353,7 @@ class DatasetFeatures:
         cls,
         mil_model_path: str,
         input_bags_path: str,
-        # output_path: str,
+        dataset: Optional["sf.Dataset"] = None,
         device: Optional[str] = None
     ) -> "DatasetFeatures":
         """Generate MIL embeddings from existing feature bags.
@@ -365,7 +365,8 @@ class DatasetFeatures:
         Args:
             mil_model_path (str): Path to the trained MIL model (.pth file)
             input_bags_path (str): Path to input feature bags directory
-            output_path (str): Path to save the MIL embeddings
+            dataset (sf.Dataset, optional): Dataset to filter which slides to process.
+                If None, processes all bags in input_bags_path. Defaults to None.
             device (str, optional): Device to use for processing. Defaults to None.
             
         Returns:
@@ -377,6 +378,27 @@ class DatasetFeatures:
         # Load existing bags
         log.info(f"Loading existing bags from {input_bags_path}")
         input_features = cls.from_bags(input_bags_path)
+        
+        # Filter slides based on dataset if provided
+        if dataset is not None:
+            dataset_slides = set(dataset.slides())
+            available_slides = set(input_features.slides)
+            slides_to_process = list(dataset_slides.intersection(available_slides))
+            
+            if not slides_to_process:
+                raise ValueError("No slides found in common between dataset and input bags")
+            
+            log.info(f"Dataset filter: processing {len(slides_to_process)} slides out of {len(input_features.slides)} available")
+            
+            # Filter input_features to only include slides from dataset
+            filtered_activations = {slide: input_features.activations[slide] for slide in slides_to_process}
+            filtered_locations = {slide: input_features.locations[slide] for slide in slides_to_process}
+            
+            input_features.slides = slides_to_process
+            input_features.activations = filtered_activations
+            input_features.locations = filtered_locations
+        else:
+            log.info(f"Processing all {len(input_features.slides)} slides from input bags")
         
         # Load MIL model
         log.info(f"Loading MIL model from {mil_model_path}")
