@@ -354,7 +354,8 @@ class DatasetFeatures:
         mil_model_path: str,
         input_bags_path: str,
         dataset: Optional["sf.Dataset"] = None,
-        device: Optional[str] = None
+        device: Optional[str] = None,
+        downsample_to: Optional[int] = None
     ) -> "DatasetFeatures":
         """Generate MIL embeddings from existing feature bags.
         
@@ -368,6 +369,9 @@ class DatasetFeatures:
             dataset (sf.Dataset, optional): Dataset to filter which slides to process.
                 If None, processes all bags in input_bags_path. Defaults to None.
             device (str, optional): Device to use for processing. Defaults to None.
+            downsample_to (int, optional): Maximum number of tiles to process per slide.
+                If a slide has more tiles than this number, randomly downsample to this limit.
+                Defaults to None (no downsampling).
             
         Returns:
             :class:`DatasetFeatures`: DatasetFeatures object with MIL embeddings
@@ -399,6 +403,45 @@ class DatasetFeatures:
             input_features.locations = filtered_locations
         else:
             log.info(f"Processing all {len(input_features.slides)} slides from input bags")
+        
+        # Apply downsampling if specified
+        if downsample_to is not None:
+            log.info(f"Downsampling slides to maximum {downsample_to} tiles per slide")
+            
+            downsampled_activations = {}
+            downsampled_locations = {}
+            total_original_tiles = 0
+            total_downsampled_tiles = 0
+            
+            for slide in input_features.slides:
+                slide_activations = input_features.activations[slide]
+                slide_locations = input_features.locations[slide]
+                n_tiles = len(slide_activations)
+                total_original_tiles += n_tiles
+                
+                if n_tiles > downsample_to:
+                    # Randomly sample indices
+                    np.random.seed(42)  # For reproducibility
+                    selected_indices = np.random.choice(n_tiles, downsample_to, replace=False)
+                    selected_indices = np.sort(selected_indices)  # Keep sorted for consistency
+                    
+                    # Downsample both activations and locations using the same indices
+                    downsampled_activations[slide] = slide_activations[selected_indices]
+                    downsampled_locations[slide] = slide_locations[selected_indices]
+                    total_downsampled_tiles += downsample_to
+                    
+                    log.debug(f"Slide {slide}: downsampled from {n_tiles} to {downsample_to} tiles")
+                else:
+                    # Keep all tiles if below threshold
+                    downsampled_activations[slide] = slide_activations
+                    downsampled_locations[slide] = slide_locations
+                    total_downsampled_tiles += n_tiles
+            
+            # Update input_features with downsampled data
+            input_features.activations = downsampled_activations
+            input_features.locations = downsampled_locations
+            
+            log.info(f"Downsampling completed: {total_original_tiles} -> {total_downsampled_tiles} tiles")
         
         # Load MIL model
         log.info(f"Loading MIL model from {mil_model_path}")
@@ -458,13 +501,6 @@ class DatasetFeatures:
                 
                 # Store all embeddings for this slide
                 output_features.activations[slide] = np.array(slide_embeddings)
-        
-        # # Save the embeddings
-        # if not os.path.exists(output_path):
-        #     os.makedirs(output_path)
-        
-        # log.info(f"Saving MIL embeddings to {output_path}")
-        # output_features.to_torch(output_path)
         
         return output_features
 
