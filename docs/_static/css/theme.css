@@ -9453,52 +9453,52 @@ a.text-dark:hover, a.text-dark:focus {
 }
 
 @font-face {
-  font-family: FreightSans;
+  font-family: IBMPlexSans;
   font-weight: 700;
   font-style: normal;
-  src: url("../fonts/FreightSans/freight-sans-bold.woff2") format("woff2"), url("../fonts/FreightSans/freight-sans-bold.woff") format("woff");
+  src: url("../fonts/IBMPlexSans/IBMPlexSans-Bold.ttf") format("woff2"), url("../fonts/IBMPlexSans/IBMPlexSans-Bold.ttf") format("woff2");
 }
 @font-face {
-  font-family: FreightSans;
+  font-family: IBMPlexSans;
   font-weight: 700;
   font-style: italic;
-  src: url("../fonts/FreightSans/freight-sans-bold-italic.woff2") format("woff2"), url("../fonts/FreightSans/freight-sans-bold-italic.woff") format("woff");
+  src: url("../fonts/IBMPlexSans/IBMPlexSans-BoldItalic.ttf") format("woff2"), url("../fonts/IBMPlexSans/IBMPlexSans-BoldItalic.ttf") format("woff2");
 }
 @font-face {
-  font-family: FreightSans;
+  font-family: IBMPlexSans;
   font-weight: 500;
   font-style: normal;
-  src: url("../fonts/FreightSans/freight-sans-medium.woff2") format("woff2"), url("../fonts/FreightSans/freight-sans-medium.woff") format("woff");
+  src: url("../fonts/IBMPlexSans/IBMPlexSans-Regular.woff2") format("woff2"), url("../fonts/IBMPlexSans/IBMPlexSans-Regular.woff2") format("woff2");
 }
 @font-face {
-  font-family: FreightSans;
+  font-family: IBMPlexSans;
   font-weight: 500;
   font-style: italic;
-  src: url("../fonts/FreightSans/freight-sans-medium-italic.woff2") format("woff2"), url("../fonts/FreightSans/freight-sans-medium-italic.woff") format("woff");
+  src: url("../fonts/IBMPlexSans/IBMPlexSans-Italic.woff2") format("woff2"), url("../fonts/IBMPlexSans/IBMPlexSans-Italic.woff2") format("woff2");
 }
 @font-face {
-  font-family: FreightSans;
+  font-family: IBMPlexSans;
   font-weight: 100;
   font-style: normal;
-  src: url("../fonts/FreightSans/freight-sans-light.woff2") format("woff2"), url("../fonts/FreightSans/freight-sans-light.woff") format("woff");
+  src: url("../fonts/IBMPlexSans/IBMPlexSans-Thin.woff2") format("woff2"), url("../fonts/IBMPlexSans/IBMPlexSans-Thin.woff2") format("woff2");
 }
 @font-face {
-  font-family: FreightSans;
+  font-family: IBMPlexSans;
   font-weight: 100;
   font-style: italic;
-  src: url("../fonts/FreightSans/freight-sans-light-italic.woff2") format("woff2"), url("../fonts/FreightSans/freight-sans-light-italic.woff") format("woff");
+  src: url("../fonts/IBMPlexSans/IBMPlexSans-ThinItalic.woff2") format("woff2"), url("../fonts/IBMPlexSans/IBMPlexSans-ThinItalic.woff2") format("woff2");
 }
 @font-face {
-  font-family: FreightSans;
+  font-family: IBMPlexSans;
   font-weight: 400;
   font-style: italic;
-  src: url("../fonts/FreightSans/freight-sans-book-italic.woff2") format("woff2"), url("../fonts/FreightSans/freight-sans-book-italic.woff") format("woff");
+  src: url("../fonts/IBMPlexSans/IBMPlexSans-LightItalic.woff2") format("woff2"), url("../fonts/IBMPlexSans/IBMPlexSans-LightItalic.woff") format("woff2");
 }
 @font-face {
-  font-family: FreightSans;
+  font-family: IBMPlexSans;
   font-weight: 400;
   font-style: normal;
-  src: url("../fonts/FreightSans/freight-sans-book.woff2") format("woff2"), url("../fonts/FreightSans/freight-sans-book.woff") format("woff");
+  src: url("../fonts/IBMPlexSans/IBMPlexSans-Light.woff2") format("woff2"), url("../fonts/IBMPlexSans/IBMPlexSans-Light.woff2") format("woff2");
 }
 @font-face {
   font-family: IBMPlexMono;
@@ -9545,7 +9545,7 @@ html {
 }
 
 body {
-  font-family: FreightSans, Helvetica Neue, Helvetica, Arial, sans-serif;
+  font-family: IBMPlexSans, Helvetica Neue, Helvetica, Arial, sans-serif;
 }
 
 a:link,
@@ -10998,7 +10998,7 @@ article.pytorch-article .admonition > p:last-of-type {
   color: #262626;
 }
 .pytorch-article div.sphx-glr-download a code, .pytorch-article div.sphx-glr-download a kbd, .pytorch-article div.sphx-glr-download a pre, .pytorch-article div.sphx-glr-download a samp, .pytorch-article div.sphx-glr-download a span.pre {
-  font-family: FreightSans, Helvetica Neue, Helvetica, Arial, sans-serif;
+  font-family: IBMPlexSans, Helvetica Neue, Helvetica, Arial, sans-serif;
 }
 
 .pytorch-article p.sphx-glr-script-out {
