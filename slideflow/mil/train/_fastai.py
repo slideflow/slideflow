@@ -31,6 +31,7 @@ from lifelines.utils import concordance_index
 
 #import custom losses and metrics
 from pathbench import losses, metrics, callbacks
+from pathbench.utils.metrics import ConcordanceIndex
 
 # -----------------------------------------------------------------------------
 
@@ -50,7 +51,7 @@ Loss can be any loss class as defined in pathbench/utils/losses.py
 def retrieve_custom_loss(loss_name):
     logging.info(f"Retrieving custom loss: {loss_name}")
     loss_class = getattr(losses, loss_name)
-    return loss_class()  # Instantiate the loss class
+    return loss_class  # Return the loss class without instantiating
 
 
 def retrieve_custom_callback(callback_name):
@@ -283,7 +284,10 @@ def _build_fastai_learner(
     activation_function = config_dict['activation_function']
     problem_type = goal = config_dict['task']
     slide_level = config_dict['slide_level']
-    ctx = pb_config['experiment'].get('multiprocessing_context', 'spawn')
+    if num_workers > 0:
+        ctx = pb_config['experiment'].get('multiprocessing_context', 'spawn')
+    else:
+        ctx = None
     persistent_workers = pb_config['experiment'].get('persistent_workers', False)   
 
     #Determine whether slide-level or bag-level training is required
@@ -294,21 +298,22 @@ def _build_fastai_learner(
 
     # Select the appropriate loss function based on the problem type
     if problem_type == "classification":
-        default_loss = nn.CrossEntropyLoss()
+        default_loss_cls = nn.CrossEntropyLoss
     elif problem_type == "regression":
-        default_loss = nn.MSELoss()
+        default_loss_cls = nn.MSELoss
     elif problem_type == "survival":
-        default_loss = retrieve_custom_loss("CoxPHLoss")
+        default_loss_cls = retrieve_custom_loss("CoxPHLoss")
     elif problem_type == 'survival_discrete':
-        default_loss = retrieve_custom_loss("NLLLogisticHazardLoss")
+        default_loss_cls = retrieve_custom_loss("NLLLogisticHazardLoss")
     else:
         raise ValueError(f"Unsupported problem type: {problem_type}")
-    
-    loss_function = dl_kwargs.get("loss", None)
-    if loss_function is not None:
-        loss_function = retrieve_custom_loss(loss_function)
+
+    loss_name = dl_kwargs.get("loss", None)
+    if loss_name is not None:
+        loss_cls = retrieve_custom_loss(loss_name)
     else:
-        loss_function = default_loss
+        loss_cls = default_loss_cls
+    loss_function = loss_cls() if loss_cls is not None else default_loss_cls()
 
     if 'class_weighting' in pb_config['experiment']:
         class_weighting = pb_config['experiment']['class_weighting']
@@ -320,6 +325,7 @@ def _build_fastai_learner(
 
     logging.debug(f"Problem type: {problem_type}")
     # === TARGETS & ENCODER PREPARATION ===
+    encoder = None
     if slide_level:
         # Slide-level handling:
         if problem_type == "classification":
@@ -330,16 +336,12 @@ def _build_fastai_learner(
             #Make sure durations are float valued in the case of survival
             if problem_type == "survival":
                 targets[:, 0] = targets[:, 0].astype(float)
-                
             elif problem_type == "survival_discrete":
                 #Convert time bins to int
                 targets[:, 0] = targets[:, 0].astype(int)
                 # Use time bins to define the output dimension.
                 encoder = OneHotEncoder(sparse_output=False).fit(targets[:, 0].reshape(-1, 1))
-            else:
-                encoder = None
-
-            logging.debug(f"Encoder categories: {encoder.categories_}")
+                logging.debug(f"Encoder categories: {encoder.categories_}")
             logging.debug(f"Events shape: {targets[:, 1].shape}, Events  dtype: {targets[:, 1].dtype}")
             logging.debug(f"Durations shape: {targets[:, 0].shape}, Durations dtype: {targets[:, 0].dtype}")
             #Check unique durations values
@@ -347,13 +349,10 @@ def _build_fastai_learner(
             logging.debug(f"Unique durations: {unique_durations}")
         else:  # regression
             targets = np.array(targets, dtype=np.float32)
-            encoder = None
     else:
         # Bag-level handling.
         if problem_type == "classification":
             encoder = OneHotEncoder(sparse_output=False).fit(unique_categories.reshape(-1, 1))
-        else:
-            encoder = None
 
         if problem_type == 'survival_discrete':
             time_bins = targets[:, 0].astype(int)
@@ -383,16 +382,22 @@ def _build_fastai_learner(
                     event_weight = num_censored / (num_events + num_censored)
                     censored_weight = num_events / (num_events + num_censored)
                     logging.debug(f"Event weight: {event_weight}, Censored weight: {censored_weight}")
-                    loss_function = partial(loss_function, event_weight=event_weight, censored_weight=censored_weight)
+                    if hasattr(loss_cls, 'event_weight') and hasattr(loss_cls, 'censored_weight'):
+                        loss_function = loss_cls(event_weight=event_weight.item(), censored_weight=censored_weight.item())
+                    else:
+                        loss_function = loss_cls()  # Default weights
                 else:
-                    loss_function = partial(loss_function, event_weight=1.0, censored_weight=1.0)
+                    loss_function = loss_cls() # Default weights
             targets = torch.tensor(targets, dtype=torch.float32)
+        else:
+            loss_function = loss_cls() if loss_cls is not None else default_loss_cls()
 
     # === DATASET & DATALOADER CREATION ===
     if slide_level:
         logging.info("Building slide-level datasets....")
         #Log encoder and targets
-        logging.debug(f"Encoder categories: {encoder.categories_}")
+        if encoder is not None:
+            logging.debug(f"Encoder categories: {encoder.categories_}")
         logging.debug(f"Targets shape: {targets.shape}")
         train_dataset = data_utils.build_slide_dataset(
             [bags[i] for i in train_idx],
@@ -503,6 +508,7 @@ def _build_fastai_learner(
 
     # === CLASS WEIGHTING FOR CLASSIFICATION ===
     weight = None
+    # TODO(pvalkema): loss_function gets overwritten here again for classification task. Can we still specify custom loss functions?? Need to check and possibly fix; maybe refactor?
     if problem_type == "classification" and class_weighting:
         counts = pd.value_counts(targets[train_idx])
         weight = counts.sum() / counts
@@ -534,14 +540,17 @@ def _build_fastai_learner(
             preds = model(*args)
             return loss_function(preds, kwargs['yb'])
 
+    # TODO(pvalkema): loss function may get overwritten --> fix/refactor?
     if require_attention and not model_supports_attention:
         logging.warning("Model does not support attention. Falling back to default loss function.")
-        loss_func = nn.CrossEntropyLoss(weight=weight) if (problem_type == "classification" and weight is not None) else default_loss
+        # TODO(pvalkema): @sbrussee: can't we just do loss_func = loss_function here? (it's already chosen above)
+        loss_func = nn.CrossEntropyLoss(weight=weight) if (problem_type == "classification" and weight is not None) else default_loss_cls()
     else:
+        # TODO(pvalkema): @sbrussee: loss is already passed via kwargs and set above. Can we simplify this further?
         if 'loss' in pb_config['experiment']:
             loss_func = custom_forward if require_attention else loss_function
         else:
-            loss_func = nn.CrossEntropyLoss(weight=weight) if (problem_type == "classification" and weight is not None) else default_loss
+            loss_func = nn.CrossEntropyLoss(weight=weight) if (problem_type == "classification" and weight is not None) else default_loss_cls()
 
     # === METRICS ===
     if 'custom_metrics' in pb_config['experiment']:
