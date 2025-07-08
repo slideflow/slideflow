@@ -29,7 +29,7 @@ Designed at University of Chicago for both medical researchers and AI enthusiast
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
 ## Requirements
-- Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
+- Python >= 3.7
 - [Tensorflow](https://www.tensorflow.org/) 2.5-2.11 _or_ [PyTorch](https://pytorch.org/) 1.9-2.1
   - GAN functions require PyTorch <1.13
 

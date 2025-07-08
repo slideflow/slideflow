@@ -282,7 +282,7 @@ def _eval_mil(
     if outdir:
         if not exists(outdir):
             os.makedirs(outdir)
-        model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model)
+        model_dir = sf.util.get_new_model_dir(outdir, config.model_config.model) #TODO(pvalkema): the name <class 'pathbench.models.aggregators.clam_mil'> is not file-system friendly -> use something else for folder names! can we pass through the save string?
         if params is not None:
             sf.util.write_json(params, join(model_dir, 'mil_params.json'))
         pred_out = join(model_dir, 'predictions.parquet')
@@ -1205,9 +1205,10 @@ def _predict_mil(
         logging.debug(f"Loaded shape: {loaded.shape}")
 
         #If slide-level embedding (only one real embedding dimension) [1,1,512] -> [1,512]
-        if len(loaded.shape) == 3 and loaded.shape[1] == 1:
-            loaded = torch.squeeze(loaded, dim=1)
-            logging.debug(f"Fixed loaded shape: {loaded.shape}")
+        # TODO(pvalkema): Can this be removed? Throws an error with attention_mil: assert bags.ndim == 3
+        # if len(loaded.shape) == 3 and loaded.shape[1] == 1:
+        #     loaded = torch.squeeze(loaded, dim=1)
+        #     logging.debug(f"Fixed loaded shape: {loaded.shape}")
 
         with torch.no_grad():
             # Run inference.
