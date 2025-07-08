@@ -73,7 +73,7 @@ class Attention_MIL(nn.Module):
             log.debug("Using attention gate: {} percentile".format(attention_gate))
 
     def forward(self, bags, lens: Optional[torch.Tensor] = None, *, return_attention=False, uq=False, uq_softmax=True):
-        assert bags.ndim == 3
+        #assert bags.ndim == 3
         
         # If no lens is provided, assume every instance in the bag is valid.
         if lens is None:
@@ -148,7 +148,7 @@ class Attention_MIL(nn.Module):
         )
 
     def get_last_layer_activations(self, bags, lens):
-        assert bags.ndim == 3
+        #assert bags.ndim == 3
         assert bags.shape[0] == lens.shape[0]
         embeddings = self.encoder(bags)
         masked_attention_scores = self._masked_attention_scores(embeddings, lens)

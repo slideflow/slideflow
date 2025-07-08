@@ -191,17 +191,32 @@ def _eval_mil(
         bags = np.array([b for b in bags if path_to_name(b) in slides])
 
     logging.debug(f"bags: {bags}")
-    # Generate predictions.
-    df, y_att = predict_from_model(
-        model,
-        config,
-        dataset,
-        outcomes=outcomes,
-        bags=bags,
-        attention=True,
-        uq=uq,
-        **heatmap_kwargs
-    )
+
+    #Check for slide_level bags
+    if config.slide_level:
+        df = predict_from_model(
+            model,
+            config,
+            dataset,
+            outcomes=outcomes,
+            bags=bags,
+            attention=not config.slide_level,
+            uq=uq,
+            **heatmap_kwargs
+        )
+        y_att = None
+    else:
+        # Generate predictions.
+        df, y_att = predict_from_model(
+            model,
+            config,
+            dataset,
+            outcomes=outcomes,
+            bags=bags,
+            attention=not config.slide_level,
+            uq=uq,
+            **heatmap_kwargs
+        )
 
 
     if task == 'survival':
@@ -1120,14 +1135,13 @@ def run_inference(
             model_out = model(*model_args, **kw)
     except:
         print("No attention scores available.")
-        if use_first_out:
-            # CLAM models return attention scores as well as logits.
-            model_out, y_att = model(*model_args, **kw)
-        elif attention:
-            model_out = model(*model_args, **kw)
-            y_att = model.calculate_attention(*model_args)
-        else:
-            model_out = model(*model_args, **kw)
+        #Make sure input is 3D tensor
+        if len(input.shape) == 2:
+            input = input.unsqueeze(0)
+            model_args = (input,)
+        model_out = model(*model_args, **kw)
+
+
 
 
     # Parse uncertainty from model output.
@@ -1136,7 +1150,7 @@ def run_inference(
     else:
         y_pred = model_out
 
-    if attention:
+    if attention and y_att is not None:
         y_att = torch.squeeze(y_att)
         if len(y_att.shape) == 2:
             log.warning("Pooling attention scores from 2D to 1D")
