@@ -268,11 +268,12 @@ def _build_fastai_learner(
 ) -> Tuple[Learner, Tuple[int, int]]:
     """Build a FastAI learner for an MIL model."""
 
-    logging.debug(f"dl_kwargs: {dl_kwargs}")
-
-    pb_config = dl_kwargs.get("pb_config", None)
-    if pb_config is not None:
-        num_workers = pb_config['experiment']['num_workers']
+    # Retrieve experiment config and number of workers
+    pb_config = dl_kwargs.get("pb_config") or {}
+    exp_cfg = pb_config.get('experiment', {})
+    num_workers = exp_cfg.get('num_workers', dl_kwargs.get('num_workers', 0))
+    persistent_workers = exp_cfg.get('persistent_workers', False)
+    class_weighting = exp_cfg.get('class_weighting', False)
 
     config_dict = config.to_dict() # Convert to dictionary
     logging.info(f"Building FastAI learner with config: {config}")
@@ -284,11 +285,11 @@ def _build_fastai_learner(
     activation_function = config_dict['activation_function']
     problem_type = goal = config_dict['task']
     slide_level = config_dict['slide_level']
+
     if num_workers > 0:
         ctx = pb_config['experiment'].get('multiprocessing_context', 'spawn')
     else:
         ctx = None
-    persistent_workers = pb_config['experiment'].get('persistent_workers', False)   
 
     #Determine whether slide-level or bag-level training is required
     if slide_level:
@@ -308,22 +309,40 @@ def _build_fastai_learner(
     else:
         raise ValueError(f"Unsupported problem type: {problem_type}")
 
-    loss_name = dl_kwargs.get("loss", None)
-    if loss_name is not None:
-        loss_cls = retrieve_custom_loss(loss_name)
-    else:
-        loss_cls = default_loss_cls
-    loss_function = loss_cls() if loss_cls is not None else default_loss_cls()
 
-    if 'class_weighting' in pb_config['experiment']:
-        class_weighting = pb_config['experiment']['class_weighting']
+    # Instantiate loss function, allowing override
+    loss_name = dl_kwargs.get("loss")
+    loss_cls = retrieve_custom_loss(loss_name) if loss_name else default_loss_cls
+    if problem_type == 'classification' and class_weighting:
+        counts = pd.value_counts(targets[train_idx])
+        w = counts.sum() / counts
+        w = (w / w.sum()).to_dict()
+        class_weight = torch.tensor([w.get(c, 1.0) for c in unique_categories], dtype=torch.float32)
+        loss_function = loss_cls(weight=class_weight)
+    elif problem_type == 'survival' and class_weighting:
+        durations = torch.tensor(targets[:, 0], dtype=torch.float32)
+        events = torch.tensor(targets[:, 1], dtype=torch.int64)
+        num_events = events.sum()
+        num_censored = events.numel() - num_events
+        event_weight = (num_censored / (num_events + num_censored)).item()
+        censored_weight = (num_events / (num_events + num_censored)).item()
+        loss_function = loss_cls(event_weight=event_weight, censored_weight=censored_weight)
+    elif problem_type == 'survival_discrete' and class_weighting:
+        # Compute weight per discrete time bin
+        bins = targets[:, 0].astype(int)
+        counts = pd.value_counts(bins[train_idx])
+        w = counts.sum() / counts
+        w = (w / w.sum()).to_dict()
+        bin_weights = torch.tensor([w.get(b, 1.0) for b in np.unique(bins)], dtype=torch.float32)
+        loss_function = loss_cls(weight=bin_weights)
     else:
-        class_weighting = False
+        loss_function = loss_cls()
 
     # Prepare device.
     device = torch.device(device if device else 'cuda' if torch.cuda.is_available() else 'cpu')
 
     logging.debug(f"Problem type: {problem_type}")
+
     # === TARGETS & ENCODER PREPARATION ===
     encoder = None
     if slide_level:
@@ -376,21 +395,8 @@ def _build_fastai_learner(
                 # Check if events are binary (0 or 1)
                 if not torch.all(torch.isin(events, torch.tensor([0, 1]))):
                     raise ValueError("Events must be binary (0 or 1) for survival analysis.")
-                if class_weighting:
-                    num_events = torch.sum(events)
-                    num_censored = targets.shape[0] - num_events
-                    event_weight = num_censored / (num_events + num_censored)
-                    censored_weight = num_events / (num_events + num_censored)
-                    logging.debug(f"Event weight: {event_weight}, Censored weight: {censored_weight}")
-                    if hasattr(loss_cls, 'event_weight') and hasattr(loss_cls, 'censored_weight'):
-                        loss_function = loss_cls(event_weight=event_weight.item(), censored_weight=censored_weight.item())
-                    else:
-                        loss_function = loss_cls()  # Default weights
-                else:
-                    loss_function = loss_cls() # Default weights
+
             targets = torch.tensor(targets, dtype=torch.float32)
-        else:
-            loss_function = loss_cls() if loss_cls is not None else default_loss_cls()
 
     # === DATASET & DATALOADER CREATION ===
     if slide_level:
@@ -478,92 +484,63 @@ def _build_fastai_learner(
             **dl_kwargs
         )
 
-    # === DETERMINE INPUT/OUTPUT DIMENSIONS ===
+    # Determine input/output dimensions
     sample = next(iter(train_dl))
     n_in = sample[0].shape[-1]
     if slide_level:
-        if problem_type == "classification":
-            n_out = unique_categories.shape[0]
-        elif problem_type in ["regression", "survival"]:
-            n_out = 1
-        elif problem_type == "survival_discrete":
-            n_out = len(np.unique(targets[:, 0]))
-        else:
-            n_out = 1
+        if problem_type == 'classification': n_out = len(unique_categories)
+        elif problem_type in ['regression', 'survival']: n_out = 1
+        else: n_out = encoder.categories_[0].size
     else:
-        n_out = sample[-1].shape[-1]
-        if problem_type in ["survival", "regression"]:
-            n_out = 1
-        elif problem_type == 'survival_discrete':
-            n_out = np.unique(targets[:, 0]).shape[0]
+        n_out = sample[-1].shape[-1] if hasattr(sample[-1], 'shape') else 1
+        if problem_type in ['regression', 'survival']: n_out = 1
+    logging.info(f"Model dims: in={n_in}, out={n_out}, z_dim={z_dim}")
 
-    
+
     logging.info(f"Training model {config.model_fn.__name__} (in={n_in}, out={n_out}, "
                     f"z_dim={z_dim}, encoder_layers={encoder_layers}, dropout_p={dropout_p})")
+
     model = config.build_model(n_in, n_out, z_dim=z_dim,
                                 encoder_layers=encoder_layers,
                                 dropout_p=dropout_p,
                                 activation_function=activation_function,
                                 goal=problem_type).to(device)
 
-    # === CLASS WEIGHTING FOR CLASSIFICATION ===
-    weight = None
-    # TODO(pvalkema): loss_function gets overwritten here again for classification task. Can we still specify custom loss functions?? Need to check and possibly fix; maybe refactor?
-    if problem_type == "classification" and class_weighting:
-        counts = pd.value_counts(targets[train_idx])
-        weight = counts.sum() / counts
-        weight /= weight.sum()
-        weight = torch.tensor(
-            list(map(weight.get, encoder.categories_[0])), dtype=torch.float32
-        ).to(device)
-        if loss_function is None:
-            loss_function = nn.CrossEntropyLoss(weight=weight)
-    elif problem_type == "classification" and not class_weighting:
-        loss_function = nn.CrossEntropyLoss()
-
-    # === ATTENTION & CUSTOM FORWARD HANDLING ===
+    # === LOSS FORWARD ===
     require_attention = getattr(loss_function, 'require_attention', False)
     model_supports_attention = 'return_attention' in model.forward.__code__.co_varnames
 
-    def custom_forward(*args, **kwargs):
-        if model_supports_attention and require_attention:
-            preds, attention = model(*args, return_attention=True)
-            if hasattr(loss_function, 'weight'):
-                return loss_function(preds, kwargs['yb'], attention_weights=attention, weight=weight)
-            elif hasattr(loss_function, 'event_weight') and hasattr(loss_function, 'censored_weight'):
-                return loss_function(preds, kwargs['yb'], attention_weights=attention,
-                                     event_weight=loss_function.event_weight,
-                                     censored_weight=loss_function.censored_weight)
-            else:
-                return loss_function(preds, kwargs['yb'], attention_weights=attention)
-        else:
-            preds = model(*args)
-            return loss_function(preds, kwargs['yb'])
+    def custom_forward(xb, yb, **kwargs):
+        logging.info("xb shape: %s, yb shape: %s", xb.shape, yb.shape)
+        preds, attention = model(xb, return_attention=True)
+        return loss_function(preds, yb, attention_weights=attention)
 
-    # TODO(pvalkema): loss function may get overwritten --> fix/refactor?
-    if require_attention and not model_supports_attention:
-        logging.warning("Model does not support attention. Falling back to default loss function.")
-        # TODO(pvalkema): @sbrussee: can't we just do loss_func = loss_function here? (it's already chosen above)
-        loss_func = nn.CrossEntropyLoss(weight=weight) if (problem_type == "classification" and weight is not None) else default_loss_cls()
-    else:
-        # TODO(pvalkema): @sbrussee: loss is already passed via kwargs and set above. Can we simplify this further?
-        if 'loss' in pb_config['experiment']:
-            loss_func = custom_forward if require_attention else loss_function
+    fallback_loss = default_loss_cls() 
+
+    if require_attention:
+        if model_supports_attention:
+            # all good → wire up attention‐aware loss
+            loss_func = custom_forward
         else:
-            loss_func = nn.CrossEntropyLoss(weight=weight) if (problem_type == "classification" and weight is not None) else default_loss_cls()
+            # no attention support → warn + use simple fallback
+            logging.warning(
+                "Selected loss requires attention but model.forward() "
+                "does not support return_attention=True; "
+                "falling back to plain %s.",
+                type(fallback_loss).__name__
+            )
+            loss_func = fallback_loss
+    else:
+        # custom loss doesn’t need attention at all
+        loss_func = loss_function
 
     # === METRICS ===
-    if 'custom_metrics' in pb_config['experiment']:
-        metrics = [retrieve_custom_metric(x) for x in pb_config['experiment']['custom_metrics']]
+    if 'custom_metrics' in exp_cfg:
+        metrics = [retrieve_custom_metric(m) for m in exp_cfg['custom_metrics']]
     else:
-        if problem_type == "classification":
-            metrics = [RocAuc()]
-        elif problem_type == "regression":
-            metrics = [mae]
-        elif problem_type in ["survival", "survival_discrete"]:
-            metrics = [ConcordanceIndex()]
-        else:
-            metrics = []
+        if problem_type == 'classification': metrics = [RocAuc()]
+        elif problem_type == 'regression': metrics = [mae]
+        else: metrics = [ConcordanceIndex()]
 
     logging.debug(f"Targets shape: {targets.shape}")
     if targets.ndim > 1 and targets.shape[1] == 1:
@@ -571,11 +548,9 @@ def _build_fastai_learner(
 
     # === CREATE LEARNER ===
     dls = DataLoaders(train_dl, val_dl)
-    optimizer = dl_kwargs.get("optimizer", None)
-    if optimizer is not None:
-        optimizer = retrieve_optimizer(optimizer)
-        learner = Learner(dls, model, loss_func=loss_func, metrics=metrics, path=outdir, opt_func=optimizer)
-    else:
-        learner = Learner(dls, model, loss_func=loss_func, metrics=metrics, path=outdir)
-
+    opt_func = retrieve_optimizer(dl_kwargs['optimizer']) if 'optimizer' in dl_kwargs else optim.Adam
+    learner = Learner(
+        dls, model, loss_func=loss_func, metrics=metrics,
+        path=outdir, opt_func=opt_func
+    )
     return learner, (n_in, n_out)

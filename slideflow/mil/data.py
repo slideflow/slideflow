@@ -338,6 +338,9 @@ class BagDataset(Dataset):
         else:
             feats = self._load(index)
 
+        #Detach feats
+        feats = feats.detach()  
+
         # sample a subset, if required
         if self.bag_size != None and self.bag_size != "None":
             return _to_fixed_size_bag(feats, bag_size=self.bag_size)
