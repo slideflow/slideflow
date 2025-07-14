@@ -3735,6 +3735,8 @@ class Project:
             native_normalizer=(sf.slide_backend()=='cucim')
         )
 
+        print(f'loaded extractor and normalizer from {mil_model_path}')
+
         # Process each slide in the dataset
         slide_paths = dataset.slide_paths()
         for slide_path in tqdm(slide_paths, desc="Generating masked bags"):
@@ -3762,6 +3764,8 @@ class Project:
                 batch_size=batch_size,
                 **kwargs
             )
+
+            print(f'generated bags for {slide_name}')
 
             # Save both data and mask separately
             np.savez(

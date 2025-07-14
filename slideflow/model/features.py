@@ -355,7 +355,8 @@ class DatasetFeatures:
         input_bags_path: str,
         dataset: Optional["sf.Dataset"] = None,
         device: Optional[str] = None,
-        downsample_to: Optional[int] = None
+        downsample_to: Optional[int] = None,
+        top_n_attention: Optional[int] = None,
     ) -> "DatasetFeatures":
         """Generate MIL embeddings from existing feature bags.
         
@@ -372,6 +373,10 @@ class DatasetFeatures:
             downsample_to (int, optional): Maximum number of tiles to process per slide.
                 If a slide has more tiles than this number, randomly downsample to this limit.
                 Defaults to None (no downsampling).
+            top_n_attention (int, optional): Keep only the top N tiles with highest attention
+                scores for each slide. Unlike downsample_to, this is not random but selects
+                tiles based on attention scores from the MIL model. If a slide has fewer
+                tiles than this number, all tiles are kept. Defaults to None (no filtering).
             
         Returns:
             :class:`DatasetFeatures`: DatasetFeatures object with MIL embeddings
@@ -482,12 +487,41 @@ class DatasetFeatures:
         total_vectors = sum(len(input_features.activations[slide]) for slide in input_features.slides)
         log.info(f"Processing {total_vectors} feature vectors from {len(input_features.slides)} slides")
         
+        # Track attention filtering statistics
+        if top_n_attention is not None:
+            log.info(f"Attention filtering: keeping top {top_n_attention} tiles per slide based on attention scores")
+        
+        total_attention_filtered_tiles = 0
+        
         with torch.no_grad():
             for slide in track(input_features.slides, description="Processing slides"):
                 slide_activations = input_features.activations[slide]
+                slide_locations = input_features.locations[slide]
+                
+                # If top_n_attention is specified, filter to keep only top N tiles with highest attention
+                if top_n_attention is not None and len(slide_activations) > top_n_attention:
+                    # Process all feature vectors as a single bag to get attention scores
+                    bag = torch.from_numpy(slide_activations).float().unsqueeze(0).to(device)  # Shape: (1, n_tiles, n_feats)
+                    lens = torch.tensor([len(slide_activations)], device=device)
+                    
+                    # Get attention scores for all vectors in the bag
+                    _, attention_scores = model.forward_embeddings(bag, lens, return_attention=True)
+                    attention_scores = attention_scores.cpu().numpy().squeeze()  # Shape: (n_tiles, 1)
+                    
+                    # Get indices of top N attention scores
+                    top_indices = np.argsort(attention_scores.flatten())[-top_n_attention:]
+                    
+                    # Filter activations and locations to keep only top N
+                    slide_activations = slide_activations[top_indices]
+                    slide_locations = slide_locations[top_indices]
+                    
+                    log.debug(f"Slide {slide}: filtered from {len(input_features.activations[slide])} to {len(slide_activations)} tiles based on attention scores")
+                
+                total_attention_filtered_tiles += len(slide_activations)
+                
                 slide_embeddings = []
                 
-                # Process each feature vector individually
+                # Process each feature vector individually to get embeddings
                 for feature_vector in slide_activations:
                     # Create a "bag" of size 1 containing just this vector
                     bag = torch.from_numpy(feature_vector).float().unsqueeze(0).unsqueeze(0).to(device)  # Shape: (1, 1, n_feats)
@@ -499,8 +533,13 @@ class DatasetFeatures:
                     # Store the embedding
                     slide_embeddings.append(embeddings.cpu().numpy().squeeze())
                 
-                # Store all embeddings for this slide
+                # Store all embeddings and filtered locations for this slide
                 output_features.activations[slide] = np.array(slide_embeddings)
+                output_features.locations[slide] = slide_locations
+        
+        # Log attention filtering results
+        if top_n_attention is not None:
+            log.info(f"Attention filtering completed: {total_vectors} -> {total_attention_filtered_tiles} tiles")
         
         return output_features
 

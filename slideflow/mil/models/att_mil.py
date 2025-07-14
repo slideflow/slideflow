@@ -130,7 +130,7 @@ class Attention_MIL(nn.Module):
         else:
             return scores
 
-    def forward_embeddings(self, bags, lens):
+    def forward_embeddings(self, bags, lens, return_attention=False):
         """Forward pass that returns z_dim embeddings instead of final predictions.
         
         This method processes the input through the encoder and attention mechanism,
@@ -172,7 +172,10 @@ class Attention_MIL(nn.Module):
         # Sum of weighted embeddings.
         weighted_embeddings_sum = weighted_embeddings.sum(-2)
 
-        return weighted_embeddings_sum
+        if return_attention:
+            return weighted_embeddings_sum, softmax_attention_scores
+        else:
+            return weighted_embeddings_sum
 
     def calculate_attention(self, bags, lens, *, apply_softmax=None):
         """Calculate attention scores for all bags."""
