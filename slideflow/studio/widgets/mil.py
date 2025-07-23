@@ -382,23 +382,22 @@ class MILWidget(Widget):
             predictions[0, 3:5] = second_softmax
             
             # if shape length is 1
-            if predictions.shape[0] == 1:
-                # Compute B1, B2, B3 scores
-                x1, x2 = predictions[0, 5], predictions[0, 6]
-                b1_prob = (1-x1)*(1-x2)
-                b2_prob = (1-x1)*x2
-                b3_prob = x1*x2
-                b_probs = np.array([b1_prob, b2_prob, b3_prob])
-                
-                # Apply softmax to B1, B2, B3 scores
-                b_probs = softmax(b_probs)
-                
-                # Create new predictions array with B1, B2, B3 scores
-                new_pred = np.zeros(predictions.shape[1] - 2 + 3)
-                new_pred[0:5] = predictions[0, 0:5]  # Copy first 5 values
-                new_pred[5:8] = b_probs  # Add B1, B2, B3 scores
-                predictions = np.array([new_pred])
-
+            # Compute B1, B2, B3 scores for all samples in the batch
+            x1, x2 = predictions[:, 5], predictions[:, 6]
+            b1_prob = (1-x1)*(1-x2)
+            b2_prob = (1-x1)*x2
+            b3_prob = x1*x2
+            b_probs = np.stack([b1_prob, b2_prob, b3_prob], axis=1)
+            
+            # Apply softmax to B1, B2, B3 scores across the B categories (axis=1)
+            b_probs = softmax(b_probs, axis=1)
+            
+            # Create new predictions array with B1, B2, B3 scores
+            batch_size = predictions.shape[0]
+            new_pred = np.zeros((batch_size, predictions.shape[1] - 2 + 3))
+            new_pred[:, 0:5] = predictions[:, 0:5]  # Copy first 5 values
+            new_pred[:, 5:8] = b_probs  # Add B1, B2, B3 scores
+            predictions = new_pred
 
         return predictions, attention
     
@@ -504,18 +503,7 @@ class MILWidget(Widget):
 
         # Generate slide-level prediction and attention.
         self.predictions, self.attention = self._calculate_predictions(bags)
-        if self.mil_config.model_type == 'hierarchical':
-            # Apply softmax to the first 3 values (As, Bs, TC)
-            first_group = self.predictions[0, :3]
-            first_softmax = softmax(first_group)
-            self.predictions[0, :3] = first_softmax
-            
-            # Apply softmax to the next 2 values (A, AB)
-            second_group = self.predictions[0, 3:5]
-            second_softmax = softmax(second_group)
-            self.predictions[0, 3:5] = second_softmax
-            
-            # The last 2 values (indices 5, 6) are kept as is as they represent ordinal bits
+
         if self.attention:
             self.attention = self.attention[0]
 
@@ -974,6 +962,7 @@ class MILWidget(Widget):
 
         # Generate slide-level prediction and attention
         self.predictions, self.attention = self._calculate_predictions(bags)
+        
         if self.attention:
             self.attention = self.attention[0]
 

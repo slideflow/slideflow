@@ -254,7 +254,7 @@ class HeatmapWidget:
     def get_outcome_names(self, config=None, classification=None):
         if self._outcome_names is not None and config is None:
             if self.viz.mil_widget.mil_config.model_type == 'hierarchical':
-                return ['Attention', 'As', 'Bs', 'TC', 'A', 'AB', 'Bsb1', 'Bsb2']
+                return ['Attention', 'As', 'Bs', 'TC', 'A', 'AB', 'B1', 'B2', 'B3']
             return self._outcome_names
         if config is None:
             config = self.viz._model_config
@@ -266,7 +266,7 @@ class HeatmapWidget:
             raise ValueError("Model is not loaded.")
 
         if self.viz.mil_widget.mil_config.model_type == 'hierarchical':
-            return ['As', 'Bs', 'TC', 'A', 'AB', 'Bsb1', 'Bsb2']
+            return ['As', 'Bs', 'TC', 'A', 'AB', 'B1', 'B2', 'B3']
 
         outcomes = config['outcomes']
         outcomes = [outcomes] if isinstance(outcomes, str) else outcomes
