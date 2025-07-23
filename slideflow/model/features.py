@@ -495,6 +495,7 @@ class DatasetFeatures:
         
         with torch.no_grad():
             for slide in track(input_features.slides, description="Processing slides"):
+                log.debug(f"Processing slide {slide}")
                 slide_activations = input_features.activations[slide]
                 slide_locations = input_features.locations[slide]
                 
@@ -532,6 +533,7 @@ class DatasetFeatures:
                     
                     # Store the embedding
                     slide_embeddings.append(embeddings.cpu().numpy().squeeze())
+                    log.debug(f"Slide {slide}: processed {len(slide_embeddings)} embeddings")
                 
                 # Store all embeddings and filtered locations for this slide
                 output_features.activations[slide] = np.array(slide_embeddings)
