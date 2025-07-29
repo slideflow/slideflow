@@ -1893,6 +1893,11 @@ def _export_slide_bags(
     # Force processing one slide at a time.
     slide_batch_size = 1
 
+    #First check if for every slide there already exists a .pt file in outdir, if so for all slides, continue
+    if all(os.path.exists(join(outdir, f"{slide}.pt")) for slide in slides):
+        log.info(f"All slides already exist in {outdir}, skipping.")
+        return
+
     for slide_batch in tqdm(sf.util.batch(slides, slide_batch_size), desc="Slides", total=len(slides)):
         try:
             _dataset = dataset.remove_filter(filters='slide')

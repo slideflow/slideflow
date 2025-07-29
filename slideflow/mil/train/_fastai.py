@@ -11,10 +11,10 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn import __version__ as sklearn_version
 from packaging import version
 import multiprocessing as mp
+from torch.utils.data import DataLoader as TorchDataLoader
 from fastai.vision.all import (
     DataLoader, DataLoaders, Learner, RocAuc, SaveModelCallback, CSVLogger, FetchPredsCallback, Callback
 )
-from torch.utils.data import DataLoader as TorchDataLoader
 from fastai.callback.schedule import ParamScheduler
 from fastai.learner import Metric
 from fastai.torch_core import to_detach, flatten_check
@@ -26,6 +26,7 @@ from slideflow.model import torch_utils
 from .._params import TrainerConfigFastAI
 import logging
 from functools import partial
+import inspect
 
 from lifelines.utils import concordance_index
 
@@ -174,6 +175,7 @@ def train(learner, config, pb_config=None, callbacks=None):
         if 'lr' in pb_config['experiment']:
             logging.info(f"Overriding learning rate to {pb_config['experiment']['lr']}")
             lr = float(pb_config['experiment']['lr'])
+            config.fit_one_cycle = False  # Disable fit_one_cycle if lr is specified
         else:
             if config.lr is None:
                 try:
@@ -204,6 +206,9 @@ def train(learner, config, pb_config=None, callbacks=None):
             for scheduler in pb_config['experiment']['schedulers']:
                 cbs.append(retrieve_custom_callback(scheduler))
 
+        # Log the callbacks being used
+        logging.info(f"Using callbacks: {[type(cb).__name__ for cb in cbs]}")
+
         learner.fit(n_epoch=epochs, lr=lr, wd=wd, cbs=cbs)
         return learner
 
@@ -226,6 +231,7 @@ def train(learner, config, pb_config=None, callbacks=None):
         else:
             lr = config.lr
         learner.fit(n_epoch=config.epochs, lr=lr, wd=config.wd, cbs=cbs)
+
     return learner
 
 # -----------------------------------------------------------------------------
@@ -494,45 +500,72 @@ def _build_fastai_learner(
     else:
         n_out = sample[-1].shape[-1] if hasattr(sample[-1], 'shape') else 1
         if problem_type in ['regression', 'survival']: n_out = 1
+
+    #Log the bag shape in the first sample
+    logging.info(f"First bag shape: {sample[0].shape if isinstance(sample[0], torch.Tensor) else 'N/A'}")
     logging.info(f"Model dims: in={n_in}, out={n_out}, z_dim={z_dim}")
 
 
     logging.info(f"Training model {config.model_fn.__name__} (in={n_in}, out={n_out}, "
                     f"z_dim={z_dim}, encoder_layers={encoder_layers}, dropout_p={dropout_p})")
 
-    model = config.build_model(n_in, n_out, z_dim=z_dim,
-                                encoder_layers=encoder_layers,
-                                dropout_p=dropout_p,
-                                activation_function=activation_function,
-                                goal=problem_type).to(device)
+    model = config.build_model(
+        n_in, n_out,
+        z_dim=config.z_dim,
+        encoder_layers=config.encoder_layers,
+        dropout_p=config.dropout_p,
+        activation_function=config.activation_function,
+        goal=config.task
+    ).to(device)
 
-    # === LOSS FORWARD ===
-    require_attention = getattr(loss_function, 'require_attention', False)
-    model_supports_attention = 'return_attention' in model.forward.__code__.co_varnames
+    sig = inspect.signature(model.forward)
+    supports_attention = 'return_attention' in sig.parameters
 
-    def custom_forward(xb, yb, **kwargs):
-        logging.info("xb shape: %s, yb shape: %s", xb.shape, yb.shape)
-        preds, attention = model(xb, return_attention=True)
-        return loss_function(preds, yb, attention_weights=attention)
-
-    fallback_loss = default_loss_cls() 
-
-    if require_attention:
-        if model_supports_attention:
-            # all good → wire up attention‐aware loss
-            loss_func = custom_forward
+    # Wrap the model's forward method to save attention weights if supported
+    _orig_fwd = model.forward
+    def _fwd_save_att(bags, *args, **kwargs):
+        if supports_attention:
+            preds, att = _orig_fwd(bags, return_attention=True, *args, **kwargs)
         else:
-            # no attention support → warn + use simple fallback
-            logging.warning(
-                "Selected loss requires attention but model.forward() "
-                "does not support return_attention=True; "
-                "falling back to plain %s.",
-                type(fallback_loss).__name__
-            )
-            loss_func = fallback_loss
-    else:
-        # custom loss doesn’t need attention at all
-        loss_func = loss_function
+            # plain model → logits only
+            preds = _orig_fwd(bags, *args, **kwargs)
+            # uniform fallback attention
+            B, N, _ = bags.shape
+            att = torch.ones(B, N, device=bags.device) / N
+        model._last_attention = att
+        return preds
+    model.forward = _fwd_save_att
+
+
+    raw_loss_kwargs = {}
+    if problem_type == 'classification' and class_weighting:
+        raw_loss_kwargs['weight'] = class_weight
+    elif problem_type == 'survival' and class_weighting:
+        raw_loss_kwargs['event_weight']    = event_weight
+        raw_loss_kwargs['censored_weight'] = censored_weight
+    elif problem_type == 'survival_discrete' and class_weighting:
+        raw_loss_kwargs['weight'] = bin_weights
+
+    # Instantiate the “raw” loss (may or may not have require_attention=True)
+    loss_cls = retrieve_custom_loss(loss_name) if loss_name else default_loss_cls
+    raw_loss = loss_cls(**raw_loss_kwargs)
+
+    #Wrap it so FastAI always calls loss(preds, targets)
+    class LossWithOptionalAttention(nn.Module):
+        def __init__(self, base_loss, model):
+            super().__init__()
+            self.base_loss = base_loss
+            self.model     = model
+
+        def forward(self, preds, targets):
+            if getattr(self.base_loss, 'require_attention', False):
+                return self.base_loss(
+                    preds, targets,
+                    attention_weights=self.model._last_attention
+                )
+            return self.base_loss(preds, targets)
+
+    loss_function = LossWithOptionalAttention(raw_loss, model)
 
     # === METRICS ===
     if 'custom_metrics' in exp_cfg:
@@ -550,7 +583,7 @@ def _build_fastai_learner(
     dls = DataLoaders(train_dl, val_dl)
     opt_func = retrieve_optimizer(dl_kwargs['optimizer']) if 'optimizer' in dl_kwargs else optim.Adam
     learner = Learner(
-        dls, model, loss_func=loss_func, metrics=metrics,
+        dls, model, loss_func=loss_function, metrics=metrics,
         path=outdir, opt_func=opt_func
     )
     return learner, (n_in, n_out)

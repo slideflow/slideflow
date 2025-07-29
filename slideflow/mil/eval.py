@@ -136,6 +136,25 @@ def eval_mil(
         )
 
 
+def _load_slide_level_bag(
+    bag_paths: List[str],
+    device: Optional[torch.device] = None
+) -> torch.Tensor:
+    """
+    Given a list of .pt files for one patient, each containing a
+    1‑D feature vector of arbitrary length, load and stack them into
+    a (n_slides, feature_dim) tensor.
+    """
+    slides = []
+    for p in bag_paths:
+        t = torch.load(p, map_location=device).to(torch.float32)
+        # flatten any extra dims so that t.numel()/t.shape[-1] == 1
+        if t.dim() > 1 and t.numel() == t.shape[-1]:
+            t = t.view(-1)
+        slides.append(t)
+    # now every t is 1‑D of length feature_dim; stack into (n_slides, feature_dim)
+    return torch.stack(slides, dim=0)
+
 def _eval_mil(
     model: "torch.nn.Module",
     dataset: Dataset,
@@ -813,13 +832,29 @@ def predict_from_model(
         and config.aggregation_level == 'patient'):
 
         # Get nested list of bags, aggregated by slide.
-        slide_to_patient = dataset.patients()
+        slide_to_patient = dict(
+            zip(
+                dataset.filtered_annotations['slide'],
+                dataset.filtered_annotations['patient']
+            )
+        )
         n_slide_bags = len(bags)
+
+        
         bags, y_true = utils.aggregate_bags_by_patient(bags, labels, slide_to_patient, task)
         logging.info(f"Aggregated {n_slide_bags} slide bags to {len(bags)} patient bags.")
 
-        # Create prediction dataframe.
-        patients = [slide_to_patient[path_to_name(b[0])] for b in bags]
+        patients = [
+            slide_to_patient[path_to_name(bag_paths[0])] for bag_paths in bags
+        ]
+
+
+        if config.slide_level:
+            device = next(model.parameters()).device
+            bags = [
+                _load_slide_level_bag(bag_paths, device=device) for bag_paths in bags
+            ]
+        
         df_dict = dict(patient=patients, y_true=y_true)
 
     else:
@@ -1194,7 +1229,9 @@ def _predict_mil(
     device = utils._detect_device(model, device, verbose=True)
 
     for bag in bags:
-        if utils._is_list_of_paths(bag):
+        if isinstance(bag, torch.Tensor):
+            loaded = bag.to(device)
+        elif utils._is_list_of_paths(bag):
             # If bags are passed as a list of paths, load them individually.
             loaded = torch.cat([utils._load_bag(b).to(device) for b in bag], dim=0)
         else:
