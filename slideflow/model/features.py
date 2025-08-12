@@ -1547,6 +1547,46 @@ class DatasetFeatures:
                                 (curr_fts.shape[0], 1))
             self.activations[slide] = np.hstack((curr_fts, ft_vector))
 
+    def subsample(self, max_vectors, random=False) -> None:
+        """Subsamples the activations to a maximum number.
+
+        Args:
+            max_vectors (int): Maximum number of vectors to keep.
+            random (bool, optional): If True, the vectors will be sampled
+                randomly. Otherwise one every x vectors will be sampled.
+        """
+
+        for slide in self.slides:
+            # Skip if we have fewer vectors than max_vectors
+            if len(self.activations[slide]) <= max_vectors:
+                continue
+            if random:
+                # Randomly sample indices
+                indices = np.random.choice(
+                    len(self.activations[slide]), 
+                    size=max_vectors, 
+                    replace=False
+                )
+            else:
+                # Calculate step size for even sampling
+                step = len(self.activations[slide]) / max_vectors
+                
+                # Create indices for subsampling
+                indices = [int(i * step) for i in range(max_vectors)]
+                
+            # Subsample activations
+            self.activations[slide] = self.activations[slide][indices]
+            
+            # Subsample other attributes if they exist and are not empty
+            if self.predictions and slide in self.predictions:
+                self.predictions[slide] = self.predictions[slide][indices]
+            
+            if self.uncertainty and slide in self.uncertainty:
+                self.uncertainty[slide] = self.uncertainty[slide][indices]
+            
+            if self.locations and slide in self.locations:
+                self.locations[slide] = self.locations[slide][indices]
+
     # --- Deprecated functions ----------------------------------------------------
 
     def logits_mean(self):
