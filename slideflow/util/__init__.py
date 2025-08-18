@@ -1780,7 +1780,7 @@ def create_triangles(vertices, hole_vertices=None, hole_points=None):
 
     return tessellated_vertices
 
-def prepare_multimodal_mixed_bags(path: str, bags_path: str) -> None:
+def prepare_multimodal_mixed_bags(path: str, bags_path: str, main_modality: str = None) -> None:
     """Prepare multimodal mixed bags from a dataframe file.
 
     Processes a dataframe containing multimodal features where some modalities may be
@@ -1858,6 +1858,14 @@ def prepare_multimodal_mixed_bags(path: str, bags_path: str) -> None:
         
         for slide in slides:
             slide_data = df[df.slide == slide].iloc[0]
+            
+            # Check if main_modality is specified and is None for this slide
+            if main_modality is not None:
+                main_value = slide_data[main_modality]
+                if main_value is None or (isinstance(main_value, (float, str)) and pd.isna(main_value)):
+                    # Skip this slide if main modality is missing
+                    progress.advance(task)
+                    continue
             
             # Initialize dictionary for this slide
             slide_dict = {}
