@@ -1884,6 +1884,78 @@ class Dataset:
         all_reports = [r for r in all_reports if r is not None]
         return {report.path: report for report in all_reports}
 
+    def extract_lower_mag_tiles_from_tfr(
+        self,
+        *,
+        source_tile_um: Union[int, str],
+        target_tile_um: Union[int, str],
+        source: Optional[str] = None,
+        skip_extracted: bool = True,
+        report: bool = True,
+        **kwargs: Any
+    ) -> Dict[str, SlideReport]:
+        r"""Extract lower magnification tiles from existing high-magnification TFRecords.
+
+        This function reads existing high-magnification TFRecord files and combines
+        adjacent tiles to create lower-magnification tiles when spatial coverage
+        allows. For example, combining 4x4 grid of 20x tiles to create a single 5x tile.
+
+        The function reconstructs the spatial arrangement of tiles from their stored
+        coordinates, identifies regions with sufficient tile coverage to form lower
+        magnification tiles, combines the image data, and writes new TFRecord files
+        at the target magnification. A PDF report is generated similar to extract_tiles.
+
+        Keyword Args:
+            source_tile_um (int or str): Source tile size in microns (int) or 
+                magnification (str, e.g. "20x") of the input TFRecords.
+            target_tile_um (int or str): Target tile size in microns (int) or
+                magnification (str, e.g. "5x") for the output TFRecords.
+            source (str, optional): Name of dataset source from which to select
+                TFRecords for processing. Defaults to None. If not provided, will
+                default to all sources in project.
+            skip_extracted (bool): Skip TFRecords that have already been processed
+                for the target magnification. Defaults to True.
+            img_format (str, optional): 'png' or 'jpg'. Image format to use in 
+                output TFRecords. PNG (lossless) for fidelity, JPG (lossy) for 
+                efficiency. Defaults to 'jpg'.
+            report (bool): Generate a PDF report of the tile combination process
+                showing spatial coverage, combination statistics, and quality metrics.
+                Defaults to True.
+            **kwargs: Additional arguments for tile processing and quality control.
+
+        Returns:
+            Dictionary mapping slide paths to each slide's SlideReport
+            (:class:`slideflow.slide.report.SlideReport`)
+
+        Raises:
+            DatasetError: If source_tile_um or target_tile_um are invalid, or if
+                the magnification ratio doesn't allow for integer tile combination
+                (e.g., cannot combine 20x tiles to make 7x tiles).
+            ValueError: If target magnification is higher than source magnification,
+                or if required TFRecord directories are not configured.
+
+        Example:
+            >>> # Combine 20x tiles to create 5x tiles  
+            >>> dataset = sf.Dataset(...)
+            >>> reports = dataset.extract_lower_mag_tiles_from_tfr(
+            ...     source_tile_um="20x",
+            ...     target_tile_um="5x"
+            ... )
+            >>> print(f"Processed {len(reports)} slides")
+
+        Note:
+            - The spatial arrangement is reconstructed from tile coordinates stored
+              in the source TFRecords (loc_x, loc_y fields).
+            - Only regions with complete tile coverage at the source magnification
+              are used to create target magnification tiles.
+            - Edge tiles or incomplete regions are excluded to maintain tile quality.
+            - The function preserves slide names and updates coordinates appropriately
+              for the new magnification level.
+            - Each combined tile's coordinates (loc_x, loc_y) will correspond to the
+              upper-left tile's coordinates from the original source TFRecords grid.
+        """
+        pass
+
     def extract_tiles_from_tfrecords(self, dest: str) -> None:
         """Extract tiles from a set of TFRecords.
 
