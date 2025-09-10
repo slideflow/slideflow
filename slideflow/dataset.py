@@ -1956,7 +1956,7 @@ class Dataset:
             - The function preserves slide names and updates coordinates appropriately
               for the new magnification level.
             - Each combined tile's coordinates (loc_x, loc_y) will correspond to the
-              upper-left tile's coordinates from the original source TFRecords grid.
+              center/average coordinates of the source tiles that make up each combined tile.
         """
         # Validate and calculate magnification ratio
         source_mag = sf.util.to_mag(source_tile_um) if isinstance(source_tile_um, str) else None
@@ -2486,16 +2486,26 @@ class Dataset:
         source_locations: List[Tuple[int, int]],
         mag_ratio: int,
         img_format: str,
-        target_tile_px: int,          # <-- NEW
+        target_tile_px: int,
     ) -> bytes:
-        # ensure 224x224 (or whatever you requested)
+        """Create a TFRecord for a combined tile.
+        
+        Args:
+            tile_image: Combined tile image as numpy array
+            slide_name: Name of the slide
+            grid_location: Grid coordinates (x, y) of the combined tile
+            source_locations: List of pixel coordinates from source tiles
+            mag_ratio: Magnification ratio (e.g., 4 for 40x->10x)
+            img_format: Image format ('png' or 'jpeg')
+            target_tile_px: Target tile size in pixels
+            
+        Returns:
+            Serialized TFRecord bytes
+        """
+        # ensure correct tile px size
         tile_image = self._resize_square_np(tile_image, target_tile_px)
 
-        # (optional) assert it is 224x224
-        h, w = tile_image.shape[:2]
-        assert (h, w) == (target_tile_px, target_tile_px), f"Unexpected size {w}x{h}"
-
-        # then encode as before
+        # Encode image to PIL
         pil_image = Image.fromarray(tile_image)
         img_bytes = io.BytesIO()
         if img_format.lower() == 'png':
@@ -2504,49 +2514,36 @@ class Dataset:
             pil_image.save(img_bytes, format='JPEG', quality=95)
         img_bytes = img_bytes.getvalue()
         
-        # Convert grid location back to pixel coordinates 
-        # Use the center pixel coordinate that this combined tile represents
+        # Calculate pixel coordinates for the combined tile
         grid_x, grid_y = grid_location
-        
-        # Calculate the pixel coordinate bounds this combined tile represents
         source_grid_locations = self._coords_to_grid_indices(source_locations)
         
-        # Get the actual source locations that belong to this combined tile group
+        # Find source tiles that belong to this combined tile group
         matching_source_locations = []
         for i, (src_grid_x, src_grid_y) in enumerate(source_grid_locations):
-            # Check if this source tile belongs to the current combined tile grid
-            target_grid_x = src_grid_x // mag_ratio
-            target_grid_y = src_grid_y // mag_ratio
-            
-            if target_grid_x == grid_x and target_grid_y == grid_y:
+            if (grid_x <= src_grid_x < grid_x + mag_ratio and 
+                grid_y <= src_grid_y < grid_y + mag_ratio):
                 matching_source_locations.append(source_locations[i])
         
         if matching_source_locations:
-            # Use the center/average of the matching source tiles as the representative coordinate
+            # Use average of matching source tiles as representative coordinate
             avg_x = sum(loc[0] for loc in matching_source_locations) // len(matching_source_locations)
             avg_y = sum(loc[1] for loc in matching_source_locations) // len(matching_source_locations)
             pixel_x, pixel_y = avg_x, avg_y
-            log.debug(f"Found {len(matching_source_locations)} matching tiles for grid {grid_location}, avg coord: ({pixel_x}, {pixel_y})")
         else:
-            # This shouldn't happen, but use a reasonable fallback
-            log.warning(f"Could not find representative source tile for grid location {grid_location}")
-            log.debug(f"Source grid locations sample: {source_grid_locations[:5]}")
-            
-            # Simple fallback: convert grid to estimated pixel coordinates
-            # The target tile should be at the center of the region covered by source tiles
+            # Fallback: estimate coordinates from grid position and source data
             if source_locations:
-                # Calculate stride from source coordinates
                 x_coords = sorted(set(loc[0] for loc in source_locations))
                 y_coords = sorted(set(loc[1] for loc in source_locations))
                 stride_x = min(x_coords[i+1] - x_coords[i] for i in range(len(x_coords)-1)) if len(x_coords) > 1 else 512
                 stride_y = min(y_coords[i+1] - y_coords[i] for i in range(len(y_coords)-1)) if len(y_coords) > 1 else 512
                 min_x, min_y = min(x_coords), min(y_coords)
                 
-                # Convert grid location to pixel coordinates at source scale
-                # Don't multiply by mag_ratio since we want coordinates in the same space as source
-                pixel_x = min_x + grid_x * stride_x
-                pixel_y = min_y + grid_y * stride_y
-                log.debug(f"Estimated pixel coord from grid {grid_location}: ({pixel_x}, {pixel_y}) using stride ({stride_x}, {stride_y})")
+                # Place at center of the mag_ratio x mag_ratio region
+                center_offset_x = (mag_ratio - 1) * stride_x // 2
+                center_offset_y = (mag_ratio - 1) * stride_y // 2
+                pixel_x = min_x + grid_x * stride_x + center_offset_x
+                pixel_y = min_y + grid_y * stride_y + center_offset_y
             else:
                 pixel_x, pixel_y = grid_x, grid_y
         
