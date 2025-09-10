@@ -1961,7 +1961,8 @@ class Dataset:
         # Validate and calculate magnification ratio
         source_mag = sf.util.to_mag(source_tile_um) if isinstance(source_tile_um, str) else None
         target_mag = sf.util.to_mag(target_tile_um) if isinstance(target_tile_um, str) else None
-        
+        target_tile_px = int(kwargs.get('target_tile_px', 224))
+
         if source_mag and target_mag:
             mag_ratio = source_mag / target_mag
             if not mag_ratio.is_integer() or mag_ratio < 1:
@@ -1981,7 +1982,7 @@ class Dataset:
         for tfrecord_path in source_tfrecords:
             if skip_extracted:
                 # Check if output already exists
-                output_path = self._get_output_tfrecord_path(tfrecord_path, target_tile_um)
+                output_path = self._get_output_tfrecord_path(tfrecord_path, target_tile_um, target_tile_px=target_tile_px)
                 if output_path and exists(output_path):
                     log.info(f"Skipping {tfrecord_path} - already processed")
                     continue
@@ -2007,7 +2008,7 @@ class Dataset:
         if all_reports:
             try:
                 # Get the output directory path
-                dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um)
+                dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um, target_tile_px=target_tile_px)
                 if dummy_tfrecord_path:
                     output_dir = os.path.dirname(dummy_tfrecord_path)
                     log.debug(f"OUTPUT DIR: {output_dir}")
@@ -2035,24 +2036,22 @@ class Dataset:
         
         return {report.path: report for report in all_reports}
     
-    def _get_output_tfrecord_path(self, input_path: str, target_tile_um: Union[int, str]) -> Optional[str]:
-        """Generate output path for lower magnification TFRecord."""
+    def _get_output_tfrecord_path(
+        self,
+        input_path: str,
+        target_tile_um: Union[int, str],
+        target_tile_px: Optional[int] = None
+    ) -> Optional[str]:
         try:
-            # Extract slide name from input path
             slide_name = sf.util.path_to_name(input_path)
-            
-            # Get the appropriate tfrecord directory for target magnification
             for source in self.sources:
                 if 'tfrecords' in self.sources[source]:
                     tfrecord_dir = self.sources[source]['tfrecords']
-                    
-                    # Use the standard slideflow naming convention: {tile_px}px_{tile_um}
+                    px = int(target_tile_px) if target_tile_px is not None else int(self.tile_px)
                     if isinstance(target_tile_um, str):
-                        mag_suffix = f"{self.tile_px}px_{target_tile_um.lower()}"
+                        mag_suffix = f"{px}px_{target_tile_um.lower()}"
                     else:
-                        mag_suffix = f"{self.tile_px}px_{target_tile_um}um"
-                    
-                    # Create subdirectory for target magnification
+                        mag_suffix = f"{px}px_{target_tile_um}um"
                     target_dir = join(tfrecord_dir, mag_suffix)
                     return join(target_dir, f"{slide_name}.tfrecords")
             return None
@@ -2092,13 +2091,14 @@ class Dataset:
             
         # Group tiles by spatial regions that can form target tiles
         tile_groups = self._group_tiles_for_combination(locations, mag_ratio)
-        
+        target_tile_px = int(kwargs.get('target_tile_px', 224))
+
         log.info(f"Processing {slide_name}: found {len(tile_groups)} potential tile groups from {total_tiles} source tiles")
         complete_groups = sum(1 for indices in tile_groups.values() if len(indices) == mag_ratio * mag_ratio)
         log.info(f"  {complete_groups} complete groups (each requiring {mag_ratio}x{mag_ratio}={mag_ratio*mag_ratio} tiles)")
         
         # Generate output path
-        output_path = self._get_output_tfrecord_path(tfrecord_path, target_tile_um)
+        output_path = self._get_output_tfrecord_path(tfrecord_path, target_tile_um, target_tile_px=target_tile_px)
         if not output_path:
             log.error(f"Could not generate output path for {tfrecord_path}")
             return None
@@ -2122,7 +2122,8 @@ class Dataset:
                         # Write combined tile to output TFRecord
                         img_format = kwargs.get('img_format', 'jpg')
                         record = self._create_combined_tile_record(
-                            combined_tile, slide_name, group_loc, img_format
+                            combined_tile, slide_name, group_loc, locations, mag_ratio, img_format,
+                            target_tile_px=target_tile_px
                         )
                         writer.write(record)
                         combined_count += 1
@@ -2217,6 +2218,24 @@ class Dataset:
         
         return slide_report
     
+    def _resize_square_np(
+            self,
+            tile_image: np.ndarray, 
+            target_px: int) -> np.ndarray:
+        """Resize a HxWxC uint8 image to target_px x target_px (RGB)."""
+        if tile_image.ndim == 2:
+            mode = "L"
+        elif tile_image.shape[2] == 4:
+            # drop alpha; or keep if your pipelines support RGBA
+            tile_image = tile_image[:, :, :3]
+            mode = "RGB"
+        else:
+            mode = "RGB"
+        pil = Image.fromarray(tile_image, mode=mode)
+        # LANCZOS is high-quality for big downsampling (e.g., 2048 -> 224)
+        pil = pil.resize((target_px, target_px), resample=Image.LANCZOS)
+        return np.array(pil, dtype=np.uint8)
+
     def _create_alignment_visualization(
         self, 
         slide_name: str,
@@ -2459,26 +2478,84 @@ class Dataset:
             
         return combined_tile
         
-    def _create_combined_tile_record(self, tile_image: np.ndarray, slide_name: str, location: Tuple[int, int], img_format: str) -> bytes:
-        """Create a TFRecord for a combined tile."""
-        
-        # Convert numpy array to image bytes
+    def _create_combined_tile_record(
+        self,
+        tile_image: np.ndarray,
+        slide_name: str,
+        grid_location: Tuple[int, int],
+        source_locations: List[Tuple[int, int]],
+        mag_ratio: int,
+        img_format: str,
+        target_tile_px: int,          # <-- NEW
+    ) -> bytes:
+        # ensure 224x224 (or whatever you requested)
+        tile_image = self._resize_square_np(tile_image, target_tile_px)
+
+        # (optional) assert it is 224x224
+        h, w = tile_image.shape[:2]
+        assert (h, w) == (target_tile_px, target_tile_px), f"Unexpected size {w}x{h}"
+
+        # then encode as before
         pil_image = Image.fromarray(tile_image)
         img_bytes = io.BytesIO()
-        
         if img_format.lower() == 'png':
             pil_image.save(img_bytes, format='PNG')
         else:
             pil_image.save(img_bytes, format='JPEG', quality=95)
-            
         img_bytes = img_bytes.getvalue()
         
-        # Create record
+        # Convert grid location back to pixel coordinates 
+        # Use the center pixel coordinate that this combined tile represents
+        grid_x, grid_y = grid_location
+        
+        # Calculate the pixel coordinate bounds this combined tile represents
+        source_grid_locations = self._coords_to_grid_indices(source_locations)
+        
+        # Get the actual source locations that belong to this combined tile group
+        matching_source_locations = []
+        for i, (src_grid_x, src_grid_y) in enumerate(source_grid_locations):
+            # Check if this source tile belongs to the current combined tile grid
+            target_grid_x = src_grid_x // mag_ratio
+            target_grid_y = src_grid_y // mag_ratio
+            
+            if target_grid_x == grid_x and target_grid_y == grid_y:
+                matching_source_locations.append(source_locations[i])
+        
+        if matching_source_locations:
+            # Use the center/average of the matching source tiles as the representative coordinate
+            avg_x = sum(loc[0] for loc in matching_source_locations) // len(matching_source_locations)
+            avg_y = sum(loc[1] for loc in matching_source_locations) // len(matching_source_locations)
+            pixel_x, pixel_y = avg_x, avg_y
+            log.debug(f"Found {len(matching_source_locations)} matching tiles for grid {grid_location}, avg coord: ({pixel_x}, {pixel_y})")
+        else:
+            # This shouldn't happen, but use a reasonable fallback
+            log.warning(f"Could not find representative source tile for grid location {grid_location}")
+            log.debug(f"Source grid locations sample: {source_grid_locations[:5]}")
+            
+            # Simple fallback: convert grid to estimated pixel coordinates
+            # The target tile should be at the center of the region covered by source tiles
+            if source_locations:
+                # Calculate stride from source coordinates
+                x_coords = sorted(set(loc[0] for loc in source_locations))
+                y_coords = sorted(set(loc[1] for loc in source_locations))
+                stride_x = min(x_coords[i+1] - x_coords[i] for i in range(len(x_coords)-1)) if len(x_coords) > 1 else 512
+                stride_y = min(y_coords[i+1] - y_coords[i] for i in range(len(y_coords)-1)) if len(y_coords) > 1 else 512
+                min_x, min_y = min(x_coords), min(y_coords)
+                
+                # Convert grid location to pixel coordinates at source scale
+                # Don't multiply by mag_ratio since we want coordinates in the same space as source
+                pixel_x = min_x + grid_x * stride_x
+                pixel_y = min_y + grid_y * stride_y
+                log.debug(f"Estimated pixel coord from grid {grid_location}: ({pixel_x}, {pixel_y}) using stride ({stride_x}, {stride_y})")
+            else:
+                pixel_x, pixel_y = grid_x, grid_y
+        
+        # Create record with pixel coordinates (same system as source tiles)
         return sf.io.serialized_record(
             slide=bytes(slide_name, 'utf-8'),
             image_raw=img_bytes,
-            loc_x=location[0],
-            loc_y=location[1]
+            loc_x=pixel_x,
+            loc_y=pixel_y
         )
 
     def extract_tiles_from_tfrecords(self, dest: str) -> None:
