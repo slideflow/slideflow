@@ -1958,31 +1958,16 @@ class Dataset:
             - Each combined tile's coordinates (loc_x, loc_y) will correspond to the
               upper-left tile's coordinates from the original source TFRecords grid.
         """
-        # Validate inputs
-        if isinstance(source_tile_um, str):
-            sf.util.assert_is_mag(source_tile_um)
-            source_mag = sf.util.to_mag(source_tile_um)
-        else:
-            source_mag = None
-            
-        if isinstance(target_tile_um, str):
-            sf.util.assert_is_mag(target_tile_um)
-            target_mag = sf.util.to_mag(target_tile_um)
-        else:
-            target_mag = None
-            
-        # Calculate magnification ratio for validation
-        if source_mag is not None and target_mag is not None:
+        # Validate and calculate magnification ratio
+        source_mag = sf.util.to_mag(source_tile_um) if isinstance(source_tile_um, str) else None
+        target_mag = sf.util.to_mag(target_tile_um) if isinstance(target_tile_um, str) else None
+        
+        if source_mag and target_mag:
             mag_ratio = source_mag / target_mag
             if not mag_ratio.is_integer() or mag_ratio < 1:
-                raise errors.DatasetError(
-                    f"Cannot combine {source_tile_um} tiles to create {target_tile_um} tiles. "
-                    f"Magnification ratio must be a positive integer (got {mag_ratio})"
-                )
+                raise errors.DatasetError(f"Invalid magnification ratio: {source_tile_um} to {target_tile_um}")
             mag_ratio = int(mag_ratio)
         else:
-            # TODO
-            # For micron-based sizes, we'll need to calculate this later per slide
             mag_ratio = None
             
         # Get source TFRecords
@@ -2048,67 +2033,8 @@ class Dataset:
         # Filter out None reports
         all_reports = [r for r in all_reports if r is not None]
         
-        # Generate ExtractionReport PDF if requested
-        if all_reports and report:
-            try:
-                self._generate_tile_combination_report(
-                    all_reports, 
-                    source_tile_um, 
-                    target_tile_um, 
-                    mag_ratio
-                )
-            except Exception as e:
-                log.warning(f'Failed to generate extraction report: {str(e)}')
-        
         return {report.path: report for report in all_reports}
     
-    def _generate_tile_combination_report(
-        self, 
-        slide_reports: List["SlideReport"], 
-        source_tile_um: Union[int, str], 
-        target_tile_um: Union[int, str], 
-        mag_ratio: int
-    ) -> "ExtractionReport":
-        """Generate an ExtractionReport PDF showing combined tile locations."""
-        from datetime import datetime
-        from slideflow.slide.report import ExtractionReport
-        from types import SimpleNamespace
-        from os.path import dirname, join
-        
-        log.info('Generating tile combination extraction report...')
-        
-        timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
-        
-        # Generate PDF report filename 
-        filename = f'tile_combination_report-{source_tile_um}_to_{target_tile_um}-{timestring}.pdf'
-        
-        # Get the output directory by using the same logic as TFRecord paths
-        dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um)
-        if dummy_tfrecord_path:
-            report_dir = dirname(dummy_tfrecord_path)
-            report_path = join(report_dir, filename)
-        else:
-            # Fallback to current directory
-            report_path = filename
-        
-        # Create metadata for the extraction report
-        meta = SimpleNamespace()
-        meta.tile_px = self.tile_px
-        meta.tile_um = target_tile_um
-        meta.source_mag = source_tile_um
-        meta.target_mag = target_tile_um
-        meta.mag_ratio = mag_ratio
-        # Log summary of results
-        successful_reports = [r for r in slide_reports if r.data and r.data.get('num_tiles', 0) > 0]
-        log.info(f"Successfully processed {len(successful_reports)} out of {len(slide_reports)} slides")
-        
-        if successful_reports:
-            total_combined = sum(r.data['num_tiles'] for r in successful_reports)
-            total_source = sum(r.data['total_source_tiles'] for r in successful_reports)
-            log.info(f"Combined {total_source} source tiles into {total_combined} target tiles")
-        
-        return slide_reports
-        
     def _get_output_tfrecord_path(self, input_path: str, target_tile_um: Union[int, str]) -> Optional[str]:
         """Generate output path for lower magnification TFRecord."""
         try:
@@ -2162,7 +2088,6 @@ class Dataset:
         if mag_ratio is None:
             # TODO
             # This would require accessing slide metadata to calculate the ratio
-            # For now, assume a 4:1 ratio (20x to 5x)
             log.error(f"mag_ratio is None")
             
         # Group tiles by spatial regions that can form target tiles
@@ -2240,74 +2165,158 @@ class Dataset:
         # Find the original slide path for thumbnail generation
         slide_path = self.find_slide(slide=slide_name)
         
-        # Scale coordinates from target magnification to source magnification for thumbnail
-        if len(combined_locations) > 0:
-            try:
-                # combined_locations are in target mag space, but thumbnail will be at source mag
-                # Scale by mag_ratio: source_mag / target_mag = mag_ratio
-                scaled_locations_int = [(int(x * mag_ratio), int(y * mag_ratio)) for x, y in combined_locations]
-                
-                # Ensure we have valid coordinates before creating array
-                if len(scaled_locations_int) > 0:
-                    thumb_coords = np.array(scaled_locations_int, dtype=np.int64)
-                    log.debug(f"Created thumb_coords numpy array: shape {thumb_coords.shape}, dtype {thumb_coords.dtype}")
-                    log.debug(f"Sample scaled coordinates (int): {scaled_locations_int[:3] if len(scaled_locations_int) >= 3 else scaled_locations_int}")
-                    
-                    # Final safety check - if array is malformed, set to None
-                    if thumb_coords.size == 0 or thumb_coords.ndim != 2 or thumb_coords.shape[1] != 2:
-                        log.warning(f"Malformed thumb_coords array: shape {thumb_coords.shape}, setting to empty array")
-                        thumb_coords = np.empty((0, 2), dtype=np.int64)  # Empty array instead of None
-                else:
-                    log.debug("No coordinates to scale, thumb_coords set to empty array")
-                    thumb_coords = np.empty((0, 2), dtype=np.int64)  # Empty array instead of None
-            except Exception as e:
-                log.warning(f"Error creating scaled thumb_coords: {e}, using empty array")
-                thumb_coords = np.empty((0, 2), dtype=np.int64)  # Empty array instead of None
+        # Scale coordinates for thumbnail  
+        if combined_locations:
+            scaled_coords = [(int(x * mag_ratio), int(y * mag_ratio)) for x, y in combined_locations]
+            thumb_coords = np.array(scaled_coords, dtype=np.int64)
         else:
-            thumb_coords = np.empty((0, 2), dtype=np.int64)  # Empty array instead of None
-            log.debug("No combined locations, thumb_coords set to empty array")
+            thumb_coords = np.empty((0, 2), dtype=np.int64)
         
-        # Create the SlideReport - it will automatically create thumbnail with overlays
-        # Use source magnification for thumbnail since target may not exist in original slide
+        # Create SlideReport with thumbnail
         try:
-            log.debug(f"Creating SlideReport with:")
-            log.debug(f"  slide_path: {slide_path}")
-            log.debug(f"  source_tile_um: {source_tile_um}")
-            log.debug(f"  thumb_coords shape: {thumb_coords.shape if thumb_coords is not None else 'None'}")
-            log.debug(f"  example_tiles count: {len(example_tiles)}")
-            
-            # Create thumbnail at source magnification (which exists in original slide)
-            # The coordinates have been scaled to source magnification space
             slide_report = SlideReport(
                 images=example_tiles,
-                path=slide_path if slide_path else slide_name,
+                path=slide_path or slide_name,
                 tile_px=self.tile_px,
-                tile_um=source_tile_um,  # Use source magnification for thumbnail generation
+                tile_um=source_tile_um,
                 data=report_data,
-                thumb_coords=thumb_coords,  # Properly formatted scaled coordinates
-                ignore_thumb_errors=False  # Don't ignore errors so we can see what's happening
+                thumb_coords=thumb_coords,
+                ignore_thumb_errors=True
             )
-            log.debug("SlideReport created successfully with source magnification thumbnail")
         except Exception as e:
-            log.error(f"Error creating SlideReport with thumbnail: {e}")
-            import traceback
-            log.debug(f"Full traceback: {traceback.format_exc()}")
-            # Fallback: create report without thumbnail
+            log.warning(f"Error creating SlideReport: {e}")
             slide_report = SlideReport(
                 images=example_tiles,
-                path=slide_name,  # Use name only to skip thumbnail
+                path=slide_name,
                 tile_px=self.tile_px,
-                tile_um=source_tile_um,  # Keep consistent with main path
+                tile_um=source_tile_um,
                 data=report_data,
                 ignore_thumb_errors=True
             )
         
+        # Create alignment visualization
+        if combined_locations:
+            # Convert source locations to grid coordinates for visualization
+            source_grid_coords = self._coords_to_grid_indices(locations)
+            
+            viz_path = self._create_alignment_visualization(
+                slide_name=slide_name,
+                source_locations=source_grid_coords,  # Grid coordinates of source tiles
+                combined_locations=combined_locations,  # Grid coordinates of combined tiles  
+                mag_ratio=mag_ratio,
+                source_mag=source_tile_um,
+                target_mag=target_tile_um
+            )
+            if viz_path:
+                log.info(f"Created alignment visualization: {viz_path}")
+
         log.info(
             f"✓ Processed {slide_name}: combined {total_tiles} source tiles into "
             f"{combined_count} target tiles ({report_data['discarded_tiles']} discarded)"
         )
         
         return slide_report
+    
+    def _create_alignment_visualization(
+        self, 
+        slide_name: str,
+        source_locations: List[Tuple[int, int]],  # Grid coordinates of source tiles
+        combined_locations: List[Tuple[int, int]],  # Grid coordinates of combined tiles
+        mag_ratio: int,
+        source_mag: str,
+        target_mag: str
+    ) -> Optional[str]:
+        """Create visualization showing source tile grid with combined tiles overlaid."""
+        try:
+            log.debug(f"Creating alignment viz for {slide_name}:")
+            log.debug(f"  Source locations: {len(source_locations)} tiles")
+            log.debug(f"  Combined locations: {len(combined_locations)} tiles")
+            log.debug(f"  Sample source: {source_locations[:3] if source_locations else 'none'}")
+            log.debug(f"  Sample combined: {combined_locations[:3] if combined_locations else 'none'}")
+            
+            if not source_locations:
+                log.warning(f"No source locations for {slide_name}, skipping visualization")
+                return None
+                
+            # Create figure
+            import matplotlib.pyplot as plt
+            import matplotlib.patches as patches
+            fig, ax = plt.subplots(1, 1, figsize=(15, 12))
+            
+            # Get coordinate bounds
+            min_x = min(x for x, y in source_locations)
+            max_x = max(x for x, y in source_locations)
+            min_y = min(y for x, y in source_locations) 
+            max_y = max(y for x, y in source_locations)
+            
+            
+            # Plot source tiles as small squares
+            log.debug(f"Drawing {len(source_locations)} source tile rectangles")
+            for i, (x, y) in enumerate(source_locations):
+                rect = patches.Rectangle(
+                    (x, y), 1, 1,  # Unit size for each source tile
+                    linewidth=0.5, edgecolor='blue', facecolor='lightblue', alpha=0.4
+                )
+                ax.add_patch(rect)
+                if i < 3:  # Debug first few
+                    log.debug(f"  Source tile {i}: rectangle at ({x}, {y}) size (1, 1)")
+            
+            # Plot combined tiles as larger squares
+            log.debug(f"Drawing {len(combined_locations)} combined tile rectangles")
+            for i, (x, y) in enumerate(combined_locations):
+                rect = patches.Rectangle(
+                    (x, y), mag_ratio, mag_ratio,  # mag_ratio x mag_ratio size
+                    linewidth=2, edgecolor='red', facecolor='none', alpha=0.8
+                )
+                ax.add_patch(rect)
+                if i < 3:  # Debug first few  
+                    log.debug(f"  Combined tile {i}: rectangle at ({x}, {y}) size ({mag_ratio}, {mag_ratio})")
+            
+            # Set up the plot
+            ax.set_xlim(min_x - 1, max_x + mag_ratio + 1)
+            ax.set_ylim(min_y - 1, max_y + mag_ratio + 1)
+            ax.set_aspect('equal')
+            ax.invert_yaxis()  # Match image coordinate system
+            
+            # Set grid ticks to match mag_ratio for easy alignment verification
+            x_ticks = np.arange(min_x, max_x + mag_ratio + 1, mag_ratio)
+            y_ticks = np.arange(min_y, max_y + mag_ratio + 1, mag_ratio)
+            ax.set_xticks(x_ticks)
+            ax.set_yticks(y_ticks)
+            ax.grid(True, alpha=0.5, linewidth=1)  # Make grid more visible
+            
+            # Add minor ticks for individual source tiles
+            x_minor_ticks = np.arange(min_x, max_x + mag_ratio + 1, 1)
+            y_minor_ticks = np.arange(min_y, max_y + mag_ratio + 1, 1)
+            ax.set_xticks(x_minor_ticks, minor=True)
+            ax.set_yticks(y_minor_ticks, minor=True)
+            ax.grid(True, which='minor', alpha=0.2, linewidth=0.5)
+            
+            ax.set_title(f'Tile Alignment Check: {slide_name}\n'
+                        f'Blue: {source_mag} source tiles ({len(source_locations)}), '
+                        f'Red: {target_mag} combined tiles ({len(combined_locations)})\n'
+                        f'Major grid: {mag_ratio}x{mag_ratio} groups, Minor grid: individual tiles')
+            ax.set_xlabel('Grid X')
+            ax.set_ylabel('Grid Y')
+            
+            # Add legend
+            blue_patch = patches.Patch(color='lightblue', alpha=0.4, label=f'{source_mag} source tiles')
+            red_patch = patches.Patch(color='red', alpha=0.8, label=f'{target_mag} combined tiles') 
+            ax.legend(handles=[blue_patch, red_patch])
+            
+            # Save visualization
+            clean_slide_name = os.path.splitext(os.path.basename(slide_name))[0]
+            viz_filename = f"data/slides/thumbs/alignment_{clean_slide_name}_{source_mag}_to_{target_mag}.png"
+            os.makedirs(os.path.dirname(viz_filename), exist_ok=True)
+            
+            plt.savefig(viz_filename, dpi=150, bbox_inches='tight')
+            plt.close()
+            
+            return viz_filename
+            
+        except Exception as e:
+            log.warning(f"Failed to create alignment visualization for {slide_name}: {e}")
+            return None
         
     def _group_tiles_for_combination(self, locations: List[Tuple[int, int]], mag_ratio: int) -> Dict[Tuple[int, int], List[int]]:
         """Group tile locations into spatial regions for combination using grid coordinates."""
@@ -2770,7 +2779,7 @@ class Dataset:
                 skip_p = f'{to_skip}/{len(all_slides)}'
                 log.info(f"Skipping {skip_p} finished slides.")
             if not slides_to_generate:
-                log.warn("No slides for which to generate features.")
+                log.warning("No slides for which to generate features.")
                 return outdir
             dataset = dataset.filter(filters={'slide': slides_to_generate})
             filtered_slides_to_generate = dataset.slides()
@@ -3231,7 +3240,7 @@ class Dataset:
         else:
             return results, unique_labels
 
-    def load_indices(self, verbose=False) -> Dict[str, np.ndarray]:
+    def load_indices(self) -> Dict[str, np.ndarray]:
         """Return TFRecord indices."""
         pool = DPool(8)
         tfrecords = self.tfrecords()
@@ -4592,7 +4601,7 @@ class Dataset:
             tfrecord_dir = join(config['tfrecords'], config['label'])
             tiles_dir = join(config['tiles'], config['label'])
             if not exists(tiles_dir):
-                log.warn(f'No tiles found for source [bold]{source}')
+                log.warning(f'No tiles found for source [bold]{source}')
                 continue
             sf.io.write_tfrecords_multi(tiles_dir, tfrecord_dir)
             self.update_manifest()
@@ -4987,7 +4996,7 @@ class Dataset:
     def verify_annotations_slides(self) -> None:
         """Verify that annotations are correctly loaded."""
         if self.annotations is None:
-            log.warn("Annotations not loaded.")
+            log.warning("Annotations not loaded.")
             return
 
         # Verify no duplicate slide names are found
@@ -5020,9 +5029,9 @@ class Dataset:
              | self.annotations.slide.isna())
         ])
         if n_missing == 1:
-            log.warn("1 patient does not have a slide assigned.")
+            log.warning("1 patient does not have a slide assigned.")
         if n_missing > 1:
-            log.warn(f"{n_missing} patients do not have a slide assigned.")
+            log.warning(f"{n_missing} patients do not have a slide assigned.")
 
     def verify_img_format(self, *, progress: bool = True) -> Optional[str]:
         """Verify that all tfrecords have the same image format (PNG/JPG).
