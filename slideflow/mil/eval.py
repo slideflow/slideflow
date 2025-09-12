@@ -19,7 +19,7 @@ from slideflow.util import path_to_name, location_heatmap
 from slideflow.model.extractors import rebuild_extractor
 from slideflow.stats.metrics import ClassifierMetrics
 from ._params import (
-    _TrainerConfig, TrainerConfigFastAI
+    _TrainerConfig, TrainerConfigFastAI, TrainerConfigLightning
 )
 from . import utils
 
@@ -1138,6 +1138,9 @@ def run_inference(
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
     """Run inference on a MIL model."""
     import torch
+
+    # Ensure the model is in eval mode
+    model.eval()
 
     y_pred, y_att, y_uncertainty = None, None, None
 

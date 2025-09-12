@@ -30,6 +30,8 @@ def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
     """
     if trainer == 'fastai':
         return TrainerConfigFastAI(model=model, **kwargs)
+    elif trainer == 'lightning':
+        return TrainerConfigLightning(model=model, **kwargs)
     else:
         raise ValueError(f"Unrecognized trainer {trainer}, expected fastai.")
 
@@ -48,6 +50,7 @@ class DictConfig:
                     'build_model',
                     'is_multimodal'
                 ) and not k.startswith('_')}
+
 
 
 class _TrainerConfig(DictConfig):
@@ -111,6 +114,56 @@ class _TrainerConfig(DictConfig):
             params=self.to_dict()
         )
 
+
+# -----------------------------------------------------------------------------
+
+class TrainerConfigLightning(_TrainerConfig):
+    def __init__(
+        self,
+        model: Union[str, Callable] = 'attention_mil',
+        *,
+        aggregation_level: str = 'slide',
+        lr: Optional[float] = None,
+        wd: float = 1e-5,
+        bag_size: int = 512,
+        fit_one_cycle: bool = True,
+        epochs: int = 32,
+        batch_size: int = 64,
+        drop_last: bool = True,
+        save_monitor: str = 'val_loss',
+        z_dim: int = 512,
+        encoder_layers: int = 1,
+        activation_function: str = 'ReLU',
+        dropout_p: float = 0.2,
+        task: str = 'classification',
+        slide_level: bool = False,
+        **kwargs,
+    ):
+        self.aggregation_level = aggregation_level
+        self.lr = lr
+        self.wd = wd
+        self.bag_size = bag_size
+        self.fit_one_cycle = fit_one_cycle
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.save_monitor = save_monitor
+        self.z_dim = z_dim
+        self.encoder_layers = encoder_layers
+        self.activation_function = activation_function
+        self.dropout_p = dropout_p
+        self.task = task
+        self.slide_level = slide_level
+        # keep same ModelConfigFastAI wiring
+        from ._params import ModelConfigFastAI
+        if self.task in ("classification", "survival_discrete"):
+            self.model_config = ModelConfigFastAI(model=model, **kwargs)
+        else:
+            kwargs.pop('apply_softmax', None)
+            self.model_config = ModelConfigFastAI(model=model, apply_softmax=False, **kwargs)
+
+    def json_dump(self):
+        return dict(trainer='lightning', params=self.to_dict())
 # -----------------------------------------------------------------------------
 
 class TrainerConfigFastAI(_TrainerConfig):

@@ -14,7 +14,7 @@ import logging
 from .. import utils
 from ..eval import predict_from_model, generate_attention_heatmaps, _export_attention
 from .._params import (
-    _TrainerConfig, TrainerConfigFastAI
+    _TrainerConfig, TrainerConfigFastAI, TrainerConfigLightning
 )
 
 if TYPE_CHECKING:
@@ -64,48 +64,34 @@ def _train_mil(
     """Train a multiple-instance learning (MIL) model.
 
     Args:
-        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigCLAM`):
+        config (:class:`slideflow.mil.TrainerConfigFastAI` or :class:`slideflow.mil.TrainerConfigLightning`):
             Trainer and model configuration.
         train_dataset (:class:`slideflow.Dataset`): Training dataset.
-        val_dataset (:class:`slideflow.Dataset`): Validation dataset.
-        outcomes (str): Outcome column (annotation header) from which to
-            derive category labels.
-        bags (str): Either a path to directory with \*.pt files, or a list
-            of paths to individual \*.pt files. Each file should contain
-            exported feature vectors, with each file containing all tile
-            features for one patient.
+        val_dataset (:class:`slideflow.Dataset`): Validation dataset (defaults to train if None).
+        outcomes (str or List[str]): Outcome column(s) to derive labels.
+        bags (str or List[str]): Directory of *.pt files or list of *.pt paths.
 
     Keyword args:
-        outdir (str): Directory in which to save model and results.
-        exp_label (str): Experiment label, used for naming the subdirectory
-            in the ``{project root}/mil`` folder, where training history
-            and the model will be saved.
-        attention_heatmaps (bool): Generate attention heatmaps for slides.
-            Defaults to False.
-        interpolation (str, optional): Interpolation strategy for smoothing
-            attention heatmaps. Defaults to 'bicubic'.
-        cmap (str, optional): Matplotlib colormap for heatmap. Can be any
-            valid matplotlib colormap. Defaults to 'inferno'.
-        norm (str, optional): Normalization strategy for assigning heatmap
-            values to colors. Either 'two_slope', or any other valid value
-            for the ``norm`` argument of ``matplotlib.pyplot.imshow``.
-            If 'two_slope', normalizes values less than 0 and greater than 0
-            separately. Defaults to None.
-
+        outdir (str): Directory for model/results.
+        exp_label (str): Subdirectory label used inside `outdir`.
+        **kwargs: Passed through to backend trainer.
     """
-    log.info("Training FastAI MIL model with config:")
-    log.info(f"{config}")
+    # Select backend
     if isinstance(config, TrainerConfigFastAI):
         train_fn = train_fastai
+        backend = "fastai"
+    elif isinstance(config, TrainerConfigLightning):
+        from ._lightning import train_lightning as train_fn
+        backend = "lightning"
     else:
         raise ValueError(f"Unrecognized training configuration of type {type(config)}")
+
+    # Default validation dataset to train_dataset if not provided
     if val_dataset is None:
-        sf.log.info(
-            "Training without validation; metrics will be calculated on training data."
-        )
+        sf.log.info("Training without explicit validation; using training set for validation metrics.")
         val_dataset = train_dataset
 
-    # Set up experiment label
+    # Build experiment label
     if exp_label is None:
         try:
             exp_label = '{}-{}'.format(
@@ -115,25 +101,158 @@ def _train_mil(
         except Exception:
             exp_label = 'no_label'
 
-    # Set up output model directory
+    # Create output directory
     if outdir:
         if not exists(outdir):
             os.makedirs(outdir)
         outdir = sf.util.create_new_model_dir(outdir, exp_label)
 
-    logging.info(f"Kwargs before calling train_fn: {kwargs}")
-    # Execute training.
-    return train_fn(
+    # FastAI path stays exactly as before — call and return
+    if backend == "fastai":
+        return train_fn(
+            config,
+            train_dataset,
+            val_dataset,
+            outcomes,
+            bags,
+            outdir=outdir,
+            **kwargs
+        )
+
+    # -----------------------------
+    # Lightning path: normalize data LIKE fastai does, then call with explicit kwargs
+    # -----------------------------
+    task = config.to_dict().get('task', 'classification')
+
+    # 1) Labels & unique categories (mirror fastai build_learner)
+    if task in ('classification', 'survival_discrete'):
+        labels, unique_train = train_dataset.labels(outcomes, format='name', use_float=False)
+        val_labels, unique_val = val_dataset.labels(outcomes, format='name', use_float=False)
+    elif task in ('regression', 'survival'):
+        labels, unique_train = train_dataset.labels(outcomes, format='value', use_float=True)
+        val_labels, unique_val = val_dataset.labels(outcomes, format='value', use_float=True)
+    else:
+        raise ValueError(f"Unrecognized task {task} in config")
+
+    labels.update(val_labels)
+    if isinstance(unique_train, dict) and isinstance(unique_val, dict):
+        unique_categories = np.unique(list(unique_train.values()) + list(unique_val.values()))
+    else:
+        unique_categories = np.unique(unique_train + unique_val)
+
+    # 2) Collect .pt bag paths for train/val
+    if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
+        train_bags = train_dataset.pt_files(bags)
+        if val_dataset is train_dataset:
+            all_bags = train_bags
+        else:
+            val_bags = val_dataset.pt_files(bags)
+            all_bags = np.concatenate((train_bags, val_bags))
+    else:
+        all_bags = np.array(bags)
+
+    train_slides = train_dataset.slides()
+    val_slides = val_dataset.slides()
+
+    # 3) Aggregate (slide or patient) to produce bags/targets/train_idx/val_idx
+    if config.aggregation_level == 'slide':
+        bags_arr, targets, train_idx, val_idx = utils.aggregate_trainval_bags_by_slide(
+            all_bags,
+            labels,
+            train_slides,
+            val_slides,
+            log_manifest=(join(outdir, 'slide_manifest.csv') if outdir else None)
+        )
+    elif config.aggregation_level == 'patient':
+        slide_to_patient = {**train_dataset.patients(), **val_dataset.patients()}
+        n_slide_bags = len(all_bags)
+        bags_arr, targets, train_idx, val_idx = utils.aggregate_trainval_bags_by_patient(
+            all_bags,
+            labels,
+            train_slides,
+            val_slides,
+            slide_to_patient=slide_to_patient,
+            log_manifest=(join(outdir, 'slide_manifest.csv') if outdir else None)
+        )
+        log.info(f"Aggregated {n_slide_bags} slide bags to {len(bags_arr)} patient bags.")
+    else:
+        raise ValueError(f"Unknown aggregation_level: {config.aggregation_level}")
+
+    log.info("Training dataset: {} merged bags (from {} possible slides)".format(
+        len(train_idx), len(train_slides)))
+    log.info("Validation dataset: {} merged bags (from {} possible slides)".format(
+        len(val_idx), len(val_slides)))
+
+    # 4) Ensure numpy arrays
+    bags_arr   = np.array(bags_arr)
+    targets    = np.array(targets)
+    train_idx  = np.array(train_idx)
+    val_idx    = np.array(val_idx)
+    unique_categories = np.array(unique_categories)
+
+    # 5) Finally call Lightning with the arguments it expects
+    logging.info("Calling train_lightning with normalized arguments.")
+    _lt = train_fn(
         config,
-        train_dataset,
-        val_dataset,
-        outcomes,
-        bags,
+        bags=bags_arr,
+        targets=targets,
+        train_idx=train_idx,
+        val_idx=val_idx,
+        unique_categories=unique_categories,
         outdir=outdir,
+        train_dataset=train_dataset,
+        val_dataset=val_dataset,
+        outcomes=outcomes,
         **kwargs
     )
 
+    # ---------- FASTAI-like outputs for Lightning ----------
+    # Unpack Lightning return (support both dict and direct module returns)
+    if isinstance(_lt, dict):
+        module = _lt.get("module", None)
+        n_in   = _lt.get("n_in", None)
+        n_out  = _lt.get("n_out", None)
+        if module is None:
+            module = _lt  # fallback
+    else:
+        module = _lt
+        n_in = n_out = None   # shapes not provided; mil_params will skip shapes
 
+    # 1) mil_params.json (same structure as FastAI)
+    unique_list = (unique_categories.tolist()
+                if unique_categories is not None
+                else None)
+    if n_in is not None and n_out is not None:
+        _log_mil_params(config, outcomes, unique_list, bags, n_in, n_out, outdir)
+    else:
+        log.warning("Lightning trainer did not return n_in/n_out; writing mil_params.json without shapes.")
+        try:
+            _log_mil_params(config, outcomes, unique_list, bags, None, None, outdir)
+        except Exception:
+            pass
+
+    # 2) collect validation bags exactly like FastAI
+    val_bags = _collect_val_bags_for_dataset(bags, val_dataset)
+
+    # 3) run predictions + attention and save
+    attention_heatmaps = kwargs.get("attention_heatmaps", False)
+    uq = kwargs.get("uq", False)
+    heatmap_kwargs = _extract_heatmap_kwargs(kwargs)
+
+    _predict_and_save_outputs_like_fastai(
+        getattr(module, "model", module),   # pass raw nn.Module; if LightningModule, use .model
+        config,
+        val_dataset,
+        outcomes,
+        val_bags,
+        outdir,
+        attention_heatmaps=attention_heatmaps,
+        uq=uq,
+        **heatmap_kwargs
+    )
+
+    # Mirror FastAI return style: FastAI returns a Learner; Lightning returns the module
+    return module
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
@@ -541,3 +660,78 @@ def _log_mil_params(config, outcomes, unique, bags, n_in, n_out, outdir=None):
     if outdir:
         sf.util.write_json(mil_params, join(outdir, 'mil_params.json'))
     return mil_params
+
+def _collect_val_bags_for_dataset(bags, val_dataset):
+    """Return the list/array of .pt bags used for validation, mirroring FastAI behavior."""
+    if isinstance(bags, str) or (isinstance(bags, list) and isdir(bags[0])):
+        return val_dataset.pt_files(bags)
+    # `bags` is a flat list/array of paths → keep only those belonging to val slides
+    return np.array([b for b in bags if path_to_name(b) in val_dataset.slides()])
+
+
+def _extract_heatmap_kwargs(kwargs: dict) -> dict:
+    """Remove control flags that shouldn't be forwarded to heatmap/predict calls."""
+    blocked = {"uq", "attention_heatmaps", "pb_config"}
+    return {k: v for k, v in kwargs.items() if k not in blocked}
+
+
+def _rename_outcome_columns_inplace(df: pd.DataFrame, outcomes: Union[str, List[str]]) -> None:
+    """Prefix per-class probability columns to match FastAI logging style."""
+    outcome_name = outcomes if isinstance(outcomes, str) else "-".join(outcomes)
+    df.rename(columns={c: f"{outcome_name}-{c}" for c in df.columns if c != "slide"}, inplace=True)
+
+
+def _predict_and_save_outputs_like_fastai(
+    model,                       # nn.Module (e.g., module.model)
+    config,
+    val_dataset,
+    outcomes,
+    val_bags,
+    outdir: Optional[str],
+    *,
+    attention_heatmaps: bool = False,
+    uq: bool = False,
+    **heatmap_kwargs
+) -> Tuple[pd.DataFrame, Optional[dict]]:
+    """Run predict_from_model, write predictions.parquet, log metrics, export attention, and heatmaps."""
+    # 1) predictions + attention
+    df, attention = predict_from_model(
+        model,
+        config,
+        dataset=val_dataset,
+        outcomes=outcomes,
+        bags=val_bags,
+        attention=True,
+        uq=uq,
+        **heatmap_kwargs
+    )
+
+    # 2) save predictions
+    if outdir:
+        pred_out = join(outdir, "predictions.parquet")
+        df.to_parquet(pred_out)
+        log.info(f"Predictions saved to [green]{pred_out}[/]")
+
+    # 3) metrics (rename columns like FastAI)
+    _rename_outcome_columns_inplace(df, outcomes)
+    sf.stats.metrics.categorical_metrics(df, level="slide")
+
+    # 4) export attention arrays
+    if attention and outdir:
+        _export_attention(
+            join(outdir, "attention"),
+            attention,
+            [path_to_name(b) for b in val_bags]
+        )
+
+    # 5) optional attention heatmaps
+    if attention and attention_heatmaps and outdir:
+        generate_attention_heatmaps(
+            outdir=join(outdir, "heatmaps"),
+            dataset=val_dataset,
+            bags=val_bags,
+            attention=attention,
+            **heatmap_kwargs
+        )
+
+    return df, attention

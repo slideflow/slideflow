@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
+from scipy import sparse as sp
 import torch
 from torch.utils.data import Dataset
 import logging
@@ -217,19 +218,20 @@ def build_dataset(
     # If survival discrete, keep only the discrete-time index from column 0
     # ignoring the event column (targets[:,1]).
     if survival_discrete:
-        targets = targets[:, 0]
-        # Convert all values inside targets to int
-        targets = targets.astype(int)
+        targets = targets[:, 0].astype(int)
 
     assert len(bags) == len(targets)
 
     func = _zip_build_dataset_no_lens if not use_lens else _zip_build_dataset_use_lens
+
+    # If no encoder, pass raw targets through directly so survival [T,E] stays intact.
+    target_ds = EncodedDataset(encoder, targets) if encoder is not None else targets
+
     dataset = MapDataset(
         func,
         BagDataset(bags, bag_size=bag_size),
-        EncodedDataset(encoder, targets),
+        target_ds,
     )
-
     dataset.encoder = encoder
     return dataset
 
@@ -451,9 +453,7 @@ class EncodedDataset(MapDataset):
     """
     Wraps a single array of targets, optionally applying an sklearn-like encoder.
     """
-
     def __init__(self, encode: Optional[SKLearnEncoder], values: npt.NDArray):
-        # If there's an encoder, we apply `_encode_item` to each target
         if encode is not None:
             super().__init__(self._encode_item, values)
         else:
@@ -461,23 +461,69 @@ class EncodedDataset(MapDataset):
         self.encode = encode
 
     def _encode_item(self, y: Any) -> torch.Tensor:
-        """
-        Applies sklearn-like encoder (e.g. LabelEncoder, OneHotEncoder) to y,
-        returning a float32 torch.Tensor.
-        """
-        # Convert to a numpy array (shape [1]) so that we can do transform(...)
-        # If y is e.g. 2 -> transform => [[2]] -> one-hot => [[0,0,1,...]]
-        arr = np.array([y])  # shape (1,)
-        arr_2d = arr.reshape(-1, 1)  # shape (1,1)
-        enc = self.encode.transform(arr_2d)  # shape (1, num_classes) for OneHotEncoder
-        enc = torch.tensor(enc, dtype=torch.float32).squeeze(0) # Shape (num_classes)
-        return enc
+        arr = np.array([y]).reshape(-1, 1)
+        enc = self.encode.transform(arr)
+        if sp.issparse(enc):
+            enc = enc.toarray()
+        enc = np.asarray(enc, dtype=np.float32)
+        return torch.from_numpy(enc.squeeze(0))
 
     def _identity(self, y: Any) -> torch.Tensor:
-        """
-        If no encoder is given, we just cast the label to float32 tensor.
-        E.g., classification label = 2 => tensor([2.0])
-        """
+        # Keep vectors as vectors (e.g., survival [time, event])
         if isinstance(y, torch.Tensor):
-            return y.float()
-        return torch.tensor([float(y)], dtype=torch.float32)
+            return y.detach().cpu().to(torch.float32)
+        arr = np.array(y)
+        # Reject non-numeric labels when no encoder exists
+        if arr.dtype.kind in {"U", "S", "O"}:
+            try:
+                return torch.tensor([float(y)], dtype=torch.float32)
+            except Exception as e:
+                raise TypeError("Non-numeric label without encoder") from e
+        arr = arr.astype(np.float32, copy=False)
+        return torch.from_numpy(arr)
+
+import torch.nn.functional as F
+from torch.utils.data._utils.collate import default_collate
+
+def _normalize_feat_tensor(x: torch.Tensor) -> torch.Tensor:
+    # Flatten everything except the last dim → (N, D)
+    if x.dim() > 2:
+        x = x.flatten(0, -2)
+    if x.dim() == 1:
+        x = x.unsqueeze(0)
+    return x
+
+def slide_collate(samples):
+    # samples: List[(x, y)]
+    xs, ys = zip(*samples)
+    xs = [ _normalize_feat_tensor(x) for x in xs ]
+    max_n = max(x.shape[0] for x in xs)
+    padded = []
+    for x in xs:
+        n, d = x.shape
+        if n < max_n:
+            x = F.pad(x, (0, 0, 0, max_n - n))
+        else:
+            x = x[:max_n]
+        padded.append(x)
+    batch_x = torch.stack(padded, 0)            # (B, N, D)
+    batch_y = default_collate(ys)
+    return batch_x, batch_y
+
+def mil_collate(samples):
+    # For variable-length MIL bags; returns ((B,N,D), lens), y
+    xs, ys = zip(*samples)
+    xs = [ _normalize_feat_tensor(x) for x in xs ]
+    lens = torch.tensor([x.shape[0] for x in xs], dtype=torch.long)
+    max_n = int(lens.max())
+    padded = []
+    for x in xs:
+        n, d = x.shape
+        if n < max_n:
+            x = F.pad(x, (0, 0, 0, max_n - n))
+        else:
+            x = x[:max_n]
+        padded.append(x)
+    batch_x = torch.stack(padded, 0)            # (B, N, D)
+    batch_y = default_collate(ys)
+    return (batch_x, lens), batch_y

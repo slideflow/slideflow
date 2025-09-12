@@ -15,6 +15,7 @@ from ._params import (
     mil_config,
     _TrainerConfig,
     TrainerConfigFastAI,
-    ModelConfigFastAI
+    ModelConfigFastAI,
+    TrainerConfigLightning
 )
 from .utils import load_model_weights
