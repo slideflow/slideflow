@@ -1895,7 +1895,6 @@ class Dataset:
         source: Optional[str] = None,
         skip_extracted: bool = True,
         report: bool = True,
-        img_format: str = 'jpg',
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
         r"""Extract lower magnification tiles from existing high-magnification TFRecords.
@@ -2011,7 +2010,6 @@ class Dataset:
                 dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um, target_tile_px=target_tile_px, source_tile_um=source_tile_um)
                 if dummy_tfrecord_path:
                     output_dir = os.path.dirname(dummy_tfrecord_path)
-                    log.debug(f"OUTPUT DIR: {output_dir}")
                     if output_dir and os.path.exists(output_dir):
                         # Find all TFRecord files in the output directory
                         tfrecord_files = glob(os.path.join(output_dir, "*.tfrecords"))
@@ -2039,23 +2037,26 @@ class Dataset:
             log.info(f'Generating lower magnification tile extraction PDF report...')
             log.info(f'Found {len(all_reports)} reports to include in PDF')
             
+            # Read source extraction parameters from the source TFRecords directory
+            source_params = self._get_source_extraction_parameters(source_tfrecords[0] if source_tfrecords else None)
+            
             # Create metadata for lower mag extraction
             from types import SimpleNamespace
             from datetime import datetime
             report_meta = SimpleNamespace(
                 tile_px=kwargs.get('target_tile_px', self.tile_px),
                 tile_um=target_tile_um,
-                qc="Lower mag tile combination",  # Custom QC description
+                qc=source_params.get('qc', 'None'),
                 total_slides=len(source_tfrecords),
                 slides_skipped=len(source_tfrecords) - len(all_reports),
-                roi_method="N/A",  # Not applicable for TFRecord combination
-                stride=1,  # Not applicable 
-                gs_frac="N/A",  # These were applied during original extraction
-                gs_thresh="N/A",
-                ws_frac="N/A", 
-                ws_thresh="N/A",
-                normalizer="N/A",
-                img_format=kwargs.get('img_format', 'jpg'),
+                roi_method=source_params.get('roi_method', 'N/A'),
+                stride=source_params.get('stride', 1),
+                gs_frac=source_params.get('gs_fraction', 'N/A'),
+                gs_thresh=source_params.get('gs_threshold', 'N/A'),
+                ws_frac=source_params.get('ws_fraction', 'N/A'), 
+                ws_thresh=source_params.get('ws_threshold', 'N/A'),
+                normalizer=source_params.get('normalizer', ''),
+                img_format=source_params.get('img_format', kwargs.get('img_format', 'jpg')),
                 source_tile_um=source_tile_um,  # Additional metadata specific to lower mag
                 mag_ratio=mag_ratio if mag_ratio else "calculated"
             )
@@ -2167,25 +2168,11 @@ class Dataset:
             
         # Read coordinates from source TFRecord (the original high-mag tiles)
         source_locations = sf.io.get_locations_from_tfrecord(tfrecord_path)
-        log.debug(f"Loaded {len(source_locations)} source tile locations from {tfrecord_path}")
         
         # Try to read target TFRecord coordinates (the newly created low-mag tiles)
         target_tile_px = kwargs.get('target_tile_px')
-        target_tfrecord_path = self._get_output_tfrecord_path(tfrecord_path, target_tile_um, target_tile_px=target_tile_px, source_tile_um=source_tile_um)
-        target_locations = None
-        if target_tfrecord_path and exists(target_tfrecord_path):
-            try:
-                target_locations = sf.io.get_locations_from_tfrecord(target_tfrecord_path)
-                log.debug(f"Loaded {len(target_locations)} target tile locations from {target_tfrecord_path}")
-            except Exception as e:
-                log.debug(f"Could not read target TFRecord {target_tfrecord_path}: {e}")
-                target_locations = None
-        
         # Use source locations for processing (this is what we're extracting FROM)
         locations = source_locations
-        
-        # No enhanced coordinate data needed - we'll read both TFRecords separately during visualization
-        source_locations_data = None
             
         total_tiles = len(locations)
         
@@ -2221,7 +2208,6 @@ class Dataset:
             
         # Ensure output directory exists
         os.makedirs(dirname(output_path), exist_ok=True)
-        log.debug(f"Writing combined tiles to: {output_path}")
         
         # Process tile groups and write combined tiles
         combined_count = 0
@@ -2282,8 +2268,6 @@ class Dataset:
         
         # Find the original slide path for thumbnail generation
         slide_path = self.find_slide(slide=slide_name)
-        log.debug(f"Looking for slide: {slide_name}")
-        log.debug(f"Found slide path: {slide_path}")
         if slide_path and not os.path.exists(slide_path):
             log.warning(f"Slide path does not exist: {slide_path}")
             slide_path = None
@@ -2292,19 +2276,13 @@ class Dataset:
         # Show original tile locations (where tiles were actually extracted from)
         thumb_coords = None
         if locations:
-            log.debug(f"Preparing thumbnail coordinates for {slide_name}: {len(locations)} original tiles")
             
             # Use only the original tile coordinates (these are known to be valid)
             all_coords = [(int(x), int(y)) for x, y in locations]
-            log.debug(f"Using original tile coordinates only for thumbnail")
             
             if all_coords:
                 # Convert to numpy array as expected by SlideReport
                 thumb_coords = np.array(all_coords, dtype=np.int64)
-                log.debug(f"Created thumb_coords array with {len(all_coords)} total coordinates")
-                log.debug(f"Sample coordinates: {all_coords[:5]}")
-                log.debug(f"thumb_coords shape: {thumb_coords.shape}")
-                log.debug(f"thumb_coords dtype: {thumb_coords.dtype}")
                 
                 # Verify coordinates are in the right format - should be (N, 2) array
                 if thumb_coords.ndim != 2 or thumb_coords.shape[1] != 2:
@@ -2329,22 +2307,6 @@ class Dataset:
             target_tfrecord_path=output_path,  # Pass target TFRecord path for coordinate reading
         )
                 
-        # Create alignment visualization
-        if combined_locations:
-            # Convert source locations to grid coordinates for visualization
-            source_grid_coords = self._coords_to_grid_indices(locations)
-            
-            viz_path = self._create_alignment_visualization(
-                slide_name=slide_name,
-                source_locations=source_grid_coords,  # Grid coordinates of source tiles
-                combined_locations=combined_locations,  # Grid coordinates of combined tiles  
-                mag_ratio=mag_ratio,
-                source_mag=source_tile_um,
-                target_mag=target_tile_um
-            )
-            if viz_path:
-                log.info(f"Created alignment visualization: {viz_path}")
-
         log.info(
             f"✓ Processed {slide_name}: combined {total_tiles} source tiles into "
             f"{combined_count} target tiles ({report_data['discarded_tiles']} discarded)"
@@ -2370,107 +2332,46 @@ class Dataset:
         pil = pil.resize((target_px, target_px), resample=Image.LANCZOS)
         return np.array(pil, dtype=np.uint8)
 
-    def _create_alignment_visualization(
-        self, 
-        slide_name: str,
-        source_locations: List[Tuple[int, int]],  # Grid coordinates of source tiles
-        combined_locations: List[Tuple[int, int]],  # Grid coordinates of combined tiles
-        mag_ratio: int,
-        source_mag: str,
-        target_mag: str
-    ) -> Optional[str]:
-        """Create visualization showing source tile grid with combined tiles overlaid."""
+    def _get_source_extraction_parameters(self, source_tfrecord_path: Optional[str]) -> Dict[str, Any]:
+        """Read extraction parameters from the source magnification's extraction report CSV."""
         try:
-            log.debug(f"Creating alignment viz for {slide_name}:")
-            log.debug(f"  Source locations: {len(source_locations)} tiles")
-            log.debug(f"  Combined locations: {len(combined_locations)} tiles")
-            log.debug(f"  Sample source: {source_locations[:3] if source_locations else 'none'}")
-            log.debug(f"  Sample combined: {combined_locations[:3] if combined_locations else 'none'}")
-            
-            if not source_locations:
-                log.warning(f"No source locations for {slide_name}, skipping visualization")
-                return None
+            if not source_tfrecord_path:
+                return {}
                 
-            # Create figure
-            import matplotlib.pyplot as plt
-            import matplotlib.patches as patches
-            fig, ax = plt.subplots(1, 1, figsize=(15, 12))
+            # Get the source directory from the TFRecord path
+            source_dir = os.path.dirname(source_tfrecord_path)
+            csv_path = os.path.join(source_dir, "extraction_report.csv")
             
-            # Get coordinate bounds
-            min_x = min(x for x, y in source_locations)
-            max_x = max(x for x, y in source_locations)
-            min_y = min(y for x, y in source_locations) 
-            max_y = max(y for x, y in source_locations)
+            if not os.path.exists(csv_path):
+                return {}
+                
+            # Read the CSV and get parameters from the first row (they should all be the same)
+            import pandas as pd
+            df = pd.read_csv(csv_path)
             
+            if df.empty:
+                return {}
+                
+            # Get parameters from the first slide (they should be consistent across slides)
+            first_row = df.iloc[0]
+            params = {
+                'qc': first_row.get('qc', 'None'),
+                'roi_method': 'auto',  # Most common default
+                'stride': first_row.get('stride', 1),
+                'gs_fraction': first_row.get('gs_fraction', 'N/A'),
+                'gs_threshold': first_row.get('gs_threshold', 'N/A'),
+                'ws_fraction': first_row.get('ws_fraction', 'N/A'),
+                'ws_threshold': first_row.get('ws_threshold', 'N/A'),
+                'normalizer': first_row.get('normalizer', ''),
+                'img_format': first_row.get('img_format', 'jpg'),
+                'backend': first_row.get('backend', 'libvips')
+            }
             
-            # Plot source tiles as small squares
-            log.debug(f"Drawing {len(source_locations)} source tile rectangles")
-            for i, (x, y) in enumerate(source_locations):
-                rect = patches.Rectangle(
-                    (x, y), 1, 1,  # Unit size for each source tile
-                    linewidth=0.5, edgecolor='blue', facecolor='lightblue', alpha=0.4
-                )
-                ax.add_patch(rect)
-                if i < 3:  # Debug first few
-                    log.debug(f"  Source tile {i}: rectangle at ({x}, {y}) size (1, 1)")
-            
-            # Plot combined tiles as larger squares
-            log.debug(f"Drawing {len(combined_locations)} combined tile rectangles")
-            for i, (x, y) in enumerate(combined_locations):
-                rect = patches.Rectangle(
-                    (x, y), mag_ratio, mag_ratio,  # mag_ratio x mag_ratio size
-                    linewidth=2, edgecolor='red', facecolor='none', alpha=0.8
-                )
-                ax.add_patch(rect)
-                if i < 3:  # Debug first few  
-                    log.debug(f"  Combined tile {i}: rectangle at ({x}, {y}) size ({mag_ratio}, {mag_ratio})")
-            
-            # Set up the plot
-            ax.set_xlim(min_x - 1, max_x + mag_ratio + 1)
-            ax.set_ylim(min_y - 1, max_y + mag_ratio + 1)
-            ax.set_aspect('equal')
-            ax.invert_yaxis()  # Match image coordinate system
-            
-            # Set grid ticks to match mag_ratio for easy alignment verification
-            x_ticks = np.arange(min_x, max_x + mag_ratio + 1, mag_ratio)
-            y_ticks = np.arange(min_y, max_y + mag_ratio + 1, mag_ratio)
-            ax.set_xticks(x_ticks)
-            ax.set_yticks(y_ticks)
-            ax.grid(True, alpha=0.5, linewidth=1)  # Make grid more visible
-            
-            # Add minor ticks for individual source tiles
-            x_minor_ticks = np.arange(min_x, max_x + mag_ratio + 1, 1)
-            y_minor_ticks = np.arange(min_y, max_y + mag_ratio + 1, 1)
-            ax.set_xticks(x_minor_ticks, minor=True)
-            ax.set_yticks(y_minor_ticks, minor=True)
-            ax.grid(True, which='minor', alpha=0.2, linewidth=0.5)
-            
-            ax.set_title(f'Tile Alignment Check: {slide_name}\n'
-                        f'Blue: {source_mag} source tiles ({len(source_locations)}), '
-                        f'Red: {target_mag} combined tiles ({len(combined_locations)})\n'
-                        f'Major grid: {mag_ratio}x{mag_ratio} groups, Minor grid: individual tiles')
-            ax.set_xlabel('Grid X')
-            ax.set_ylabel('Grid Y')
-            
-            # Add legend
-            blue_patch = patches.Patch(color='lightblue', alpha=0.4, label=f'{source_mag} source tiles')
-            red_patch = patches.Patch(color='red', alpha=0.8, label=f'{target_mag} combined tiles') 
-            ax.legend(handles=[blue_patch, red_patch])
-            
-            # Save visualization
-            clean_slide_name = os.path.splitext(os.path.basename(slide_name))[0]
-            viz_filename = f"data/slides/thumbs/alignment_{clean_slide_name}_{source_mag}_to_{target_mag}.png"
-            os.makedirs(os.path.dirname(viz_filename), exist_ok=True)
-            
-            plt.savefig(viz_filename, dpi=150, bbox_inches='tight')
-            plt.close()
-            
-            return viz_filename
+            return params
             
         except Exception as e:
-            log.warning(f"Failed to create alignment visualization for {slide_name}: {e}")
-            return None
-        
+            return {}
+
     def _group_tiles_for_combination(self, locations: List[Tuple[int, int]], mag_ratio: int) -> Dict[Tuple[int, int], List[int]]:
         """Group tile locations into spatial regions for combination using grid coordinates."""
         groups = defaultdict(list)
@@ -2481,9 +2382,6 @@ class Dataset:
         # Sort locations to process in a consistent order
         sorted_locations = sorted(enumerate(grid_locations), key=lambda x: (x[1][1], x[1][0]))
         
-        log.debug(f"Converted {len(locations)} coordinate locations to grid indices")
-        log.debug(f"Will group tiles into {mag_ratio}x{mag_ratio} grids")
-        
         # Group tiles into mag_ratio x mag_ratio grids based on grid indices
         for idx, (grid_x, grid_y) in sorted_locations:
             # Calculate the top-left grid index of the group this tile belongs to
@@ -2491,11 +2389,6 @@ class Dataset:
             group_grid_y = (grid_y // mag_ratio) * mag_ratio
             group_key = (group_grid_x, group_grid_y)
             groups[group_key].append(idx)
-            
-        # Log some details about the grouping
-        log.debug(f"Created {len(groups)} tile groups from {len(locations)} tiles")
-        for group_key, indices in list(groups.items())[:5]:  # Show first 5 groups
-            log.debug(f"  Group {group_key}: {len(indices)} tiles")
             
         return dict(groups)
     
@@ -2514,9 +2407,6 @@ class Dataset:
         
         stride_x = min(x_coords[i+1] - x_coords[i] for i in range(len(x_coords)-1)) if len(x_coords) > 1 else 1
         stride_y = min(y_coords[i+1] - y_coords[i] for i in range(len(y_coords)-1)) if len(y_coords) > 1 else 1
-        
-        log.debug(f"Estimated tile stride: x={stride_x}, y={stride_y}")
-        log.debug(f"Grid origin at coordinates: ({min_x}, {min_y})")
         
         # Convert each coordinate to grid index
         grid_locations = []
@@ -2553,10 +2443,8 @@ class Dataset:
                         img_raw = img_raw.numpy()
                     example_tiles.append(img_raw)
                 except Exception as e:
-                    log.debug(f"Error extracting example tile {i}: {e}")
                     continue
             
-            log.debug(f"Collected {len(example_tiles)} example tiles from {tfrecord_path}")
             return example_tiles
             
         except Exception as e:
@@ -2566,7 +2454,6 @@ class Dataset:
     def _combine_tiles_from_group(self, tfrecord_path: str, tile_indices: List[int], mag_ratio: int) -> Optional[np.ndarray]:
         """Combine tiles from a spatial group into a single lower-magnification tile."""
         
-        log.debug(f"Loading {len(tile_indices)} tiles from {tfrecord_path}")
         tiles = []
         locations = []
         
@@ -2576,7 +2463,6 @@ class Dataset:
                 image_data = sf.io.decode_image(record['image_raw'])
                 tiles.append(image_data)
                 locations.append((record['loc_x'], record['loc_y']))
-                log.debug(f"  Loaded tile {i+1}/{len(tile_indices)}: index {idx}, location ({record['loc_x']}, {record['loc_y']}), shape {image_data.shape}")
             except Exception as e:
                 log.warning(f"Error loading tile {idx}: {str(e)}")
                 return None
@@ -2651,16 +2537,12 @@ class Dataset:
         
         # Calculate pixel coordinates for the combined tile
         grid_x, grid_y = grid_location
-        source_grid_locations = self._coords_to_grid_indices(source_locations)
         
         # Use tile indices directly to get the exact source tile coordinates
         if tile_indices:
             matching_source_locations = [source_locations[i] for i in tile_indices]
-            log.debug(f"Using tile indices {tile_indices[:5]}... to get {len(matching_source_locations)} source coordinates")
-            log.debug(f"Source coordinates sample: {matching_source_locations[:3]}")
         else:
             matching_source_locations = []
-            log.debug(f"No tile indices provided - source coordinates will be empty")
         
         if matching_source_locations:
             # Use average of matching source tiles as representative coordinate
@@ -2692,12 +2574,8 @@ class Dataset:
         # loc_x, loc_y: maintained for compatibility (target tile center)
         # source_locations_x, source_locations_y: individual source tile centers
         # target_location_x, target_location_y: combined tile center at target level
-        log.debug(f"Creating TFRecord with {len(matching_source_locations)} matching source locations")
-        if matching_source_locations:
-            log.debug(f"First 3 source locations: {matching_source_locations[:3]}")
         source_x_list = [loc[0] for loc in matching_source_locations] if matching_source_locations else [pixel_x]
         source_y_list = [loc[1] for loc in matching_source_locations] if matching_source_locations else [pixel_y]
-        log.debug(f"source_x_list length: {len(source_x_list)}, source_y_list length: {len(source_y_list)}")
         
         return sf.io.serialized_record(
             slide=bytes(slide_name, 'utf-8'),
@@ -2769,24 +2647,17 @@ class Dataset:
             )
 
             # -------- SOURCE centers: read directly from source TFRecord --------
-            log.debug(f"DEBUG: Creating source_thumb_coords for {slide_name}")
-            log.debug(f"DEBUG: original_locations count: {len(original_locations) if original_locations else 0}")
-            log.debug(f"DEBUG: r={r} (no loc_scale used)")
             
             if original_locations:
                 src_coords = [
                     (int(round(x / r)), int(round(y / r)))
                     for (x, y) in original_locations
                 ]
-                log.debug(f"DEBUG: Source coords - created {len(src_coords)} source coordinates")
-                log.debug(f"DEBUG: Source coords sample: {src_coords[:3]}")
                 slide_report.source_thumb_coords = np.array(src_coords, dtype=np.int64)
             else:
-                log.debug(f"DEBUG: No original_locations available")
                 slide_report.source_thumb_coords = None
 
             # -------- TARGET centers: read directly from target TFRecord --------
-            log.debug(f"DEBUG: Creating target_thumb_coords for {slide_name}")
             
             # Get target coordinates directly from target TFRecord
             tgt_centers = []
@@ -2797,13 +2668,7 @@ class Dataset:
                     import slideflow as sf
                     target_locations = sf.io.get_locations_from_tfrecord(target_tfrecord_path)
                     tgt_centers = [(int(x), int(y)) for x, y in target_locations]
-                    log.debug(f"DEBUG: Target coords from TFRecord - created {len(tgt_centers)} coordinates")
-                    if tgt_centers:
-                        log.debug(f"DEBUG: Target coords sample: {tgt_centers[:3]}")
-                else:
-                    log.debug(f"DEBUG: Target TFRecord not found at {target_tfrecord_path}")
             except Exception as e:
-                log.debug(f"DEBUG: Error reading target coordinates: {e}")
                 # Fallback to derived coordinates if TFRecord reading fails
                 if combined_locations and original_locations:
                     stride_x_src, stride_y_src, origin_x_src, origin_y_src = _stride_origin_source(original_locations)
@@ -2838,8 +2703,6 @@ class Dataset:
                 data=report_data,
                 ignore_thumb_errors=True,
             )
-
-
     
     def _estimate_stride_and_origin(
         self,

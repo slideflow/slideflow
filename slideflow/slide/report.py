@@ -269,13 +269,6 @@ class LowerMagSlideReport(SlideReport):
         self.source_tile_um = source_tile_um
         self.mag_ratio = int(mag_ratio)
         self.source_thumb_coords = source_thumb_coords
-        
-        # Log received tile sizes for debugging
-        import slideflow as sf
-        sf.util.log.debug(f"LowerMagSlideReport initialized for {path}:")
-        sf.util.log.debug(f"  Target tile_px: {tile_px}px @ {tile_um}")
-        sf.util.log.debug(f"  Source tile_um: {source_tile_um}")
-        sf.util.log.debug(f"  Mag ratio: {mag_ratio}x")
 
     @property
     def combination_efficiency(self) -> Optional[float]:
@@ -331,7 +324,7 @@ class LowerMagSlideReport(SlideReport):
                     
         except Exception as e:
             import slideflow as sf
-            sf.util.log.debug(f"Error finding target TFRecord path: {e}")
+            log.debug(f"Error finding target TFRecord path: {e}")
             
         return None
     
@@ -354,12 +347,10 @@ class LowerMagSlideReport(SlideReport):
             target_tfrecord_path = self._get_target_tfrecord_path()
             if target_tfrecord_path:
                 try:
-                    import slideflow as sf
                     target_coords = sf.io.get_locations_from_tfrecord(target_tfrecord_path)
-                    sf.util.log.debug(f"Using target coordinates from TFRecord: {len(target_coords)} target tiles")
                     return target_coords
                 except Exception as e:
-                    sf.util.log.debug(f"Could not read target TFRecord {target_tfrecord_path}: {e}")
+                    log.debug(f"Could not read target TFRecord {target_tfrecord_path}: {e}")
         
         # First check if we have the combined_grid_coords attribute set directly  
         if hasattr(self, 'combined_grid_coords') and self.combined_grid_coords:
@@ -424,7 +415,7 @@ class LowerMagSlideReport(SlideReport):
         try:
             W0, H0 = wsi.slide.level_dimensions[0]   # level-0 size in px
         except Exception as e:
-            sf.util.log.warning(f"Could not read level-0 dimensions for {self.path}: {e}")
+            log.warning(f"Could not read level-0 dimensions for {self.path}: {e}")
             self._thumb = thumb
             return
 
@@ -479,59 +470,36 @@ class LowerMagSlideReport(SlideReport):
                 else:
                     # Absolute fallback: assume draw==level-0 (no extra scaling)
                     d_draw = 1.0
-                    sf.util.log.debug("[calc_thumb] Falling back to d_draw=1.0 (no draw-level metadata).")
+                    log.debug("[calc_thumb] Falling back to d_draw=1.0 (no draw-level metadata).")
 
         scale_draw_to_thumb = d_draw * (thumb.width / float(W0))
-
-        sf.util.log.debug(
-            f"[calc_thumb] base_mpp={base_mpp:.6f}, mpp_draw={mpp_draw if mpp_draw else 'N/A'}, "
-            f"d_draw={d_draw:.6f}, W0={W0}, thumbW={thumb.width}, "
-            f"scale_draw_to_thumb={scale_draw_to_thumb:.8f}"
-        )
-        sf.util.log.debug(f"DEBUG: Thumb size: {thumb.width}x{thumb.height}")
-        sf.util.log.debug(f"DEBUG: Level-0 dimensions: {W0}x{H0}")
-        sf.util.log.debug(f"DEBUG: Raw scale factor (thumb.width/W0): {thumb.width / float(W0):.8f}")
-        
-        # The coordinates are now properly scaled in dataset.py, no additional mag_ratio correction needed
-        sf.util.log.debug(f"DEBUG: Using original scale without mag_ratio correction: {scale_draw_to_thumb:.8f}")
 
         # ----- 3) Resolve box sizes at DRAW level (you set these on the report) -----
         # If not set, fall back to reasonable derivations (still no hardcoded constants).
         try:
             s_box_draw = float(getattr(self, 'source_tile_px'))  # e.g., 128 if 40→10
-            sf.util.log.debug(f"DEBUG: Got source_tile_px from attribute: {s_box_draw}")
         except Exception as e:
             # Derive from report tile_px and mag_ratio if present
             s_box_draw = float(getattr(self, 'tile_px', 512)) / max(1.0, float(getattr(self, 'mag_ratio', 1)))
-            sf.util.log.debug(f"DEBUG: Derived s_box_draw from tile_px/mag_ratio: {s_box_draw} (tile_px={getattr(self, 'tile_px', 512)}, mag_ratio={getattr(self, 'mag_ratio', 1)})")
         try:
             t_box_draw = float(getattr(self, 'target_tile_px'))  # e.g., 512 at draw level
-            sf.util.log.debug(f"DEBUG: Got target_tile_px from attribute: {t_box_draw}")
         except Exception as e:
             t_box_draw = float(getattr(self, 'tile_px', 512))
-            sf.util.log.debug(f"DEBUG: Derived t_box_draw from tile_px: {t_box_draw}")
 
         # ----- 4) Draw rectangles (centers are already in DRAW coordinates) -----
         def _draw(centers_draw, box_draw, color, width, label):
-            sf.util.log.debug(f"DEBUG: _draw called for {label}")
-            sf.util.log.debug(f"DEBUG: centers_draw: {centers_draw}")
-            sf.util.log.debug(f"DEBUG: box_draw: {box_draw}, color: {color}, width: {width}")
             if centers_draw is None:
-                sf.util.log.debug(f"DEBUG: {label} centers_draw is None - no rectangles will be drawn")
                 return
             if len(centers_draw) == 0:
-                sf.util.log.debug(f"DEBUG: {label} centers_draw is empty - no rectangles will be drawn")
                 return
-            sf.util.log.debug(f"DEBUG: {label} has {len(centers_draw)} coordinates to draw")
             half = box_draw / 2.0
             w_th = box_draw * scale_draw_to_thumb
-            sf.util.log.debug(f"DEBUG: half={half:.2f}, w_th={w_th:.2f}, scale_draw_to_thumb={scale_draw_to_thumb:.8f}")
             for i, coord_pair in enumerate(centers_draw):
                 # Handle both (x, y) tuples and [x, y] arrays
                 if len(coord_pair) == 2:
                     cx, cy = coord_pair[0], coord_pair[1]
                 else:
-                    sf.util.log.error(f"DEBUG: Invalid coordinate format: {coord_pair}")
+                    log.error(f"DEBUG: Invalid coordinate format: {coord_pair}")
                     continue
                 x_draw = float(cx) - half
                 y_draw = float(cy) - half
@@ -539,55 +507,23 @@ class LowerMagSlideReport(SlideReport):
                 y_th = y_draw * scale_draw_to_thumb
                 rect_coords = [x_th, y_th, x_th + w_th, y_th + w_th]
                 draw.rectangle(rect_coords, outline=color, width=width)
-                if i < 5:  # Limit debug output to first 5 rectangles only
-                    sf.util.log.debug(
-                        f"DEBUG: {label}[{i}] center=({cx},{cy}) → draw=({x_draw:.2f},{y_draw:.2f}) → "
-                        f"thumb rect=({x_th:.2f},{y_th:.2f},{x_th+w_th:.2f},{y_th+w_th:.2f}) color={color}"
-                    )
-                elif i == 5:
-                    sf.util.log.debug(f"DEBUG: ... and {len(centers_draw)-5} more rectangles")
 
         source_coords = getattr(self, 'source_thumb_coords', None)
         target_coords = getattr(self, 'target_thumb_coords', None)
         
-        sf.util.log.debug(f"DEBUG: About to draw source and target coordinates")
-        sf.util.log.debug(f"DEBUG: source_thumb_coords type: {type(source_coords)}")
-        sf.util.log.debug(f"DEBUG: target_thumb_coords type: {type(target_coords)}")
-        
         # Debug the actual coordinate values received in calc_thumb
-        if source_coords is not None:
-            sf.util.log.debug(f"DEBUG: source_coords shape: {source_coords.shape if hasattr(source_coords, 'shape') else 'no shape'}")
-            sf.util.log.debug(f"DEBUG: source_coords sample received in calc_thumb: {source_coords[:3] if len(source_coords) > 0 else 'empty'}")
-        else:
-            sf.util.log.debug(f"DEBUG: source_coords is None in calc_thumb")
+        if source_coords is None:
+            log.debug(f"DEBUG: source_coords is None in calc_thumb")
             
-        if target_coords is not None:
-            sf.util.log.debug(f"DEBUG: target_coords shape: {target_coords.shape if hasattr(target_coords, 'shape') else 'no shape'}")  
-            sf.util.log.debug(f"DEBUG: target_coords sample received in calc_thumb: {target_coords[:3] if len(target_coords) > 0 else 'empty'}")
-        else:
-            sf.util.log.debug(f"DEBUG: target_coords is None in calc_thumb")
+        if target_coords is None:
+            log.debug(f"DEBUG: target_coords is None in calc_thumb")
         
         # Use black for source tiles, red for target tiles - with thin lines
         _draw(source_coords, s_box_draw, (0, 0, 0), 2, "SOURCE")
         _draw(target_coords, t_box_draw, (255, 0, 0), 3, "TARGET_RED") 
         
-        # Test rectangles removed - coordinate scaling is working correctly
-
         # ----- 5) Save -----
         self._thumb = thumb
-
-        # Debug: Save a test image to verify rectangles are actually drawn
-        try:
-            import os
-            os.makedirs("data/slides/thumbs", exist_ok=True)
-            debug_path = f"data/slides/thumbs/debug_thumb_{os.path.basename(self.path)}.png"
-            thumb.save(debug_path)
-            sf.util.log.debug(f"DEBUG: Saved thumbnail with overlays to {debug_path}")
-            sf.util.log.debug(f"DEBUG: Thumbnail size: {thumb.size}, mode: {thumb.mode}")
-        except Exception as e:
-            sf.util.log.error(f"DEBUG: Failed to save debug thumbnail for {self.path}: {e}")
-            import traceback
-            sf.util.log.error(f"DEBUG: Traceback: {traceback.format_exc()}")
 
     def create_combination_visualization(self) -> Optional[bytes]:
         """Create a visualization showing source→target tile relationships."""
