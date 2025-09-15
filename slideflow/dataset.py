@@ -2002,7 +2002,7 @@ class Dataset:
                 
         # Update manifest after processing
         self.update_manifest(force_update=True)
-        self.build_index(True)
+        self.build_index(False)
         
         # Build index files for the new TFRecords
         if all_reports:
@@ -2765,7 +2765,7 @@ class Dataset:
                 thumb_coords=None,
                 data=report_data,
                 compress=True,
-                ignore_thumb_errors=True,
+                ignore_thumb_errors=False,
             )
 
             # -------- SOURCE centers: read directly from source TFRecord --------

@@ -569,7 +569,7 @@ class LowerMagSlideReport(SlideReport):
         
         # Use black for source tiles, red for target tiles - with thin lines
         _draw(source_coords, s_box_draw, (0, 0, 0), 2, "SOURCE")
-        _draw(target_coords, t_box_draw, (255, 0, 0), 2.5, "TARGET_RED") 
+        _draw(target_coords, t_box_draw, (255, 0, 0), 3, "TARGET_RED") 
         
         # Test rectangles removed - coordinate scaling is working correctly
 
@@ -577,12 +577,17 @@ class LowerMagSlideReport(SlideReport):
         self._thumb = thumb
 
         # Debug: Save a test image to verify rectangles are actually drawn
-        import os
-        os.makedirs("data/slides/thumbs", exist_ok=True)
-        debug_path = f"data/slides/thumbs/debug_thumb_{os.path.basename(self.path)}.png"
-        thumb.save(debug_path)
-        sf.util.log.debug(f"DEBUG: Saved thumbnail with overlays to {debug_path}")
-        sf.util.log.debug(f"DEBUG: Thumbnail size: {thumb.size}, mode: {thumb.mode}")
+        try:
+            import os
+            os.makedirs("data/slides/thumbs", exist_ok=True)
+            debug_path = f"data/slides/thumbs/debug_thumb_{os.path.basename(self.path)}.png"
+            thumb.save(debug_path)
+            sf.util.log.debug(f"DEBUG: Saved thumbnail with overlays to {debug_path}")
+            sf.util.log.debug(f"DEBUG: Thumbnail size: {thumb.size}, mode: {thumb.mode}")
+        except Exception as e:
+            sf.util.log.error(f"DEBUG: Failed to save debug thumbnail for {self.path}: {e}")
+            import traceback
+            sf.util.log.error(f"DEBUG: Traceback: {traceback.format_exc()}")
 
     def create_combination_visualization(self) -> Optional[bytes]:
         """Create a visualization showing source→target tile relationships."""
