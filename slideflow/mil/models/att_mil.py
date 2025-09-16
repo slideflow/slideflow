@@ -27,7 +27,8 @@ class Attention_MIL(nn.Module):
         attention: Optional[nn.Module] = None,
         head: Optional[nn.Module] = None,
         attention_gate: float = 0,
-        temperature: float = 1.
+        temperature: float = 1.,
+        pretrained_path: Optional[str] = None
     ) -> None:
         """Create a new attention MIL model.
         Args:
@@ -46,6 +47,8 @@ class Attention_MIL(nn.Module):
             temperature (float): Softmax temperature. Defaults to 1.
             attention_gate (float): Gate predictions prior to attention softmax based on this percentile.
                 Defaults to 0 (disabled).
+            pretrained_path (str, optional): Path to a pretrained model checkpoint to load weights from.
+                If provided, the model will initialize its weights from this checkpoint.
 
         """
         super().__init__()
@@ -61,6 +64,10 @@ class Attention_MIL(nn.Module):
             log.debug("Using attention softmax temperature: {}".format(temperature))
         if attention_gate:
             log.debug("Using attention gate: {} percentile".format(attention_gate))
+
+        # Load pretrained weights if path is provided
+        if pretrained_path is not None:
+            self._load_pretrained_weights(pretrained_path)
 
     def forward(self, bags, lens, *, return_attention=False, uq=False, uq_softmax=True):
         assert bags.ndim == 3
@@ -162,6 +169,44 @@ class Attention_MIL(nn.Module):
             return torch.softmax(masked_attention, dim=1)
         else:
             return masked_attention
+
+    def _load_pretrained_weights(self, pretrained_path: str):
+        """Load pretrained weights from a checkpoint file.
+
+        Args:
+            pretrained_path (str): Path to the pretrained model checkpoint.
+        """
+        import os
+
+        if not os.path.exists(pretrained_path):
+            raise FileNotFoundError(f"Pretrained model not found at: {pretrained_path}")
+
+        try:
+            # Load the checkpoint
+            checkpoint = torch.load(pretrained_path, map_location='cpu')
+
+            # Handle different checkpoint formats
+            if 'model_state_dict' in checkpoint:
+                state_dict = checkpoint['model_state_dict']
+            elif 'state_dict' in checkpoint:
+                state_dict = checkpoint['state_dict']
+            else:
+                state_dict = checkpoint
+
+            # Load the state dict with strict=False to allow for partial loading
+            # This is useful if the pretrained model has a different number of output classes
+            missing_keys, unexpected_keys = self.load_state_dict(state_dict, strict=False)
+
+            if missing_keys:
+                log.warning(f"Missing keys when loading pretrained weights: {missing_keys}")
+            if unexpected_keys:
+                log.warning(f"Unexpected keys when loading pretrained weights: {unexpected_keys}")
+
+            log.info(f"Successfully loaded pretrained weights from: {pretrained_path}")
+
+        except Exception as e:
+            log.error(f"Failed to load pretrained weights from {pretrained_path}: {str(e)}")
+            raise
 
     def relocate(self):
         """Move model to GPU. Required for FastAI compatibility."""
