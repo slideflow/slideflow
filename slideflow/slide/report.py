@@ -951,7 +951,6 @@ class LowerMagExtractionReport(ExtractionReport):
         # Add lower mag specific content to PDF
         self._add_lower_mag_summary()
         self._add_combination_metrics()
-        self._add_efficiency_charts()
 
     def _add_lower_mag_summary(self) -> None:
         pdf = self.pdf
@@ -1015,35 +1014,3 @@ class LowerMagExtractionReport(ExtractionReport):
             pdf.cell(25, 5, f"{coverage_red:.1f}%", 1, 0, 'C')
             pdf.cell(25, 5, f"{incomplete:.1f}%", 1, 1, 'C')
         pdf.ln(10)
-
-    def _add_efficiency_charts(self) -> None:
-        pdf = self.pdf
-        try:
-            import matplotlib.pyplot as plt
-            effs = [r.combination_efficiency for r in self.reports if r and hasattr(r, 'combination_efficiency') and r.combination_efficiency is not None]
-            covers = [r.spatial_coverage_reduction for r in self.reports if r and hasattr(r, 'spatial_coverage_reduction') and r.spatial_coverage_reduction is not None]
-            if not (effs and covers):
-                return
-            with sf.util.matplotlib_backend('Agg'):
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
-
-                ax1.hist(effs, bins=10, alpha=0.9, edgecolor='black')
-                ax1.set_xlabel('Combination Efficiency (%)')
-                ax1.set_ylabel('Number of Slides')
-                ax1.set_title('Tile Combination Efficiency')
-                ax1.grid(True, alpha=0.3)
-
-                ax2.hist(covers, bins=10, alpha=0.9, edgecolor='black')
-                ax2.set_xlabel('Spatial Coverage Reduction (%)')
-                ax2.set_ylabel('Number of Slides')
-                ax2.set_title('Coverage Reduction')
-                ax2.grid(True, alpha=0.3)
-
-                plt.tight_layout()
-                with tempfile.NamedTemporaryFile(suffix='.png') as temp:
-                    plt.savefig(temp.name, dpi=150, bbox_inches='tight')
-                    pdf.image(temp.name, 10, pdf.y, w=190)
-                    plt.close(fig)
-                pdf.ln(60)
-        except Exception as e:
-            log.error(f"Error creating efficiency charts: {e}")

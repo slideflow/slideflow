@@ -19,8 +19,12 @@ import pickle
 import pandas as pd
 import tarfile
 import warnings
+from collections import defaultdict
 from tqdm import tqdm
+from rich.progress import track
 from os.path import basename, exists, join, isdir, dirname
+from pathlib import Path
+import glob
 from multiprocessing.managers import DictProxy
 from contextlib import contextmanager
 from statistics import mean
@@ -31,6 +35,7 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
 import slideflow as sf
 from . import errors, project_utils
 from .util import log, path_to_name, path_to_ext
+from .model.features import DatasetFeatures
 from .dataset import Dataset
 from .model import ModelParams
 from .project_utils import (  # noqa: F401
@@ -1995,6 +2000,195 @@ class Project:
         dataset.generate_feature_bags(model, outdir, **kwargs)
 
         return outdir
+
+    def _get_extraction_csv(self, high_mag_tfr_dir, low_mag_tfr_dir):
+        """
+        Reads two CSVs and returns a small summary dict with:
+        - tile_px
+        - tile_um
+        - num_tiles
+
+        Assumptions:
+        • High-mag CSV is `<high_mag_tfr_dir>/extraction_report.csv`
+        • Low-mag CSV is the first match of `lower_mag_extraction_report_*.csv`
+            (fallback to `<low_mag_tfr_dir>/extraction_report.csv`)
+
+        Returns:
+        {
+            "high": {"csv_path": Path, "tile_px": int|None, "tile_um": float|None, "num_tiles": int},
+            "low":  {"csv_path": Path, "tile_px": int|None, "tile_um": float|None, "num_tiles": int},
+        }
+        """
+        high_dir = Path(high_mag_tfr_dir)
+        low_dir  = Path(low_mag_tfr_dir)
+
+        # Resolve paths
+        high_csv = high_dir / "extraction_report.csv"
+        low_matches = sorted(low_dir.glob("lower_mag_extraction_report_*.csv"))
+        low_csv = low_matches[0] if low_matches else (low_dir / "extraction_report.csv")
+
+        # Read
+        high_df = pd.read_csv(high_csv)
+        low_df  = pd.read_csv(low_csv)
+
+        # Try common column names; keep it simple
+        def pick(df, name_options, cast):
+            for n in name_options:
+                if n in df.columns:
+                    try:
+                        return cast(df[n].iloc[0])
+                    except Exception:
+                        return None
+            return None
+
+        # Pick tile_um without casting - slideflow can handle magnification strings like "40x"
+        def pick_tile_um(df, name_options):
+            for n in name_options:
+                if n in df.columns:
+                    return df[n].iloc[0]  # Return as-is (string or numeric)
+            return None
+
+        px_names = ["tile_px", "target_tile_px", "source_tile_px"]
+        um_names = ["tile_um", "target_tile_um", "source_tile_um"]
+
+        out = {
+            "high": {
+                "csv_path": high_csv,
+                "tile_px": pick(high_df, px_names, int),
+                "tile_um": pick_tile_um(high_df, um_names),
+                "num_tiles": len(high_df),
+            },
+            "low": {
+                "csv_path": low_csv,
+                "tile_px": pick(low_df, px_names, int),
+                "tile_um": pick_tile_um(low_df, um_names),
+                "num_tiles": len(low_df),
+            },
+        }
+        return out
+
+    def extract_dual_magnification_features(
+        self,
+        source: str,
+        high_mag_tfr_dir: str,
+        low_mag_tfr_dir: str,
+        model_path: str,
+        output_dir: str,
+        *,
+        filters: Optional[Dict] = None,
+        batch_size: int = 32,
+        num_workers: int = 4,
+        high_mag_features_path: Optional[str] = None,
+        low_mag_features_path: Optional[str] = None,
+        **kwargs
+    ) -> "DatasetFeatures":
+        """Extract and concatenate features from corresponding high and low magnification tiles.
+        
+        For each high magnification tile, this method finds the corresponding low magnification
+        tile that contains it (based on spatial coordinates), extracts features from both using
+        the same model, concatenates the feature vectors, and creates bags from the concatenated
+        features.
+        
+        Args:
+            source (str): Dataset source name from the project
+            high_mag_tfr_dir (str): Directory containing high magnification TFRecords
+            low_mag_tfr_dir (str): Directory containing low magnification TFRecords  
+            model_path (str): Path to the feature extraction model
+            output_dir (str): Directory to save the concatenated feature bags
+            filters (dict, optional): Dataset filters to apply
+            batch_size (int): Batch size for feature extraction. Defaults to 32.
+            num_workers (int): Number of worker processes. Defaults to 4.
+            high_mag_features_path (str, optional): Path to pre-extracted high mag features 
+                (for concatenate_only mode)
+            low_mag_features_path (str, optional): Path to pre-extracted low mag features 
+                (for concatenate_only mode)
+            **kwargs: Additional arguments passed to feature extraction
+            
+        Returns:
+            DatasetFeatures: Object containing the concatenated feature bags
+            
+        Example:
+            >>> # Extract concatenated features from 40x and 10x tiles
+            >>> features = DatasetFeatures.extract_concatenated_features(
+            ...     high_mag_tfr_dir='project/tfrecords/512px_40x',
+            ...     low_mag_tfr_dir='project/tfrecords/224px_10x_from_40x', 
+            ...     model_path='path/to/model.pt',
+            ...     output_dir='project/concatenated_features'
+            ... )
+        """
+        
+        log.info(f"Starting concatenated feature extraction")
+        log.info(f"  High mag TFRecords: {high_mag_tfr_dir}")
+        log.info(f"  Low mag TFRecords: {low_mag_tfr_dir}")
+        log.info(f"  Model: {model_path}")
+        log.info(f"  Output: {output_dir}")
+        
+        # Validate input directories
+        if not os.path.exists(high_mag_tfr_dir):
+            raise FileNotFoundError(f"High magnification TFRecord directory not found: {high_mag_tfr_dir}")
+        if not os.path.exists(low_mag_tfr_dir):
+            raise FileNotFoundError(f"Low magnification TFRecord directory not found: {low_mag_tfr_dir}")
+        tfrecords_base = os.path.dirname(high_mag_tfr_dir)  # Get parent dir
+        # Create output directory
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Get extraction information from report csvs
+        out = Project._get_extraction_csv(self, high_mag_tfr_dir, low_mag_tfr_dir)
+        
+        # Find all TFRecord files in both directories
+        high_mag_tfrs = glob.glob(os.path.join(high_mag_tfr_dir, "*.tfrecords"))
+        low_mag_tfrs = glob.glob(os.path.join(low_mag_tfr_dir, "*.tfrecords"))
+        
+        if not high_mag_tfrs:
+            raise ValueError(f"No TFRecord files found in high mag directory: {high_mag_tfr_dir}")
+        if not low_mag_tfrs:
+            raise ValueError(f"No TFRecord files found in low mag directory: {low_mag_tfr_dir}")
+            
+        log.info(f"Found {len(high_mag_tfrs)} high mag TFRecords and {len(low_mag_tfrs)} low mag TFRecords")
+        log.debug(f"Found high mag: {out['high']['tile_px']} px at {out['high']['tile_um']} and low mag : {out['low']['tile_px']}px at {out['low']['tile_um']}")
+        # Create datasets using the standard approach with source_um for low mag
+        # High mag dataset (standard approach)
+        high_mag_dataset = Dataset(
+            tfrecords=tfrecords_base,
+            tile_px=out['high']['tile_px'],
+            tile_um=out['high']['tile_um'],
+            annotations=self.annotations,
+            filters=filters
+        )
+        
+        # Low mag dataset with source_um to find "224px_10x_from_40x" directories
+        low_mag_dataset = Dataset(
+            tfrecords=tfrecords_base,
+            tile_px=out['low']['tile_px'],
+            tile_um=out['low']['tile_um'],
+            source_um=out['high']['tile_um'],  # This creates "224px_10x_from_40x" label
+            annotations=self.annotations,
+            filters=filters
+        )
+        
+        log.info(f"High mag dataset: {len(high_mag_dataset.tfrecords())} TFRecords")
+        log.info(f"Low mag dataset: {len(low_mag_dataset.tfrecords())} TFRecords")
+        
+        # Use the specialized DualMagnificationFeatures subclass
+        from .model.features import DualMagnificationFeatures
+        
+        dual_features = DualMagnificationFeatures(output_dir)
+        result = dual_features.extract_and_concatenate(
+            high_mag_dataset=high_mag_dataset,
+            low_mag_dataset=low_mag_dataset,
+            model_path=model_path,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            high_mag_features_path=high_mag_features_path,
+            low_mag_features_path=low_mag_features_path,
+            **kwargs
+        )
+        
+        # Save bags to concatenated subdirectory  
+        log.info(f"Saving concatenated feature bags to {result.concatenated_dir}")
+        result.to_torch(result.concatenated_dir, verbose=True)
+        
+        return result
 
     @auto_dataset
     def generate_heatmaps(
