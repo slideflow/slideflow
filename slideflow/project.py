@@ -2078,16 +2078,21 @@ class Project:
         filters: Optional[Dict] = None,
         batch_size: int = 32,
         num_workers: int = 4,
+        min_tiles: Optional[int] = None,
+        max_tiles: Optional[int] = None,
         high_mag_features_path: Optional[str] = None,
         low_mag_features_path: Optional[str] = None,
         **kwargs
     ) -> "DatasetFeatures":
         """Extract and concatenate features from corresponding high and low magnification tiles.
-        
+
         For each high magnification tile, this method finds the corresponding low magnification
         tile that contains it (based on spatial coordinates), extracts features from both using
-        the same model, concatenates the feature vectors, and creates bags from the concatenated
-        features.
+        the same model, concatenates the feature vectors, and saves them in MIL-ready format.
+
+        The output concatenated features are saved as individual .pt files per slide with
+        accompanying .index files containing coordinate information. These files are directly
+        compatible with MIL training without requiring additional conversion to bags.
         
         Args:
             source (str): Dataset source name from the project
@@ -2098,14 +2103,17 @@ class Project:
             filters (dict, optional): Dataset filters to apply
             batch_size (int): Batch size for feature extraction. Defaults to 32.
             num_workers (int): Number of worker processes. Defaults to 4.
-            high_mag_features_path (str, optional): Path to pre-extracted high mag features 
+            min_tiles (int, optional): Minimum tiles per slide. Slides with fewer tiles are excluded.
+            max_tiles (int, optional): Maximum tiles per slide. Excess tiles are randomly sampled.
+            high_mag_features_path (str, optional): Path to pre-extracted high mag features
                 (for concatenate_only mode)
-            low_mag_features_path (str, optional): Path to pre-extracted low mag features 
+            low_mag_features_path (str, optional): Path to pre-extracted low mag features
                 (for concatenate_only mode)
             **kwargs: Additional arguments passed to feature extraction
             
         Returns:
-            DatasetFeatures: Object containing the concatenated feature bags
+            DatasetFeatures: Object containing MIL-ready concatenated features saved as
+            individual .pt files per slide, directly usable for training without conversion
             
         Example:
             >>> # Extract concatenated features from 40x and 10x tiles
@@ -2179,6 +2187,8 @@ class Project:
             model_path=model_path,
             batch_size=batch_size,
             num_workers=num_workers,
+            min_tiles=min_tiles,
+            max_tiles=max_tiles,
             high_mag_features_path=high_mag_features_path,
             low_mag_features_path=low_mag_features_path,
             **kwargs

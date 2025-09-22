@@ -1309,11 +1309,13 @@ class DualMagnificationFeatures(DatasetFeatures):
     def extract_and_concatenate(
         self,
         high_mag_dataset: "sf.Dataset",
-        low_mag_dataset: "sf.Dataset", 
+        low_mag_dataset: "sf.Dataset",
         model_path: str,
         *,
         batch_size: int = 32,
         num_workers: int = 4,
+        min_tiles: Optional[int] = None,
+        max_tiles: Optional[int] = None,
         high_mag_features_path: Optional[str] = None,
         low_mag_features_path: Optional[str] = None,
         **kwargs
@@ -1326,6 +1328,8 @@ class DualMagnificationFeatures(DatasetFeatures):
             model_path: Path to model or name of built-in feature extractor
             batch_size: Batch size for feature extraction
             num_workers: Number of worker processes
+            min_tiles: Minimum tiles per slide. Slides with fewer tiles are excluded.
+            max_tiles: Maximum tiles per slide. Excess tiles are randomly sampled.
             high_mag_features_path: Path to pre-extracted high mag features (for concatenate_only mode)
             low_mag_features_path: Path to pre-extracted low mag features (for concatenate_only mode)
             **kwargs: Additional arguments passed to feature extraction
@@ -1410,7 +1414,7 @@ class DualMagnificationFeatures(DatasetFeatures):
         
         # Step 3: Create concatenated features with spatial matching
         log.info("Creating concatenated features with spatial matching...")
-        self._create_concatenated_features(high_mag_features, low_mag_features, high_mag_dataset, low_mag_dataset)
+        self._create_concatenated_features(high_mag_features, low_mag_features, high_mag_dataset, low_mag_dataset, min_tiles, max_tiles)
         log.info(f"Concatenated features saved iteratively to {self.concatenated_dir}")
     
         return self
@@ -1517,11 +1521,13 @@ class DualMagnificationFeatures(DatasetFeatures):
         return features
     
     def _create_concatenated_features(
-        self, 
-        high_mag_features: DatasetFeatures, 
+        self,
+        high_mag_features: DatasetFeatures,
         low_mag_features: DatasetFeatures,
         high_mag_dataset: "sf.Dataset",
-        low_mag_dataset: "sf.Dataset"
+        low_mag_dataset: "sf.Dataset",
+        min_tiles: Optional[int] = None,
+        max_tiles: Optional[int] = None
     ):
         """Create concatenated features with spatial matching logic."""
         import pandas as pd
@@ -1547,19 +1553,33 @@ class DualMagnificationFeatures(DatasetFeatures):
             if slide_name not in low_activations:
                 log.warning(f"Slide {slide_name} found in high mag but not low mag - skipping")
                 continue
-                
+
             # Get tile coordinates and features
             high_coords = high_locations[slide_name]
-            high_feats = high_activations[slide_name] 
+            high_feats = high_activations[slide_name]
             low_coords = low_locations[slide_name]
             low_feats = low_activations[slide_name]
-            
+
             # Spatial matching logic - pass the datasets to calculate proper thresholds
             matched_pairs = self._find_spatial_matches(
                 high_coords, high_feats, low_coords, low_feats,
                 high_mag_dataset, low_mag_dataset
             )
-            
+
+            # Early filtering: check if we have enough matched pairs before processing
+            num_matched_tiles = len(matched_pairs)
+            if min_tiles is not None and num_matched_tiles < min_tiles:
+                log.warning(f"Slide {slide_name} has only {num_matched_tiles} matched tiles (< {min_tiles}), skipping")
+                continue
+
+            # Apply max_tiles filtering by randomly sampling matched pairs
+            if max_tiles is not None and num_matched_tiles > max_tiles:
+                log.info(f"Slide {slide_name} has {num_matched_tiles} matched tiles, randomly sampling {max_tiles}")
+                import numpy as np
+                indices = np.random.choice(num_matched_tiles, max_tiles, replace=False)
+                matched_pairs = [matched_pairs[i] for i in sorted(indices)]
+                num_matched_tiles = max_tiles
+
             # Create concatenated features for matched pairs
             for high_idx, low_idx, high_coord, distance in matched_pairs:
                 high_feat = high_feats[high_idx]
@@ -1611,7 +1631,7 @@ class DualMagnificationFeatures(DatasetFeatures):
                 
                 # Save individual torch files for this slide immediately (but not config yet)
                 self._save_single_slide_torch_files(slide_name)
-                log.info(f"✓ Saved concatenated features for slide {slide_name} ({len(matched_pairs)} tiles)")
+                log.info(f"✓ Saved concatenated features for slide {slide_name} ({num_matched_tiles} tiles)")
             else:
                 log.warning(f"No concatenated features created for slide {slide_name}")
             
