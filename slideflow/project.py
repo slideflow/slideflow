@@ -2074,6 +2074,7 @@ class Project:
         low_mag_tfr_dir: str,
         model_path: str,
         output_dir: str,
+        device = 'cuda',
         *,
         filters: Optional[Dict] = None,
         batch_size: int = 32,
@@ -2098,6 +2099,7 @@ class Project:
             source (str): Dataset source name from the project
             high_mag_tfr_dir (str): Directory containing high magnification TFRecords
             low_mag_tfr_dir (str): Directory containing low magnification TFRecords  
+            device (str): 'cuda' or 'cpu'
             model_path (str): Path to the feature extraction model
             output_dir (str): Directory to save the concatenated feature bags
             filters (dict, optional): Dataset filters to apply
@@ -2184,6 +2186,7 @@ class Project:
         result = dual_features.extract_and_concatenate(
             high_mag_dataset=high_mag_dataset,
             low_mag_dataset=low_mag_dataset,
+            device = device,
             model_path=model_path,
             batch_size=batch_size,
             num_workers=num_workers,

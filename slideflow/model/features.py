@@ -1311,6 +1311,7 @@ class DualMagnificationFeatures(DatasetFeatures):
         high_mag_dataset: "sf.Dataset",
         low_mag_dataset: "sf.Dataset",
         model_path: str,
+        device = 'cuda',
         *,
         batch_size: int = 32,
         num_workers: int = 4,
@@ -1381,8 +1382,7 @@ class DualMagnificationFeatures(DatasetFeatures):
                 if isinstance(model_path, str) and not os.path.exists(model_path):
                     # Built-in feature extractor
                     log.info(f"Building feature extractor: {model_path}")
-                    if 'device' not in kwargs:
-                        kwargs['device'] = 'cpu' if not sf.util.torch_utils.gpu_available() else 'cuda'
+                    kwargs['device'] = device
                     extractor = sf.build_feature_extractor(model_path, tile_px=high_mag_dataset.tile_px, **kwargs)
                 else:
                     # File path to saved model

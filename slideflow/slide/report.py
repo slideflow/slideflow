@@ -309,8 +309,8 @@ class LowerMagSlideReport(SlideReport):
             
             # Construct target directory name: "{target_px}px_{target_mag}_from_{source_mag}"
             target_px = getattr(self, 'target_tile_px', self.tile_px)  # Default to current tile_px if not set
-            source_mag = getattr(self, 'source_tile_um', '40x')
-            target_mag = getattr(self, 'tile_um', '10x')
+            source_mag = getattr(self, 'source_tile_um')
+            target_mag = getattr(self, 'tile_um')
             
             target_dir_name = f"{target_px}px_{target_mag}_from_{source_mag}"
             
@@ -398,14 +398,39 @@ class LowerMagSlideReport(SlideReport):
                 tile_um=getattr(self, 'tile_um', '10x'),
                 verbose=False,
             )
-        except sf.errors.SlideMissingMPPError:
-            wsi = sf.WSI(
-                self.path,
-                tile_px=getattr(self, 'tile_px', 512),
-                tile_um=getattr(self, 'tile_um', '10x'),
-                verbose=False,
-                mpp=1.0,  # fallback; only ratios matter downstream
+        except Exception as e:
+            # If slideflow exposes specific error types, include them; otherwise catch generic Exception.
+            try:
+                SlideLoadError = sf.errors.SlideLoadError
+                SlideMissingMPPError = sf.errors.SlideMissingMPPError
+            except Exception:
+                SlideLoadError = None
+                SlideMissingMPPError = None
+
+            is_slide_error = (
+                (SlideLoadError and isinstance(e, SlideLoadError)) or
+                (SlideMissingMPPError and isinstance(e, SlideMissingMPPError))
             )
+
+            # Log and gracefully skip this slide's overlay drawing.
+            log.warning(f"Skipping thumbnail overlay for {self.path} due to WSI open error: {e}")
+            # Mark as skipped so higher-level reports can count this.
+            self.data = self.data or {}
+            self.data['skipped'] = True
+
+            # Try to generate a basic thumbnail safely; if that fails, create a blank placeholder.
+            try:
+                base_thumb = sf.WSI(self.path, tile_px=getattr(self, 'tile_px', 512)).thumb(
+                    coords=None, rois=getattr(self, 'has_rois', False), low_res=True, width=1024, rect_linewidth=1
+                )
+                thumb = Image.fromarray(np.asarray(base_thumb)[:, :, :3])
+            except Exception as e_thumb:
+                log.debug(f"Couldn't create fallback thumbnail for {self.path}: {e_thumb}; using blank placeholder.")
+                thumb = Image.new('RGB', (1024, 1024), (255, 255, 255))
+
+            # Save placeholder and exit early — don't attempt any overlay drawing.
+            self._thumb = thumb
+            return
 
         # ----- 1) Build thumbnail & get level-0 geometry -----
         base_thumb = wsi.thumb(coords=None, rois=self.has_rois, low_res=True, width=1024, rect_linewidth=1)
@@ -480,11 +505,11 @@ class LowerMagSlideReport(SlideReport):
             s_box_draw = float(getattr(self, 'source_tile_px'))  # e.g., 128 if 40→10
         except Exception as e:
             # Derive from report tile_px and mag_ratio if present
-            s_box_draw = float(getattr(self, 'tile_px', 512)) / max(1.0, float(getattr(self, 'mag_ratio', 1)))
+            s_box_draw = float(getattr(self, 'tile_px')) / max(1.0, float(getattr(self, 'mag_ratio', 1)))
         try:
             t_box_draw = float(getattr(self, 'target_tile_px'))  # e.g., 512 at draw level
         except Exception as e:
-            t_box_draw = float(getattr(self, 'tile_px', 512))
+            t_box_draw = float(getattr(self, 'tile_px'))
 
         # ----- 4) Draw rectangles (centers are already in DRAW coordinates) -----
         def _draw(centers_draw, box_draw, color, width, label):
