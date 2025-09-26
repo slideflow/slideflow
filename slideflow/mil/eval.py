@@ -32,6 +32,7 @@ def eval_mil(
     bags: Union[str, List[str]],
     config: Optional[TrainerConfig] = None,
     *,
+    events: Optional[str] = None,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
@@ -92,6 +93,7 @@ def eval_mil(
         dataset,
         outcomes,
         bags,
+        events=events,
         outdir=outdir,
         attention_heatmaps=attention_heatmaps,
         uq=uq,
@@ -107,6 +109,7 @@ def predict_mil(
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
     *,
+    events: Optional[str] = None,
     config: Optional[TrainerConfig] = None,
     attention: bool = False,
     aggregation_level: Optional[str] = None,
@@ -159,7 +162,7 @@ def predict_mil(
         )
 
     # Prepare labels.
-    labels, _ = utils.get_labels(dataset, outcomes, config.is_classification(), format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.model_type, events=events, format='id')
 
     # Prepare bags and targets.
     slides = list(labels.keys())
@@ -211,11 +214,13 @@ def predict_mil(
             df_dict[f'uncertainty{i}'] = y_uq[:, i]
     df = pd.DataFrame(df_dict)
 
+    if config.model_type == 'survival':
+        df['y_pred0'] = -df['y_pred0']
+
     if attention:
         return df, y_att
     else:
         return df
-
 
 def predict_multimodal_mil(
     model: Union[str, Callable],
@@ -276,7 +281,7 @@ def predict_multimodal_mil(
         )
 
     # Prepare labels.
-    labels, _ = utils.get_labels(dataset, outcomes, config.is_classification(), format='id')
+    labels, _ = utils.get_labels(dataset, outcomes, config.model_type, format='id')
 
     # Prepare bags and targets.
     slides = list(labels.keys())
@@ -315,7 +320,6 @@ def predict_multimodal_mil(
         return df, y_att
     else:
         return df
-
 
 def predict_slide(
     model: str,
@@ -746,6 +750,7 @@ def run_eval(
     bags: Union[str, List[str]],
     config: TrainerConfig,
     *,
+    events: Optional[str] = None,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
     uq: bool = False,
@@ -788,6 +793,7 @@ def run_eval(
         dataset=dataset,
         config=config,
         outcomes=outcomes,
+        events=events,
         bags=bags,
         attention=True,
         aggregation_level=aggregation_level
@@ -813,7 +819,7 @@ def run_eval(
         model_dir = None
 
     # Print classification metrics, including per-category accuracy)
-    metrics_df = utils.rename_df_cols(df, outcomes, categorical=config.is_classification())
+    metrics_df = utils.rename_df_cols(df, outcomes, model_type=config.model_type)
     config.run_metrics(metrics_df, level='slide', outdir=model_dir)
 
     # Export attention
@@ -896,7 +902,7 @@ def get_mil_tile_predictions(
     model.to(device)
 
     if outcomes is not None:
-        labels, _ = utils.get_labels(dataset, outcomes, config.is_classification(), format='id')
+        labels, _ = utils.get_labels(dataset, outcomes, config.model_type, format='id')
 
     # Prepare bags.
     slides = dataset.slides()

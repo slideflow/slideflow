@@ -891,9 +891,9 @@ def log_manifest(
     """Saves the training manifest in CSV format and returns as a string.
 
     Args:
-        train_tfrecords (list(str)], optional): List of training TFRecords.
+        train_tfrecords (list(str], optional): List of training TFRecords.
             Defaults to None.
-        val_tfrecords (list(str)], optional): List of validation TFRecords.
+        val_tfrecords (list(str], optional): List of validation TFRecords.
             Defaults to None.
 
     Keyword args:

@@ -14,6 +14,12 @@ from ._registry import get_trainer, build_model_config
 if TYPE_CHECKING:
     from fastai.learner import Learner
 
+def concordance_index(axis=-1):
+    """Concordance index metric for survival analysis."""
+    from fastai.metrics import skm_to_fastai
+    from slideflow.stats.concordance import c_index
+    return skm_to_fastai(c_index, is_class=False, flatten=False)
+
 # -----------------------------------------------------------------------------
 
 def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
@@ -171,8 +177,10 @@ class TrainerConfig:
 
         model_metrics = self.model_config.get_metrics()
 
-        if self.is_classification():
+        if self.model_config.model_type in ['classification', 'ordinal']:
             fallback = [RocAuc()]
+        elif self.model_config.model_type == 'survival':
+            fallback = [concordance_index()]
         else:
             fallback = [mse, PearsonCorrCoef()]
         return model_metrics or fallback
@@ -386,6 +394,7 @@ class TrainerConfig:
         outcomes: Union[str, List[str]],
         bags: Union[str, List[str]],
         *,
+        events: Optional[str] = None,
         outdir: str = 'mil',
         attention_heatmaps: bool = False,
         uq: bool = False,
@@ -445,6 +454,7 @@ class TrainerConfig:
             config=self,
             outdir=outdir,
             params=params,
+            events=events,
             aggregation_level=(aggregation_level or self.aggregation_level)
         )
 
@@ -591,13 +601,128 @@ class TrainerConfig:
 
 # -----------------------------------------------------------------------------
 
+class CoxProportionalHazardsLoss(torch.nn.modules.loss._Loss):
+    """Cox proportional hazards loss.
+    Adapted from https://github.com/havakv/pycox/blob/master/pycox/models/loss.py
+    """
+    def __init__(self, reduction: str = 'mean', eps: float = 1e-7):
+        """
+        Args:
+            reduction (str): Specifies the reduction to apply to the output.
+                'none': no reduction will be applied,
+                'mean': the sum of the output will be divided by the number of elements in the output,
+                'sum': the output will be summed.
+            eps (float): Small constant value to avoid division by zero.
+        """
+        super().__init__(reduction=reduction)
+        self.eps = eps
+
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            y_pred (torch.Tensor): Predictions (log_h).
+            y_true (torch.Tensor): True labels (durations and events).
+        Returns:
+            torch.Tensor: Loss.
+        """
+        durations = y_true[:, 0]
+        events = y_true[:, 1]
+        log_h = y_pred
+
+        # Sort by descending duration
+        idx = torch.sort(durations, descending=True)[1]
+        events = events[idx]
+        log_h = log_h[idx]
+
+        events = events.view(-1)
+        log_h = log_h.view(-1)
+
+        gamma = log_h.max()
+        log_cumsum_h = log_h.sub(gamma).exp().cumsum(0).add(self.eps).log().add(gamma)
+
+        if events.sum() == 0:
+            return torch.tensor(0.0, device=log_h.device, requires_grad=True)
+        else:
+            return - log_h.sub(log_cumsum_h).mul(events).sum().div(events.sum())
+
+class MultimodalLoss(nn.Module):
+    def __init__(self, reconstruction_weight: float = 0.01, weight: Optional[torch.Tensor] = None):
+        """Loss function for multimodal MIL models.
+        
+        Args:
+            reconstruction_weight (float): Weight for the reconstruction loss component.
+                Defaults to 0.1.
+        """
+        super().__init__()
+        self.ce = nn.CrossEntropyLoss(weight=weight)
+        self.mse = nn.MSELoss(reduction='none')
+        self.reconstruction_weight = reconstruction_weight
+        self.weights = weight
+
+    def forward(self, logits, targets):
+        # if logits is not tuple
+        if not isinstance(logits, tuple):
+            predictions = logits
+            return self.ce(predictions, targets)
+        else:
+            # Unpack the input
+            predictions = logits[0]  # Classification predictions
+            reconstructions = logits[1]  # List of reconstruction tensors
+            reconstruction_targets = logits[2]  # List of target tensors 
+            modality_mask = logits[3]  # Mask indicating which modalities were present
+
+        # Calculate classification loss
+        classification_loss = self.ce(predictions, targets)
+
+        # Calculate reconstruction loss
+        reconstruction_loss = 0
+        n_valid_reconstructions = 0
+
+        for target_mod_idx, (reconstruction, target) in enumerate(zip(reconstructions, reconstruction_targets)):
+            # Expand target to match reconstruction shape
+            # reconstruction shape: (batch_size, n_modalities, modality_dim)
+            # target shape: (batch_size, modality_dim)
+            expanded_target = target.unsqueeze(1).expand(-1, reconstruction.size(1), -1)
+            
+            # Calculate MSE for this modality
+            mod_mse = self.mse(reconstruction, expanded_target)  # (batch_size, n_modalities, modality_dim)
+            
+            # Average across feature dimension
+            mod_mse = mod_mse.mean(dim=-1)  # (batch_size, n_modalities)
+            
+            # Create combined mask that accounts for both source and target modalities
+            # We only want to calculate loss when both source and target modalities are present
+            target_modality_present = modality_mask[:, target_mod_idx].unsqueeze(1)  # (batch_size, 1)
+            combined_mask = modality_mask & target_modality_present  # (batch_size, n_modalities)
+            
+            # Mask out missing modalities (both source and target)
+            masked_mse = mod_mse * combined_mask.float()
+            
+            # Sum valid reconstructions and count them
+            valid_count = combined_mask.sum()
+            if valid_count > 0:
+                reconstruction_loss += masked_mse.sum() / valid_count
+                n_valid_reconstructions += 1
+
+        # Average reconstruction loss across modalities
+        if n_valid_reconstructions > 0:
+            reconstruction_loss = reconstruction_loss / n_valid_reconstructions
+        
+        # Combine losses
+        total_loss = classification_loss + (self.reconstruction_weight * reconstruction_loss)
+
+        return total_loss
+
+
 class MILModelConfig:
 
     losses = {
         'cross_entropy': nn.CrossEntropyLoss,
         'mse': nn.MSELoss,
         'mae': nn.L1Loss,
-        'huber': nn.SmoothL1Loss
+        'huber': nn.SmoothL1Loss,
+        'BCE_ordinal': nn.BCEWithLogitsLoss,
+        'CPH': CoxProportionalHazardsLoss
     }
 
     def __init__(
@@ -688,6 +813,10 @@ class MILModelConfig:
         """Type of model (classification or regression)."""
         if self.loss == 'cross_entropy':
             return 'classification'
+        elif self.loss == 'BCE_ordinal':
+            return 'ordinal'
+        elif self.loss == 'CPH':
+            return 'survival'
         else:
             return 'regression'
 
@@ -895,8 +1024,10 @@ class MILModelConfig:
             outdir (str): Output directory for saving metrics.
 
         """
-        if self.is_classification():
+        if self.model_type in ['classification', 'ordinal']:
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
+        elif self.model_type == 'survival':
+            sf.stats.metrics.survival_metrics(df, level=level, data_dir=outdir)
         else:
             sf.stats.metrics.regression_metrics(df, level=level, data_dir=outdir)
 
