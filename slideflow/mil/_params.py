@@ -61,7 +61,6 @@ class TrainerConfig:
         drop_last: bool = True,
         save_monitor: str = 'valid_loss',
         weighted_loss: bool = True,
-        mixed_bags: bool = False,
         **kwargs
     ):
         r"""Training configuration for FastAI MIL models.
@@ -108,7 +107,6 @@ class TrainerConfig:
         self.drop_last = drop_last
         self.save_monitor = save_monitor
         self.weighted_loss = weighted_loss
-        self.mixed_bags = mixed_bags
         if isinstance(model, str):
             self.model_config = build_model_config(model, **kwargs)
         else:
@@ -179,7 +177,7 @@ class TrainerConfig:
 
         model_metrics = self.model_config.get_metrics()
 
-        if self.model_config.model_type in ['classification', 'ordinal', 'multimodal']:
+        if self.model_config.model_type in ['classification', 'ordinal']:
             fallback = [RocAuc()]
         elif self.model_config.model_type == 'survival':
             fallback = [concordance_index()]
@@ -360,7 +358,7 @@ class TrainerConfig:
                 separately. Defaults to None.
 
         """
-        from slideflow.mil.train import _train_mil, _train_multimodal_mil, _train_multimodal_mixed_mil
+        from slideflow.mil.train import _train_mil, _train_multimodal_mil
 
         # Prepare output directory
         outdir = self.prepare_training(outcomes, exp_label, outdir)
@@ -375,8 +373,6 @@ class TrainerConfig:
         # Check if multimodal training
         if self.is_multimodal:
             train_fn = _train_multimodal_mil
-        elif self.mixed_bags:
-            train_fn = _train_multimodal_mixed_mil
         else:
             train_fn = _train_mil
 
@@ -726,8 +722,7 @@ class MILModelConfig:
         'mae': nn.L1Loss,
         'huber': nn.SmoothL1Loss,
         'BCE_ordinal': nn.BCEWithLogitsLoss,
-        'CPH': CoxProportionalHazardsLoss,
-        'mm_loss': MultimodalLoss
+        'CPH': CoxProportionalHazardsLoss
     }
 
     def __init__(
@@ -810,11 +805,6 @@ class MILModelConfig:
                     and self.model_fn.is_multimodal))
 
     @property
-    def is_mixed_bags(self):
-        """Whether the model is a multimodal mixed bags model."""
-        return isinstance(self.model, str) and self.model.lower() == 'mb_attention_mil'
-
-    @property
     def rich_name(self):
         return f"[bold]{self.model_fn.__name__}[/]"
 
@@ -827,8 +817,6 @@ class MILModelConfig:
             return 'ordinal'
         elif self.loss == 'CPH':
             return 'survival'
-        elif self.loss == 'mm_loss':
-            return 'multimodal'
         else:
             return 'regression'
 
@@ -889,9 +877,6 @@ class MILModelConfig:
                 n_in = [b[0].shape[-1] for b in batch[:-1]]
             else:
                 n_in = [b.shape[-1] for b in batch[:-1][0]]
-        elif self.is_mixed_bags:
-            # Get feature dimensions for each modality, excluding mask and target
-            n_in = [b[0].shape[-1] for b in batch[:-2]]  # -2 to exclude mask and target
         else:
             n_in = batch[0].shape[-1]
         targets = batch[-1]
@@ -938,8 +923,6 @@ class MILModelConfig:
 
         if self.is_multimodal:
             dts_fn = data_utils.build_multibag_dataset
-        elif self.is_mixed_bags:
-            dts_fn = data_utils.build_multimodal_mixed_bag_dataset
         else:
             dts_fn = data_utils.build_dataset
 
@@ -966,14 +949,12 @@ class MILModelConfig:
         """
         self._verify_eval_params(**kwargs)
 
-        from slideflow.mil.eval import predict_from_bags, predict_from_multimodal_bags, predict_from_mixed_bags
+        from slideflow.mil.eval import predict_from_bags, predict_from_multimodal_bags
 
         if apply_softmax is None:
             apply_softmax = self.apply_softmax
 
         pred_fn = predict_from_multimodal_bags if self.is_multimodal else predict_from_bags
-        if self.is_mixed_bags:
-            pred_fn = predict_from_mixed_bags
         return pred_fn(
             model,
             bags,
@@ -1043,7 +1024,7 @@ class MILModelConfig:
             outdir (str): Output directory for saving metrics.
 
         """
-        if self.model_type in ['classification', 'ordinal', 'multimodal']:
+        if self.model_type in ['classification', 'ordinal']:
             sf.stats.metrics.classification_metrics(df, level=level, data_dir=outdir)
         elif self.model_type == 'survival':
             sf.stats.metrics.survival_metrics(df, level=level, data_dir=outdir)
