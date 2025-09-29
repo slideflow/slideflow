@@ -1470,7 +1470,6 @@ class DualMagnificationFeatures(DatasetFeatures):
             # Apply max_tiles limit if specified
             if max_tiles > 0 and len(slide_features) > max_tiles:
                 # Randomly sample tiles to respect max_tiles limit
-                import numpy as np
                 indices = np.random.choice(len(slide_features), max_tiles, replace=False)
                 slide_features = slide_features[indices]
             
@@ -1575,7 +1574,6 @@ class DualMagnificationFeatures(DatasetFeatures):
             # Apply max_tiles filtering by randomly sampling matched pairs
             if max_tiles is not None and num_matched_tiles > max_tiles:
                 log.info(f"Slide {slide_name} has {num_matched_tiles} matched tiles, randomly sampling {max_tiles}")
-                import numpy as np
                 indices = np.random.choice(num_matched_tiles, max_tiles, replace=False)
                 matched_pairs = [matched_pairs[i] for i in sorted(indices)]
                 num_matched_tiles = max_tiles
