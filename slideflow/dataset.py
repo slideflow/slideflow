@@ -1893,6 +1893,284 @@ class Dataset:
         all_reports = [r for r in all_reports if r is not None]
         return {report.path: report for report in all_reports}
 
+    def _validate_lower_mag_params(self, source_tile_um: Union[int, str], target_tile_um: Union[int, str]) -> int:
+        """Validate magnification parameters and calculate ratios.
+
+        Args:
+            source_tile_um: Source magnification (str, e.g. "20x")
+            target_tile_um: Target magnification (str, e.g. "5x")
+
+        Returns:
+            mag_ratio: Integer magnification ratio
+
+        Raises:
+            DatasetError: If magnification parameters are invalid or ratio is not an integer
+        """
+        # Ensure both parameters are magnification strings
+        sf.util.assert_is_mag(source_tile_um)
+        sf.util.assert_is_mag(target_tile_um)
+
+        # Convert to numeric magnification values
+        source_mag = sf.util.to_mag(source_tile_um)
+        target_mag = sf.util.to_mag(target_tile_um)
+
+        # Calculate magnification ratio (how many source tiles combine to make one target tile)
+        mag_ratio = source_mag / target_mag
+
+        # Validate the ratio
+        if mag_ratio <= 0:
+            raise errors.DatasetError(f"Invalid magnification ratio: {source_tile_um} to {target_tile_um}")
+
+        if not mag_ratio.is_integer() or mag_ratio < 1:
+            raise errors.DatasetError(f"Invalid magnification ratio: {source_tile_um} to {target_tile_um}. Ratio must be a positive integer, got {mag_ratio}")
+
+        return int(mag_ratio)
+
+    def _get_lower_mag_tfrecords(self, source: Optional[str] = None) -> List[str]:
+        """Get source TFRecords for processing.
+
+        Args:
+            source: Name of dataset source to select TFRecords from
+
+        Returns:
+            List of TFRecord file paths
+
+        Raises:
+            ValueError: If no TFRecords found
+        """
+        source_tfrecords = self.tfrecords(source=source)
+        if not source_tfrecords:
+            raise ValueError("No TFRecords found for processing")
+        return source_tfrecords
+
+    def _create_lower_mag_progress_bar(self, total_tfrecords: int) -> Tuple[Optional[Any], Optional[Any]]:
+        """Create progress bar for lower magnification extraction.
+
+        Args:
+            total_tfrecords: Total number of TFRecords to process
+
+        Returns:
+            Tuple of (progress_bar, task_id) or (None, None) if creation fails
+        """
+        try:
+            pb = TileExtractionProgress()
+            pb.add_task("Speed: ", progress_type="speed", total=None)
+            tfr_task = pb.add_task(
+                f"Processing TFRecords...",
+                progress_type="slide_progress",
+                total=total_tfrecords
+            )
+            pb.start()
+            return pb, tfr_task
+        except Exception:
+            return None, None
+
+    def _build_lower_mag_indices(self, target_tile_um: Union[int, str], target_tile_px: int, source_tile_um: Union[int, str]) -> None:
+        """Build index files and manifest for newly created TFRecords.
+
+        Args:
+            target_tile_um: Target magnification
+            target_tile_px: Target tile pixel size
+            source_tile_um: Source magnification
+        """
+        try:
+            dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um, target_tile_px=target_tile_px, source_tile_um=source_tile_um)
+            if not dummy_tfrecord_path:
+                log.warning(f"Could not determine output directory for {target_tile_um}")
+                return
+
+            output_dir = os.path.dirname(dummy_tfrecord_path)
+            if not os.path.exists(output_dir):
+                log.warning(f"Could not find output directory for {target_tile_um}")
+                return
+
+            # Find all TFRecord files in the output directory
+            tfrecord_files = glob.glob(os.path.join(output_dir, "*.tfrecords"))
+
+            log.info(f"Building index files for {len(tfrecord_files)} TFRecord files")
+            for tfr_path in tfrecord_files:
+                try:
+                    _create_index(tfr_path, force=True)
+                except Exception as e:
+                    log.warning(f"Failed to create index for {tfr_path}: {str(e)}")
+
+            # Create manifest for the new TFRecord directory
+            try:
+                log.info(f"Creating manifest for {output_dir}")
+                sf.io.update_manifest_at_dir(output_dir, force_update=True)
+                log.info(f"Successfully created manifest for {target_tile_um} magnification")
+            except Exception as e:
+                log.warning(f"Failed to create manifest for {output_dir}: {str(e)}")
+
+            log.info(f"Built index files for {target_tile_um} magnification")
+
+        except Exception as e:
+            log.warning(f"Failed to build index files for {target_tile_um}: {str(e)}")
+
+    def _save_tile_combinations_csv(self, all_tile_combinations: List[Dict], target_tile_um: Union[int, str],
+                                   target_tile_px: int, source_tile_um: Union[int, str]) -> None:
+        """Save tile combination data to overview CSV.
+
+        Args:
+            all_tile_combinations: List of tile combination records
+            target_tile_um: Target magnification
+            target_tile_px: Target tile pixel size
+            source_tile_um: Source magnification
+        """
+        if not all_tile_combinations:
+            log.info("No tile combinations data to save to overview CSV")
+            return
+
+        import pandas as pd
+        try:
+            dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um, target_tile_px=target_tile_px, source_tile_um=source_tile_um)
+            if not dummy_tfrecord_path:
+                log.warning("Could not determine output directory for saving tile combinations CSV")
+                return
+
+            output_dir = os.path.dirname(dummy_tfrecord_path)
+            combinations_df = pd.DataFrame(all_tile_combinations)
+
+            # Create informative filename
+            source_mag_str = str(source_tile_um).replace('x', '') + 'x'
+            target_mag_str = str(target_tile_um).replace('x', '') + 'x'
+            target_px_str = f"{target_tile_px}px"
+
+            csv_filename = f"{target_px_str}_{target_mag_str}_from_{source_mag_str}_tile_combinations.csv"
+            csv_path = os.path.join(output_dir, csv_filename)
+
+            combinations_df.to_csv(csv_path, index=False)
+            log.info(f"Saved {len(all_tile_combinations)} tile combination records to overview CSV: {csv_path}")
+
+        except Exception as e:
+            log.warning(f"Failed to save tile combinations overview CSV: {e}")
+
+    def _create_lower_mag_report_metadata(self, source_tfrecords: List[str], all_reports: List, target_tile_um: Union[int, str],
+                                        source_tile_um: Union[int, str], mag_ratio: int, **kwargs) -> Any:
+        """Create metadata for lower magnification extraction report.
+
+        Args:
+            source_tfrecords: List of source TFRecord files
+            all_reports: List of generated slide reports
+            target_tile_um: Target magnification
+            source_tile_um: Source magnification
+            mag_ratio: Magnification ratio
+            **kwargs: Additional parameters
+
+        Returns:
+            SimpleNamespace object with report metadata
+        """
+        from types import SimpleNamespace
+
+        # Read source extraction parameters from the source TFRecords directory
+        source_params = self._get_source_extraction_parameters(source_tfrecords[0] if source_tfrecords else None)
+
+        return SimpleNamespace(
+            tile_px=kwargs.get('target_tile_px', self.tile_px),
+            tile_um=target_tile_um,
+            qc=source_params.get('qc', 'None'),
+            total_slides=len(source_tfrecords),
+            slides_skipped=len(source_tfrecords) - len(all_reports),
+            roi_method=source_params.get('roi_method', 'N/A'),
+            stride=source_params.get('stride', 1),
+            gs_frac=source_params.get('gs_fraction', 'N/A'),
+            gs_thresh=source_params.get('gs_threshold', 'N/A'),
+            ws_frac=source_params.get('ws_fraction', 'N/A'),
+            ws_thresh=source_params.get('ws_threshold', 'N/A'),
+            normalizer=source_params.get('normalizer', ''),
+            img_format=source_params.get('img_format', kwargs.get('img_format', 'jpg')),
+            source_tile_um=source_tile_um,
+            mag_ratio=mag_ratio
+        )
+
+    def _create_dummy_report(self, target_tile_um: Union[int, str], source_tile_um: Union[int, str],
+                           mag_ratio: int, **kwargs) -> Any:
+        """Create a dummy report when no slides were processed.
+
+        Args:
+            target_tile_um: Target magnification
+            source_tile_um: Source magnification
+            mag_ratio: Magnification ratio
+            **kwargs: Additional parameters
+
+        Returns:
+            LowerMagSlideReport dummy object
+        """
+        return LowerMagSlideReport(
+            images=[],
+            path="No slides processed",
+            tile_px=int(kwargs.get('target_tile_px', self.tile_px)),
+            tile_um=target_tile_um,
+            source_tile_um=source_tile_um,
+            mag_ratio=int(mag_ratio) if mag_ratio else 1,
+            data={'num_tiles': 0, 'num_rois': 0, 'message': 'No complete tile groups found'},
+            ignore_thumb_errors=True
+        )
+
+    def _generate_lower_mag_pdf_report(self, all_reports: List, source_tfrecords: List[str],
+                                     target_tile_um: Union[int, str], source_tile_um: Union[int, str],
+                                     mag_ratio: int, **kwargs) -> None:
+        """Generate PDF and CSV reports for lower magnification extraction.
+
+        Args:
+            all_reports: List of slide reports
+            source_tfrecords: List of source TFRecord files
+            target_tile_um: Target magnification
+            source_tile_um: Source magnification
+            mag_ratio: Magnification ratio
+            **kwargs: Additional parameters
+        """
+        log.info(f'Generating lower magnification tile extraction PDF report...')
+        log.info(f'Found {len(all_reports)} reports to include in PDF')
+
+        # Create metadata for lower mag extraction
+        report_meta = self._create_lower_mag_report_metadata(
+            source_tfrecords, all_reports, target_tile_um, source_tile_um, mag_ratio, **kwargs
+        )
+
+        # Generate ExtractionReport PDF (handle empty reports case)
+        if all_reports:
+            pdf_report = LowerMagExtractionReport(
+                reports=all_reports,
+                meta=report_meta,
+                title=f'Lower Magnification Tile Extraction Report ({source_tile_um} to {target_tile_um})'
+            )
+        else:
+            log.warning('No valid reports generated - creating empty ExtractionReport')
+            dummy_report = self._create_dummy_report(target_tile_um, source_tile_um, mag_ratio, **kwargs)
+            pdf_report = LowerMagExtractionReport(
+                reports=[dummy_report],
+                meta=report_meta,
+                title=f'Lower Magnification Tile Extraction Report ({source_tile_um} to {target_tile_um}) - No Results'
+            )
+
+        # Save PDF and CSV with specific naming for lower mag
+        from datetime import datetime
+        _time = datetime.now().strftime('%Y%m%d-%H%M%S')
+        source_name = source_tile_um if isinstance(source_tile_um, str) else f"{source_tile_um}um"
+        target_name = target_tile_um if isinstance(target_tile_um, str) else f"{target_tile_um}um"
+
+        # Determine output directory (use target magnification directory)
+        if all_reports:
+            sample_output_path = self._get_output_tfrecord_path(
+                "dummy", target_tile_um,
+                target_tile_px=kwargs.get('target_tile_px', self.tile_px),
+                source_tile_um=source_tile_um
+            )
+            pdf_dir = os.path.dirname(sample_output_path) if sample_output_path else ''
+        else:
+            pdf_dir = ''
+
+        pdf_filename = os.path.join(pdf_dir, f'lower_mag_extraction_report_{source_name}_to_{target_name}-{_time}.pdf')
+        csv_filename = os.path.join(pdf_dir, f'lower_mag_extraction_report_{source_name}_to_{target_name}.csv')
+
+        try:
+            pdf_report.save(pdf_filename)
+            pdf_report.update_csv(csv_filename)
+            log.info(f'Saved lower magnification extraction report: {pdf_filename}')
+        except Exception as e:
+            log.warning(f'Failed to save extraction report: {e}')
+
     def extract_lower_mag_tiles_from_tfr(
         self,
         *,
@@ -1960,40 +2238,19 @@ class Dataset:
             - Each combined tile's coordinates (loc_x, loc_y) will correspond to the
               center/average coordinates of the source tiles that make up each combined tile.
         """
-        # Validate and calculate magnification ratio
-        source_mag = sf.util.to_mag(source_tile_um) if isinstance(source_tile_um, str) else None
-        target_mag = sf.util.to_mag(target_tile_um) if isinstance(target_tile_um, str) else None
+        # Validate parameters and calculate magnification ratio
+        mag_ratio = self._validate_lower_mag_params(source_tile_um, target_tile_um)
         target_tile_px = int(kwargs.get('target_tile_px', 224))
 
-        if source_mag and target_mag:
-            mag_ratio = source_mag / target_mag
-            if not mag_ratio.is_integer() or mag_ratio < 1:
-                raise errors.DatasetError(f"Invalid magnification ratio: {source_tile_um} to {target_tile_um}")
-            mag_ratio = int(mag_ratio)
-        else:
-            mag_ratio = None
-        # Get source TFRecords
-        source_tfrecords = self.tfrecords(source=source)
-        if not source_tfrecords:
-            raise ValueError("No TFRecords found for processing")
-        # Process each TFRecord
+        # Get source TFRecords for processing
+        source_tfrecords = self._get_lower_mag_tfrecords(source=source)
+
+        # Initialize processing variables
         all_reports = []
         all_tile_combinations = []
 
-        # --- Progress bar setup (added) ---
-        try:
-            pb = TileExtractionProgress()
-            pb.add_task("Speed: ", progress_type="speed", total=None)
-            tfr_task = pb.add_task(
-                f"Processing TFRecords...",
-                progress_type="slide_progress",
-                total=len(source_tfrecords)
-            )
-            pb.start()
-        except Exception:
-            # If progress bar can't be created for any reason, continue without it.
-            pb = None
-            tfr_task = None
+        # Set up progress bar
+        pb, tfr_task = self._create_lower_mag_progress_bar(len(source_tfrecords))
 
         # Ensure cleanup context matches other uses
         with sf.util.cleanup_progress(pb) if pb is not None else contextlib.nullcontext():
@@ -2051,149 +2308,17 @@ class Dataset:
 
         # Build index files and create manifest for the new TFRecords
         if all_reports:
-            try:
-                # Get the output directory path
-                dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um, target_tile_px=target_tile_px, source_tile_um=source_tile_um)
-                if dummy_tfrecord_path:
-                    output_dir = os.path.dirname(dummy_tfrecord_path)
-                    if output_dir and os.path.exists(output_dir):
-                        # Find all TFRecord files in the output directory
-                        tfrecord_files = glob(os.path.join(output_dir, "*.tfrecords"))
-
-                        log.info(f"Building index files for {len(tfrecord_files)} TFRecord files")
-                        for tfr_path in tfrecord_files:
-                            try:
-                                _create_index(tfr_path, force=True)
-                            except Exception as e:
-                                log.warning(f"Failed to create index for {tfr_path}: {str(e)}")
-
-                        # Create manifest for the new TFRecord directory
-                        try:
-                            log.info(f"Creating manifest for {output_dir}")
-                            sf.io.update_manifest_at_dir(output_dir, force_update=True)
-                            log.info(f"Successfully created manifest for {target_tile_um} magnification")
-                        except Exception as e:
-                            log.warning(f"Failed to create manifest for {output_dir}: {str(e)}")
-
-                        log.info(f"Built index files for {target_tile_um} magnification")
-                    else:
-                        log.warning(f"Could not find output directory for {target_tile_um}")
-                else:
-                    log.warning(f"Could not determine output directory for {target_tile_um}")
-            except Exception as e:
-                log.warning(f"Failed to build index files for {target_tile_um}: {str(e)}")
+            self._build_lower_mag_indices(target_tile_um, target_tile_px, source_tile_um)
 
         # Filter out None reports
         all_reports = [r for r in all_reports if r is not None]
 
-        # Generate PDF report if requested (even if some slides had 0 tiles)
+        # Generate PDF report if requested
         if report:
-            log.info(f'Generating lower magnification tile extraction PDF report...')
-            log.info(f'Found {len(all_reports)} reports to include in PDF')
-
-            # Read source extraction parameters from the source TFRecords directory
-            source_params = self._get_source_extraction_parameters(source_tfrecords[0] if source_tfrecords else None)
-
-            # Create metadata for lower mag extraction
-            from types import SimpleNamespace
-            from datetime import datetime
-            report_meta = SimpleNamespace(
-                tile_px=kwargs.get('target_tile_px', self.tile_px),
-                tile_um=target_tile_um,
-                qc=source_params.get('qc', 'None'),
-                total_slides=len(source_tfrecords),
-                slides_skipped=len(source_tfrecords) - len(all_reports),
-                roi_method=source_params.get('roi_method', 'N/A'),
-                stride=source_params.get('stride', 1),
-                gs_frac=source_params.get('gs_fraction', 'N/A'),
-                gs_thresh=source_params.get('gs_threshold', 'N/A'),
-                ws_frac=source_params.get('ws_fraction', 'N/A'),
-                ws_thresh=source_params.get('ws_threshold', 'N/A'),
-                normalizer=source_params.get('normalizer', ''),
-                img_format=source_params.get('img_format', kwargs.get('img_format', 'jpg')),
-                source_tile_um=source_tile_um,  # Additional metadata specific to lower mag
-                mag_ratio=mag_ratio if mag_ratio else "calculated"
-            )
-
-            # Generate ExtractionReport PDF (handle empty reports case)
-            if all_reports:
-                pdf_report = LowerMagExtractionReport(
-                    reports=all_reports,     # List[LowerMagSlideReport]
-                    meta=report_meta,
-                    title=f'Lower Magnification Tile Extraction Report ({source_tile_um} to {target_tile_um})'
-                )
-            else:
-                log.warning('No valid reports generated - creating empty ExtractionReport')
-                # Create a minimal dummy report to show that processing was attempted
-
-                dummy_report = LowerMagSlideReport(
-                    images=[],
-                    path="No slides processed",
-                    tile_px=int(kwargs.get('target_tile_px', self.tile_px)),
-                    tile_um=target_tile_um,
-                    source_tile_um=source_tile_um,
-                    mag_ratio=int(mag_ratio) if mag_ratio else 1,
-                    data={'num_tiles': 0, 'num_rois': 0, 'message': 'No complete tile groups found'},
-                    ignore_thumb_errors=True
-                )
-
-                pdf_report = LowerMagExtractionReport(
-                    reports=[dummy_report],
-                    meta=report_meta,
-                    title=f'Lower Magnification Tile Extraction Report ({source_tile_um} to {target_tile_um}) - No Results'
-                )
-
-            # Save PDF and CSV with specific naming for lower mag
-            _time = datetime.now().strftime('%Y%m%d-%H%M%S')
-            source_name = source_tile_um if isinstance(source_tile_um, str) else f"{source_tile_um}um"
-            target_name = target_tile_um if isinstance(target_tile_um, str) else f"{target_tile_um}um"
-
-            # Determine output directory (use target magnification directory)
-            if all_reports:
-                sample_output_path = self._get_output_tfrecord_path("dummy", target_tile_um, target_tile_px=kwargs.get('target_tile_px', self.tile_px), source_tile_um=source_tile_um)
-                if sample_output_path:
-                    pdf_dir = dirname(sample_output_path)
-                else:
-                    pdf_dir = ''
-            else:
-                pdf_dir = ''
-
-            pdf_filename = join(pdf_dir, f'lower_mag_extraction_report_{source_name}_to_{target_name}-{_time}.pdf')
-            csv_filename = join(pdf_dir, f'lower_mag_extraction_report_{source_name}_to_{target_name}.csv')
-
-            try:
-                pdf_report.save(pdf_filename)
-                pdf_report.update_csv(csv_filename)
-                log.info(f'Saved lower magnification extraction report: {pdf_filename}')
-            except Exception as e:
-                log.warning(f'Failed to save extraction report: {e}')
+            self._generate_lower_mag_pdf_report(all_reports, source_tfrecords, target_tile_um, source_tile_um, mag_ratio, **kwargs)
 
         # Save combined tile combinations to single overview CSV
-        if all_tile_combinations:
-            import pandas as pd
-            try:
-                # Get the output directory path for saving the overview CSV
-                dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um, target_tile_px=target_tile_px, source_tile_um=source_tile_um)
-                if dummy_tfrecord_path:
-                    output_dir = os.path.dirname(dummy_tfrecord_path)
-                    combinations_df = pd.DataFrame(all_tile_combinations)
-
-                    # Create informative filename
-                    source_mag_str = str(source_tile_um).replace('x', '') + 'x'
-                    target_mag_str = str(target_tile_um).replace('x', '') + 'x'
-                    target_px_str = f"{target_tile_px}px" if target_tile_px else f"{self.tile_px}px"
-
-                    csv_filename = f"{target_px_str}_{target_mag_str}_from_{source_mag_str}_tile_combinations.csv"
-                    csv_path = os.path.join(output_dir, csv_filename)
-
-                    combinations_df.to_csv(csv_path, index=False)
-                    log.info(f"Saved {len(all_tile_combinations)} tile combination records to overview CSV: {csv_path}")
-                else:
-                    log.warning("Could not determine output directory for saving tile combinations CSV")
-            except Exception as e:
-                log.warning(f"Failed to save tile combinations overview CSV: {e}")
-        else:
-            log.info("No tile combinations data to save to overview CSV")
+        self._save_tile_combinations_csv(all_tile_combinations, target_tile_um, target_tile_px, source_tile_um)
 
         return {report.path: report for report in all_reports}
     
