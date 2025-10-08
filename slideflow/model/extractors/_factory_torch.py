@@ -81,6 +81,11 @@ def vgg16_imagenet(tile_px, **kwargs):
     return TorchImagenetLayerExtractor('vgg16', tile_px, **kwargs)
 
 @register_torch
+def musk(**kwargs):
+    from .musk import MUSKFeatures
+    return MUSKFeatures(**kwargs)
+
+@register_torch
 def mobilenet_v2_imagenet(tile_px, **kwargs):
     return TorchImagenetLayerExtractor('mobilenet_v2', tile_px, **kwargs)
 
