@@ -1893,14 +1893,14 @@ class Dataset:
         all_reports = [r for r in all_reports if r is not None]
         return {report.path: report for report in all_reports}
 
-    def _validate_lower_mag_params(self, mag_ratio: int) -> str:
+    def _validate_lower_mag_params(self, mag_ratio: int) -> int:
         """Validate magnification ratio and calculate target magnification.
 
         Args:
             mag_ratio: Magnification ratio (how many source tiles per target tile)
 
         Returns:
-            target_tile_um: Calculated target magnification as a string (e.g. "5x")
+            target_tile_um: Calculated target magnification as an integer (in um)
 
         Raises:
             DatasetError: If magnification parameters are invalid or ratio doesn't form a perfect square
@@ -1911,13 +1911,6 @@ class Dataset:
 
         # Get source tile_um from dataset
         source_tile_um = self.tile_um
-
-        # Convert source_tile_um to magnification if it's in microns (int)
-        if isinstance(source_tile_um, int):
-            source_tile_um = sf.util.um_to_mag(source_tile_um)
-
-        # Ensure source_tile_um is a magnification string
-        sf.util.assert_is_mag(source_tile_um)
 
         # Validate mag_ratio
         if not isinstance(mag_ratio, int) or mag_ratio < 1:
@@ -1931,27 +1924,20 @@ class Dataset:
             raise errors.DatasetError(
                 f"Invalid mag_ratio: {mag_ratio}. "
                 f"Ratio must be a perfect square for tile concatenation (e.g., 1, 4, 9, 16). "
-                f"Valid examples: 20x with ratio=4 → 5x (4×4 grid), 40x with ratio=16 → 2.5x (16×16 grid)"
+                f"Valid examples: 20um with ratio=4 → 80um (4×4 grid), 10um with ratio=16 → 160um (16×16 grid)"
             )
-
-        # Convert to numeric magnification value
-        source_mag = sf.util.to_mag(source_tile_um)
 
         # Calculate target magnification
-        target_mag = source_mag / mag_ratio
+        target_um = source_tile_um * mag_ratio
 
-        # Validate that target_mag is reasonable
-        if target_mag <= 0:
+        # Validate that target_um is reasonable (positive integer)
+        if not isinstance(target_um, int) or target_um <= 0:
             raise errors.DatasetError(
-                f"Invalid result: {source_tile_um} with ratio {mag_ratio} produces "
-                f"target magnification {target_mag}x"
+                f"Invalid result: {source_tile_um}um with ratio {mag_ratio} produces "
+                f"target magnification {target_um}um"
             )
 
-        # Return as magnification string
-        if target_mag == int(target_mag):
-            return f"{int(target_mag)}x"
-        else:
-            return f"{target_mag}x"
+        return target_um
 
     def _get_lower_mag_tfrecords(self, source: Optional[str] = None) -> List[str]:
         """Get source TFRecords for processing.
@@ -2367,13 +2353,13 @@ class Dataset:
                         base_suffix = f"{px}px_{target_tile_um.lower()}"
                     else:
                         base_suffix = f"{px}px_{target_tile_um}um"
-                    
+
                     # Include source magnification in directory name
                     if source_tile_um is not None:
                         if isinstance(source_tile_um, str):
                             source_mag = source_tile_um.lower()
                         else:
-                            source_mag = f"{source_tile_um}x"
+                            source_mag = f"{source_tile_um}um"
                         mag_suffix = f"{base_suffix}_from_{source_mag}"
                     else:
                         mag_suffix = base_suffix
@@ -2487,8 +2473,8 @@ class Dataset:
                     import traceback
                     log.debug(f"Full traceback: {traceback.format_exc()}")
                     continue
-            else:
-                log.debug(f"Skipping incomplete group at {group_loc} with {len(tile_indices)} tiles (need {mag_ratio*mag_ratio})")
+            # else:
+            #     log.debug(f"Skipping incomplete group at {group_loc} with {len(tile_indices)} tiles (need {mag_ratio*mag_ratio})")
                     
         writer.close()
         
