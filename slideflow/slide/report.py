@@ -394,8 +394,8 @@ class LowerMagSlideReport(SlideReport):
         try:
             wsi = sf.WSI(
                 self.path,
-                tile_px=getattr(self, 'tile_px', 512),
-                tile_um=getattr(self, 'tile_um', '10x'),
+                tile_px=getattr(self, 'tile_px'),
+                tile_um=getattr(self, 'tile_um'),
                 verbose=False,
             )
         except Exception as e:
@@ -420,7 +420,7 @@ class LowerMagSlideReport(SlideReport):
 
             # Try to generate a basic thumbnail safely; if that fails, create a blank placeholder.
             try:
-                base_thumb = sf.WSI(self.path, tile_px=getattr(self, 'tile_px', 512)).thumb(
+                base_thumb = sf.WSI(self.path, tile_px=getattr(self, 'tile_px', 512), tile_um=getattr(self, 'tile_um')).thumb(
                     coords=None, rois=getattr(self, 'has_rois', False), low_res=True, width=1024, rect_linewidth=1
                 )
                 thumb = Image.fromarray(np.asarray(base_thumb)[:, :, :3])

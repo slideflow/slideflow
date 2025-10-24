@@ -1893,38 +1893,65 @@ class Dataset:
         all_reports = [r for r in all_reports if r is not None]
         return {report.path: report for report in all_reports}
 
-    def _validate_lower_mag_params(self, source_tile_um: Union[int, str], target_tile_um: Union[int, str]) -> int:
-        """Validate magnification parameters and calculate ratios.
+    def _validate_lower_mag_params(self, mag_ratio: int) -> str:
+        """Validate magnification ratio and calculate target magnification.
 
         Args:
-            source_tile_um: Source magnification (str, e.g. "20x")
-            target_tile_um: Target magnification (str, e.g. "5x")
+            mag_ratio: Magnification ratio (how many source tiles per target tile)
 
         Returns:
-            mag_ratio: Integer magnification ratio
+            target_tile_um: Calculated target magnification as a string (e.g. "5x")
 
         Raises:
-            DatasetError: If magnification parameters are invalid or ratio is not an integer
+            DatasetError: If magnification parameters are invalid or ratio doesn't form a perfect square
         """
-        # Ensure both parameters are magnification strings
+        # Validate that dataset has tile_um set
+        if self.tile_um is None:
+            raise errors.DatasetError("Dataset tile_um must be set before calling extract_lower_mag_tiles_from_tfr")
+
+        # Get source tile_um from dataset
+        source_tile_um = self.tile_um
+
+        # Convert source_tile_um to magnification if it's in microns (int)
+        if isinstance(source_tile_um, int):
+            source_tile_um = sf.util.um_to_mag(source_tile_um)
+
+        # Ensure source_tile_um is a magnification string
         sf.util.assert_is_mag(source_tile_um)
-        sf.util.assert_is_mag(target_tile_um)
 
-        # Convert to numeric magnification values
+        # Validate mag_ratio
+        if not isinstance(mag_ratio, int) or mag_ratio < 1:
+            raise errors.DatasetError(f"mag_ratio must be a positive integer, got {mag_ratio}")
+
+        # Validate that the ratio forms a perfect square (required for tile concatenation)
+        # For example: ratio 4 means 4x4 grid ✓
+        #              ratio 3 is not a perfect square ✗
+        sqrt_ratio = mag_ratio ** 0.5
+        if not sqrt_ratio.is_integer():
+            raise errors.DatasetError(
+                f"Invalid mag_ratio: {mag_ratio}. "
+                f"Ratio must be a perfect square for tile concatenation (e.g., 1, 4, 9, 16). "
+                f"Valid examples: 20x with ratio=4 → 5x (4×4 grid), 40x with ratio=16 → 2.5x (16×16 grid)"
+            )
+
+        # Convert to numeric magnification value
         source_mag = sf.util.to_mag(source_tile_um)
-        target_mag = sf.util.to_mag(target_tile_um)
 
-        # Calculate magnification ratio (how many source tiles combine to make one target tile)
-        mag_ratio = source_mag / target_mag
+        # Calculate target magnification
+        target_mag = source_mag / mag_ratio
 
-        # Validate the ratio
-        if mag_ratio <= 0:
-            raise errors.DatasetError(f"Invalid magnification ratio: {source_tile_um} to {target_tile_um}")
+        # Validate that target_mag is reasonable
+        if target_mag <= 0:
+            raise errors.DatasetError(
+                f"Invalid result: {source_tile_um} with ratio {mag_ratio} produces "
+                f"target magnification {target_mag}x"
+            )
 
-        if not mag_ratio.is_integer() or mag_ratio < 1:
-            raise errors.DatasetError(f"Invalid magnification ratio: {source_tile_um} to {target_tile_um}. Ratio must be a positive integer, got {mag_ratio}")
-
-        return int(mag_ratio)
+        # Return as magnification string
+        if target_mag == int(target_mag):
+            return f"{int(target_mag)}x"
+        else:
+            return f"{target_mag}x"
 
     def _get_lower_mag_tfrecords(self, source: Optional[str] = None) -> List[str]:
         """Get source TFRecords for processing.
@@ -2174,8 +2201,7 @@ class Dataset:
     def extract_lower_mag_tiles_from_tfr(
         self,
         *,
-        source_tile_um: Union[int, str],
-        target_tile_um: Union[int, str],
+        mag_ratio: int,
         source: Optional[str] = None,
         skip_extracted: bool = True,
         report: bool = True,
@@ -2185,18 +2211,21 @@ class Dataset:
 
         This function reads existing high-magnification TFRecord files and combines
         adjacent tiles to create lower-magnification tiles when spatial coverage
-        allows. For example, combining 4x4 grid of 20x tiles to create a single 5x tile.
+        allows. For example, combining a 4×4 grid of 20x tiles (mag_ratio=4) to create
+        a single 5x tile.
 
         The function reconstructs the spatial arrangement of tiles from their stored
         coordinates, identifies regions with sufficient tile coverage to form lower
         magnification tiles, combines the image data, and writes new TFRecord files
         at the target magnification. A PDF report is generated similar to extract_tiles.
 
+        The source magnification is taken from the Dataset's tile_um property.
+
         Keyword Args:
-            source_tile_um (int or str): Source tile size in microns (int) or 
-                magnification (str, e.g. "20x") of the input TFRecords.
-            target_tile_um (int or str): Target tile size in microns (int) or
-                magnification (str, e.g. "5x") for the output TFRecords.
+            mag_ratio (int): Magnification ratio determining how many source tiles
+                combine into one target tile. The grid size will be mag_ratio × mag_ratio.
+                For example, mag_ratio=4 means a 4×4 grid of source tiles (16 tiles total)
+                combine into 1 target tile. Valid values: 1, 4, 9, 16, etc.
             source (str, optional): Name of dataset source from which to select
                 TFRecords for processing. Defaults to None. If not provided, will
                 default to all sources in project.
@@ -2212,19 +2241,15 @@ class Dataset:
             (:class:`slideflow.slide.report.SlideReport`). When report=True,
 
         Raises:
-            DatasetError: If source_tile_um or target_tile_um are invalid, or if
-                the magnification ratio doesn't allow for integer tile combination
-                (e.g., cannot combine 20x tiles to make 7x tiles).
-            ValueError: If target magnification is higher than source magnification,
-                or if required TFRecord directories are not configured.
+            DatasetError: If Dataset tile_um is not set, or if mag_ratio is invalid.
+                For example, mag_ratio=4 (20x→5x, 4×4 grid) is valid, but mag_ratio=3
+                (not a perfect square) is not.
+            ValueError: If required TFRecord directories are not configured.
 
         Example:
-            >>> # Combine 20x tiles to create 5x tiles  
-            >>> dataset = sf.Dataset(...)
-            >>> reports = dataset.extract_lower_mag_tiles_from_tfr(
-            ...     source_tile_um="20x",
-            ...     target_tile_um="5x"
-            ... )
+            >>> # Combine 20x tiles with mag_ratio=4 to create 5x tiles (4×4 grid)
+            >>> dataset = sf.Dataset(..., tile_um="20x")
+            >>> reports = dataset.extract_lower_mag_tiles_from_tfr(mag_ratio=4)
             >>> print(f"Processed {len(reports)} slides")
 
         Note:
@@ -2238,8 +2263,9 @@ class Dataset:
             - Each combined tile's coordinates (loc_x, loc_y) will correspond to the
               center/average coordinates of the source tiles that make up each combined tile.
         """
-        # Validate parameters and calculate magnification ratio
-        mag_ratio = self._validate_lower_mag_params(source_tile_um, target_tile_um)
+        # Validate parameters and calculate target magnification
+        target_tile_um = self._validate_lower_mag_params(mag_ratio)
+        source_tile_um = self.tile_um
         target_tile_px = int(kwargs.get('target_tile_px', 224))
 
         # Get source TFRecords for processing
