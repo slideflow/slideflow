@@ -34,6 +34,16 @@ def dinobloom(**kwargs):
     from .dinobloom import DinoBloomFeatures
     return DinoBloomFeatures(**kwargs)
 
+@register_torch
+def uni(weights, **kwargs):
+    from .uni import UNIFeatures
+    return UNIFeatures(weights, **kwargs)
+
+@register_torch
+def uni2(weights, **kwargs):
+    from .uni2 import UNI2Features
+    return UNI2Features(weights, **kwargs)
+
 def virchow(weights, **kwargs):
     from .virchow import VirchowFeatures
     return VirchowFeatures(weights, **kwargs)
