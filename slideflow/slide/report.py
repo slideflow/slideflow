@@ -444,72 +444,101 @@ class LowerMagSlideReport(SlideReport):
             self._thumb = thumb
             return
 
-        # ----- 2) Compute DRAW→THUMB scale (pure geometry, no hardcodes) -----
-        # We assume all centers passed in are at the DRAW level (your target space).
-        # Map DRAW px -> level-0 px with factor d_draw (level-0 px per DRAW px).
-        # Then map level-0 px -> thumb px by (thumb.width / W0).
-        #
-        # d_draw is derived from either:
-        #   (a) draw-level mpp = tile_um / tile_px        -> d_draw = mpp_draw / base_mpp
-        #   (b) draw magnification "Nx"                   -> d_draw = 10 / (mag_draw * base_mpp)
-        #
-        # We compute both paths and use whatever is available.
+        # ----- 2) Compute coordinate→THUMB scale -----
+        # For LowerMagSlideReport, coordinates are stored in level-0 WSI pixel space,
+        # so we use a simple scale: level-0 pixels → thumbnail pixels.
+        # For regular SlideReport, coordinates may be in a "DRAW" space requiring transformation.
 
-        # base_mpp (µm/px) at level-0
-        try:
-            base_mpp = float(getattr(wsi, 'mpp', 0.0)) or float(getattr(wsi, 'level_mpp', [0.0])[0] or 0.0)
-            if base_mpp <= 0:
-                raise ValueError
-        except Exception:
-            base_mpp = 0.25  # conservative fallback; only affects absolute scale on the thumbnail
+        # Simple scale for level-0 coordinates → thumbnail
+        scale_level0_to_thumb = thumb.width / float(W0)
 
-        # Prefer a physical mpp for the DRAW level, else fall back to magnification strings
-        mpp_draw = None
-        try:
-            # If tile_um is numeric microns and tile_px is the draw-level px edge, we can get mpp_draw directly
-            if isinstance(self.tile_um, (int, float)) and isinstance(self.tile_px, (int, float)) and self.tile_px > 0:
-                mpp_draw = float(self.tile_um) / float(self.tile_px)  # µm per DRAW px
-        except Exception:
-            mpp_draw = None
+        # Check if coordinates are in level-0 space (LowerMagSlideReport) or need transformation
+        # LowerMagSlideReport stores coordinates directly from TFRecords which are level-0 pixels
+        coords_are_level0 = isinstance(self, LowerMagSlideReport)
 
-        if mpp_draw and mpp_draw > 0:
-            d_draw = mpp_draw / base_mpp
+        if coords_are_level0:
+            # Coordinates are already in level-0 WSI pixel space
+            # Just scale directly to thumbnail
+            scale_draw_to_thumb = scale_level0_to_thumb
+            log.debug(f"[calc_thumb] Using level-0 coordinate scale: {scale_draw_to_thumb:.4f} (thumb.width={thumb.width}, W0={W0})")
         else:
-            # Fallback: try to parse a magnification string for the DRAW level
-            def _to_mag(val):
-                try:
-                    return float(sf.util.to_mag(val)) if isinstance(val, str) else float(val)
-                except Exception:
-                    return None
+            # Original logic for regular SlideReport where coordinates may be in DRAW space
+            # base_mpp (µm/px) at level-0
+            try:
+                base_mpp = float(getattr(wsi, 'mpp', 0.0)) or float(getattr(wsi, 'level_mpp', [0.0])[0] or 0.0)
+                if base_mpp <= 0:
+                    raise ValueError
+            except Exception:
+                base_mpp = 0.25  # conservative fallback
 
-            mag_draw = _to_mag(getattr(self, 'tile_um', None))
-            if mag_draw and mag_draw > 0:
-                d_draw = 10.0 / (mag_draw * base_mpp)
+            # Prefer a physical mpp for the DRAW level, else fall back to magnification strings
+            mpp_draw = None
+            try:
+                if isinstance(self.tile_um, (int, float)) and isinstance(self.tile_px, (int, float)) and self.tile_px > 0:
+                    mpp_draw = float(self.tile_um) / float(self.tile_px)  # µm per DRAW px
+            except Exception:
+                mpp_draw = None
+
+            if mpp_draw and mpp_draw > 0:
+                d_draw = mpp_draw / base_mpp
             else:
-                # Last resort: infer draw mag from source mag and mag_ratio if available
-                src_mag = _to_mag(getattr(self, 'source_tile_um', None))
-                ratio  = float(getattr(self, 'mag_ratio', 0) or 0)
-                if src_mag and ratio and ratio > 0:
-                    mag_draw = src_mag / ratio
+                # Fallback: try to parse a magnification string for the DRAW level
+                def _to_mag(val):
+                    try:
+                        return float(sf.util.to_mag(val)) if isinstance(val, str) else float(val)
+                    except Exception:
+                        return None
+
+                mag_draw = _to_mag(getattr(self, 'tile_um', None))
+                if mag_draw and mag_draw > 0:
                     d_draw = 10.0 / (mag_draw * base_mpp)
                 else:
-                    # Absolute fallback: assume draw==level-0 (no extra scaling)
-                    d_draw = 1.0
-                    log.debug("[calc_thumb] Falling back to d_draw=1.0 (no draw-level metadata).")
+                    # Last resort: infer draw mag from source mag and mag_ratio if available
+                    src_mag = _to_mag(getattr(self, 'source_tile_um', None))
+                    ratio  = float(getattr(self, 'mag_ratio', 0) or 0)
+                    if src_mag and ratio and ratio > 0:
+                        mag_draw = src_mag / ratio
+                        d_draw = 10.0 / (mag_draw * base_mpp)
+                    else:
+                        # Absolute fallback: assume draw==level-0 (no extra scaling)
+                        d_draw = 1.0
+                        log.debug("[calc_thumb] Falling back to d_draw=1.0 (no draw-level metadata).")
 
-        scale_draw_to_thumb = d_draw * (thumb.width / float(W0))
+            scale_draw_to_thumb = d_draw * (thumb.width / float(W0))
 
-        # ----- 3) Resolve box sizes at DRAW level (you set these on the report) -----
-        # If not set, fall back to reasonable derivations (still no hardcoded constants).
-        try:
-            s_box_draw = float(getattr(self, 'source_tile_px'))  # e.g., 128 if 40→10
-        except Exception as e:
-            # Derive from report tile_px and mag_ratio if present
-            s_box_draw = float(getattr(self, 'tile_px')) / max(1.0, float(getattr(self, 'mag_ratio', 1)))
-        try:
-            t_box_draw = float(getattr(self, 'target_tile_px'))  # e.g., 512 at draw level
-        except Exception as e:
-            t_box_draw = float(getattr(self, 'tile_px'))
+        # ----- 3) Resolve box sizes -----
+        # For LowerMagSlideReport with level-0 coordinates, calculate actual extraction sizes
+        # using the same method as wsi.thumb() (which uses wsi.full_extract_px)
+
+        if coords_are_level0:
+            # For source tiles: need to create a temporary WSI with source magnification
+            # to get the correct full_extract_px value
+            try:
+                source_wsi = sf.WSI(
+                    self.path,
+                    tile_px=self.tile_px,  # This doesn't matter for full_extract_px calculation
+                    tile_um=getattr(self, 'source_tile_um'),
+                    verbose=False,
+                )
+                s_box_draw = float(source_wsi.full_extract_px)  # Actual extraction size in level-0 pixels
+                log.debug(f"[calc_thumb] Calculated source box size from WSI: {s_box_draw} pixels")
+            except Exception as e:
+                log.error(f"Failed to calculate source box size from WSI: {e}")
+                raise
+
+            # Target box is mag_ratio times the source box
+            t_box_draw = s_box_draw * float(getattr(self, 'mag_ratio'))
+            log.debug(f"[calc_thumb] Box sizes in level-0 pixels: source={s_box_draw:.0f}, target={t_box_draw:.0f}")
+        else:
+            # Original logic for regular SlideReport
+            try:
+                s_box_draw = float(getattr(self, 'source_tile_px'))
+            except Exception as e:
+                s_box_draw = float(getattr(self, 'tile_px')) / max(1.0, float(getattr(self, 'mag_ratio', 1)))
+            try:
+                t_box_draw = float(getattr(self, 'target_tile_px'))
+            except Exception as e:
+                t_box_draw = float(getattr(self, 'tile_px'))
 
         # ----- 4) Draw rectangles (centers are already in DRAW coordinates) -----
         def _draw(centers_draw, box_draw, color, width, label):

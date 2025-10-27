@@ -2031,7 +2031,7 @@ class Dataset:
                 return
 
             # Find all TFRecord files in the output directory
-            tfrecord_files = glob.glob(os.path.join(output_dir, "*.tfrecords"))
+            tfrecord_files = glob(os.path.join(output_dir, "*.tfrecords"))
 
             log.info(f"Building index files for {len(tfrecord_files)} TFRecord files")
             for tfr_path in tfrecord_files:
@@ -2520,9 +2520,15 @@ class Dataset:
             #     log.debug(f"Skipping incomplete group at {group_loc} with {len(tile_indices)} tiles (need {mag_ratio*mag_ratio})")
                     
         writer.close()
-        
-        # Note: Index files will be generated later by self.build_index(True) call
-        
+
+        # Create index file immediately after writing so target coordinates can be read for reports
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+            try:
+                _create_index(output_path, force=True)
+                log.debug(f"Created index for {output_path}")
+            except Exception as e:
+                log.warning(f"Failed to create index for {output_path}: {e}")
+
         # Create SlideReport with combined tile locations for visualization
         combined_locations = [group_loc for group_loc in tile_groups.keys() 
                             if len(tile_groups[group_loc]) == mag_ratio * mag_ratio]
@@ -2875,10 +2881,12 @@ class Dataset:
             # -------- constants / helpers --------
             r = int(mag_ratio)
 
-            # Draw-level box sizes (NO 224s here). Use the passed source_tile_px.
+            # Box sizes in level-0 WSI pixel space (same coordinate space as stored coordinates)
+            # Source tiles are extracted at the source tile size (e.g., 224×224 pixels)
+            # Target tiles are r×r grids of source tiles (e.g., 4×4 = 896×896 pixels)
             src_px_native = int(source_tile_px) if source_tile_px else int(getattr(self, "tile_px"))
-            source_box_px_draw = max(1, int(round(src_px_native / max(r, 1))))
-            target_box_px_draw = int(src_px_native)
+            source_box_px_draw = int(src_px_native)  # Source tile size in WSI pixels (e.g., 224)
+            target_box_px_draw = int(src_px_native * r)  # Target box is r×r source tiles (e.g., 224*4=896)
 
             # Robust stride/origin on SOURCE space (after undoing loc_scale)
             def _stride_origin_source(stored_centers):
