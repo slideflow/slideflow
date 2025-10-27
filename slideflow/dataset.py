@@ -1893,45 +1893,78 @@ class Dataset:
         all_reports = [r for r in all_reports if r is not None]
         return {report.path: report for report in all_reports}
 
-    def _validate_lower_mag_params(self, mag_ratio: int) -> int:
+    def _parse_tile_um_to_microns(self, tile_um_value: Union[int, str], tile_px: int, mpp: Optional[float] = None) -> int:
+        """Convert tile_um (str like '40x' or int like 129) to integer microns.
+
+        Args:
+            tile_um_value: Either a string like "40x" or an integer in microns
+            tile_px: Tile size in pixels
+            mpp: Optional microns per pixel. If provided, uses this for conversion.
+                 If not provided, calculates from magnification power using standard formula.
+
+        Returns:
+            Integer microns for the full tile
+
+        Raises:
+            DatasetError: If tile_um_value format is invalid
+        """
+        if isinstance(tile_um_value, str):
+            tile_str = tile_um_value.strip().lower()
+            if tile_str.endswith('x'):
+                # Parse magnification power (e.g., "40x")
+                try:
+                    mag_power = float(tile_str[:-1])
+                except ValueError:
+                    raise errors.DatasetError(f"Invalid magnification string: {tile_um_value}")
+
+                # Calculate um per pixel
+                if mpp is not None:
+                    # Use provided mpp
+                    um_per_pixel = mpp
+                else:
+                    # Standard formula: um/px = 10 / mag_power
+                    # 40x → 0.25 um/px, 20x → 0.5 um/px, 10x → 1.0 um/px
+                    um_per_pixel = 10.0 / mag_power
+
+                # Calculate total um for tile
+                return int(round(um_per_pixel * tile_px))
+            elif tile_str.endswith('um'):
+                try:
+                    return int(tile_str[:-2])
+                except ValueError:
+                    raise errors.DatasetError(f"Invalid um string: {tile_um_value}")
+            else:
+                try:
+                    return int(tile_str)
+                except ValueError:
+                    raise errors.DatasetError(f"Cannot parse tile_um: {tile_um_value}")
+        else:
+            # Already an integer in microns
+            return int(tile_um_value)
+
+    def _validate_lower_mag_params(self, mag_ratio: int, source_tile_um: int) -> int:
         """Validate magnification ratio and calculate target magnification.
 
         Args:
-            mag_ratio: Magnification ratio (how many source tiles per target tile)
+            mag_ratio: Linear magnification ratio (e.g., 4 for 40x→10x or 112um→448um)
+            source_tile_um: Source tile size in microns (integer)
 
         Returns:
             target_tile_um: Calculated target magnification as an integer (in um)
 
         Raises:
-            DatasetError: If magnification parameters are invalid or ratio doesn't form a perfect square
+            DatasetError: If magnification parameters are invalid
         """
-        # Validate that dataset has tile_um set
-        if self.tile_um is None:
-            raise errors.DatasetError("Dataset tile_um must be set before calling extract_lower_mag_tiles_from_tfr")
-
-        # Get source tile_um from dataset
-        source_tile_um = self.tile_um
-
         # Validate mag_ratio
         if not isinstance(mag_ratio, int) or mag_ratio < 1:
             raise errors.DatasetError(f"mag_ratio must be a positive integer, got {mag_ratio}")
 
-        # Validate that the ratio forms a perfect square (required for tile concatenation)
-        # For example: ratio 4 means 4x4 grid ✓
-        #              ratio 3 is not a perfect square ✗
-        sqrt_ratio = mag_ratio ** 0.5
-        if not sqrt_ratio.is_integer():
-            raise errors.DatasetError(
-                f"Invalid mag_ratio: {mag_ratio}. "
-                f"Ratio must be a perfect square for tile concatenation (e.g., 1, 4, 9, 16). "
-                f"Valid examples: 20um with ratio=4 → 80um (4×4 grid), 10um with ratio=16 → 160um (16×16 grid)"
-            )
-
-        # Calculate target magnification
+        # Calculate target magnification (multiply um values by linear ratio)
+        # Example: 112um with ratio 4 → 448um
         target_um = source_tile_um * mag_ratio
 
         # Validate that target_um is reasonable (positive integer)
-        if not isinstance(target_um, int) or target_um <= 0:
+        if target_um <= 0:
             raise errors.DatasetError(
                 f"Invalid result: {source_tile_um}um with ratio {mag_ratio} produces "
                 f"target magnification {target_um}um"
@@ -2188,6 +2221,7 @@ class Dataset:
         self,
         *,
         mag_ratio: int,
+        target_tile_px: int,
         source: Optional[str] = None,
         skip_extracted: bool = True,
         report: bool = True,
@@ -2249,11 +2283,20 @@ class Dataset:
             - Each combined tile's coordinates (loc_x, loc_y) will correspond to the
               center/average coordinates of the source tiles that make up each combined tile.
         """
-        # Validate parameters and calculate target magnification
-        target_tile_um = self._validate_lower_mag_params(mag_ratio)
-        source_tile_um = self.tile_um
-        target_tile_px = int(kwargs.get('target_tile_px', 224))
+        # Validate that dataset has tile_um set
+        if self.tile_um is None:
+            raise errors.DatasetError("Dataset tile_um must be set before calling extract_lower_mag_tiles_from_tfr")
+        if not target_tile_px:
+            ## throw an error that target_tile_px cannot be none
+            raise errors.DatasetError("target_tile_px cannot be None")
 
+        # Convert tile_um to integer microns at the beginning
+        # Uses mpp from kwargs if provided, otherwise calculates from magnification power
+        mpp = kwargs.get('mpp', None)
+        source_tile_um = self._parse_tile_um_to_microns(self.tile_um, self.tile_px, mpp=mpp)
+
+        # Validate parameters and calculate target magnification
+        target_tile_um = self._validate_lower_mag_params(mag_ratio, source_tile_um)
         # Get source TFRecords for processing
         source_tfrecords = self._get_lower_mag_tfrecords(source=source)
 
@@ -2782,16 +2825,22 @@ class Dataset:
             pixel_x, pixel_y = avg_x, avg_y
         else:
             # Fallback: estimate coordinates from grid position and source data
+            # Note: grid_x, grid_y are grid indices (0, 1, 2, ...), not pixel coordinates
             if source_locations:
                 x_coords = sorted(set(loc[0] for loc in source_locations))
                 y_coords = sorted(set(loc[1] for loc in source_locations))
                 stride_x = min(x_coords[i+1] - x_coords[i] for i in range(len(x_coords)-1)) if len(x_coords) > 1 else 512
                 stride_y = min(y_coords[i+1] - y_coords[i] for i in range(len(y_coords)-1)) if len(y_coords) > 1 else 512
                 min_x, min_y = min(x_coords), min(y_coords)
-                
-                # Place at center of the mag_ratio x mag_ratio region
+
+                # Calculate the center of the mag_ratio x mag_ratio region
+                # grid_x, grid_y represent the top-left grid index of the combined block
+                # Each grid cell is stride_x × stride_y pixels
+                # The block spans from grid_x to (grid_x + mag_ratio - 1)
+                # Center is at grid_x + (mag_ratio - 1) / 2
                 center_offset_x = (mag_ratio - 1) * stride_x // 2
                 center_offset_y = (mag_ratio - 1) * stride_y // 2
+                # Convert grid position to pixel position
                 pixel_x = min_x + grid_x * stride_x + center_offset_x
                 pixel_y = min_y + grid_y * stride_y + center_offset_y
             else:
@@ -2867,18 +2916,15 @@ class Dataset:
             )
 
             # -------- SOURCE centers: read directly from source TFRecord --------
-            
+            # Source coordinates are already in pixel space, no scaling needed
             if original_locations:
-                src_coords = [
-                    (int(round(x / r)), int(round(y / r)))
-                    for (x, y) in original_locations
-                ]
+                src_coords = [(int(round(x)), int(round(y))) for (x, y) in original_locations]
                 slide_report.source_thumb_coords = np.array(src_coords, dtype=np.int64)
             else:
                 slide_report.source_thumb_coords = None
 
             # -------- TARGET centers: read directly from target TFRecord --------
-            
+
             # Get target coordinates directly from target TFRecord
             tgt_centers = []
             try:
@@ -2888,18 +2934,31 @@ class Dataset:
                     import slideflow as sf
                     target_locations = sf.io.get_locations_from_tfrecord(target_tfrecord_path)
                     tgt_centers = [(int(x), int(y)) for x, y in target_locations]
+                    log.debug(f"DEBUG: Successfully read {len(tgt_centers)} target coordinates from {target_tfrecord_path}")
+                else:
+                    log.debug(f"DEBUG: Target TFRecord path does not exist or is None: {target_tfrecord_path}")
             except Exception as e:
                 # Fallback to derived coordinates if TFRecord reading fails
-                if combined_locations and original_locations:
-                    stride_x_src, stride_y_src, origin_x_src, origin_y_src = _stride_origin_source(original_locations)
-                    log.debug(f"DEBUG: Fallback - calculated stride_src: ({stride_x_src}, {stride_y_src}), origin_src: ({origin_x_src}, {origin_y_src})")
-                    half_block_x = ((r - 1) * stride_x_src) / 2.0
-                    half_block_y = ((r - 1) * stride_y_src) / 2.0
-                    for gx, gy in combined_locations:
-                        cx_src = origin_x_src + gx * stride_x_src + half_block_x
-                        cy_src = origin_y_src + gy * stride_y_src + half_block_y
-                        tgt_centers.append((int(round(cx_src / r)), int(round(cy_src / r))))
-                    log.debug(f"DEBUG: Fallback derived coords - created {len(tgt_centers)} coordinates")
+                log.warning(f"Failed to read target coordinates from {target_tfrecord_path}: {e}")
+
+            # If we couldn't read target coordinates (file doesn't exist, read failed, or empty result),
+            # fall back to deriving them from source coordinates
+            if not tgt_centers and combined_locations and original_locations:
+                log.debug(f"DEBUG: Using fallback coordinate derivation (no valid target coords found)")
+                stride_x_src, stride_y_src, origin_x_src, origin_y_src = _stride_origin_source(original_locations)
+                log.debug(f"DEBUG: Fallback - calculated stride_src: ({stride_x_src}, {stride_y_src}), origin_src: ({origin_x_src}, {origin_y_src})")
+                # The center of an r×r block of source tiles
+                # If r=4: source tiles at grid positions 0,1,2,3 → center at 1.5 (halfway between 1 and 2)
+                half_block_x = ((r - 1) * stride_x_src) / 2.0
+                half_block_y = ((r - 1) * stride_y_src) / 2.0
+                for gx, gy in combined_locations:
+                    # gx, gy are the top-left grid indices of the source tiles being combined
+                    # Calculate the pixel coordinate of the center of this r×r block
+                    cx_src = origin_x_src + gx * stride_x_src + half_block_x
+                    cy_src = origin_y_src + gy * stride_y_src + half_block_y
+                    # Target coordinates remain in the same pixel space (no division)
+                    tgt_centers.append((int(round(cx_src)), int(round(cy_src))))
+                log.debug(f"DEBUG: Fallback derived coords - created {len(tgt_centers)} coordinates")
 
             slide_report.target_thumb_coords = np.array(tgt_centers, dtype=np.int64) if tgt_centers else None
             log.debug(f"DEBUG: Final target_thumb_coords: {slide_report.target_thumb_coords is not None} ({len(tgt_centers)} coords)")
