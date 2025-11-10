@@ -44,9 +44,20 @@ def uni2(weights, **kwargs):
     from .uni2 import UNI2Features
     return UNI2Features(weights, **kwargs)
 
+@register_torch
 def virchow(weights, **kwargs):
     from .virchow import VirchowFeatures
     return VirchowFeatures(weights, **kwargs)
+
+@register_torch
+def conch(weights=None, **kwargs):
+    from .conch import ConchFeatures
+    return ConchFeatures(weights=weights, **kwargs)
+
+@register_torch
+def titan(weights=None, **kwargs):
+    from .titan import TitanFeatures
+    return TitanFeatures(weights=weights, **kwargs)
 
 @register_torch
 def vit(**kwargs):
