@@ -1263,7 +1263,7 @@ class DualMagnificationFeatures(DatasetFeatures):
     
     def __init__(self, output_dir: str):
         """Initialize with output directory for saving intermediate and final features.
-        
+
         Args:
             output_dir: Directory to save features during extraction
         """
@@ -1284,11 +1284,17 @@ class DualMagnificationFeatures(DatasetFeatures):
         self.slides = []
         self.output_dir = output_dir
 
+        # Store dual magnification metadata
+        self.high_mag_tile_px = None
+        self.high_mag_tile_um = None
+        self.low_mag_tile_px = None
+        self.low_mag_tile_um = None
+
         # Define subdirectories for different feature types
         self.high_mag_dir = os.path.join(output_dir, "high_mag_features")
         self.low_mag_dir = os.path.join(output_dir, "low_mag_features")
         self.concatenated_dir = os.path.join(output_dir, "concatenated_features")
-        
+
         # Create subdirectories
         os.makedirs(self.high_mag_dir, exist_ok=True)
         os.makedirs(self.low_mag_dir, exist_ok=True)
@@ -1296,12 +1302,43 @@ class DualMagnificationFeatures(DatasetFeatures):
     
     def dump_config(self):
         """Override dump_config to provide consistent configuration for dual magnification features."""
+        # Get extractor config if available
+        if hasattr(self, 'extractor') and self.extractor is not None:
+            try:
+                # Try to get the extractor's dump_config (for built extractors)
+                if hasattr(self.extractor, 'dump_config'):
+                    extractor_config = self.extractor.dump_config()
+                elif hasattr(self.extractor, 'generator') and hasattr(self.extractor.generator, 'dump_config'):
+                    extractor_config = self.extractor.generator.dump_config()
+                else:
+                    extractor_config = getattr(self, 'model', 'dual_magnification_concatenated')
+            except:
+                extractor_config = getattr(self, 'model', 'dual_magnification_concatenated')
+        else:
+            extractor_config = getattr(self, 'model', 'dual_magnification_concatenated')
+
+        # Get normalizer config if available
+        normalizer_config = None
+        if hasattr(self, 'normalizer') and self.normalizer is not None:
+            normalizer_config = dict(
+                method=self.normalizer.method,
+                fit=self.normalizer.get_fit(as_list=True),
+            )
+
         return {
-            'model': 'dual_magnification_concatenated',
-            'dataset': None,
-            'extractor': None,
-            'tile_px': self.tile_px,
-            'tile_um': None,
+            'extractor': extractor_config,
+            'normalizer': normalizer_config,
+            'num_features': self.num_features,
+            # Include both specific and legacy fields
+            'tile_px': self.high_mag_tile_px,  # Legacy field
+            'tile_um': self.high_mag_tile_um,  # Legacy field
+            'high_mag_tile_px': self.high_mag_tile_px,
+            'high_mag_tile_um': self.high_mag_tile_um,
+            'low_mag_tile_px': self.low_mag_tile_px,
+            'low_mag_tile_um': self.low_mag_tile_um,
+            'high_mag_features_path': getattr(self, 'high_mag_features_path', None),
+            'low_mag_features_path': getattr(self, 'low_mag_features_path', None),
+            'concatenated_dir': self.concatenated_dir,
             'slides': self.slides,
             'features_version': sf.__version__
         } 
@@ -1361,15 +1398,25 @@ class DualMagnificationFeatures(DatasetFeatures):
         else:
             # At least one set of features needs to be extracted
             # Find common slides between high and low magnification datasets
-            high_slides = set(sf.util.path_to_name(tfr) for tfr in high_mag_dataset.tfrecords())
-            low_slides = set(sf.util.path_to_name(tfr) for tfr in low_mag_dataset.tfrecords())
+            high_tfrs = high_mag_dataset.tfrecords()
+            low_tfrs = low_mag_dataset.tfrecords()
+            high_slides = set(sf.util.path_to_name(tfr) for tfr in high_tfrs)
+            low_slides = set(sf.util.path_to_name(tfr) for tfr in low_tfrs)
             common_slides = high_slides.intersection(low_slides)
-            
+
             log.info(f"Found {len(high_slides)} high mag slides, {len(low_slides)} low mag slides")
+            log.debug(f"High mag TFRecords: {[sf.util.path_to_name(t) for t in high_tfrs[:5]]}...")
+            log.debug(f"Low mag TFRecords: {[sf.util.path_to_name(t) for t in low_tfrs[:5]]}...")
             log.info(f"Common slides for dual extraction: {len(common_slides)}")
-            
+
             if not common_slides:
-                raise ValueError("No common slides found between high and low magnification datasets")
+                log.error(f"High mag slides: {sorted(high_slides)[:10]}")
+                log.error(f"Low mag slides: {sorted(low_slides)[:10]}")
+                raise ValueError(
+                    f"No common slides found between high and low magnification datasets. "
+                    f"High mag has {len(high_slides)} slides, low mag has {len(low_slides)} slides. "
+                    f"Check that both datasets are finding TFRecords in the correct directories."
+                )
             
             # Filter datasets to only include common slides
             high_mag_dataset = self._filter_dataset_by_slides(high_mag_dataset, common_slides)
@@ -1384,9 +1431,15 @@ class DualMagnificationFeatures(DatasetFeatures):
                     log.info(f"Building feature extractor: {model_path}")
                     kwargs['device'] = device
                     extractor = sf.build_feature_extractor(model_path, tile_px=high_mag_dataset.tile_px, **kwargs)
+                    # Store model name for config
+                    self.model = model_path
                 else:
                     # File path to saved model
                     extractor = model_path
+                    self.model = model_path
+
+                # Store extractor for accessing normalizer later
+                self.extractor = extractor
             
             # Step 1: Handle high magnification features
             if has_high_features:
@@ -1530,22 +1583,31 @@ class DualMagnificationFeatures(DatasetFeatures):
     ):
         """Create concatenated features with spatial matching logic."""
         import pandas as pd
-        
+
+        # Store dataset metadata for config
+        self.high_mag_tile_px = high_mag_dataset.tile_px
+        self.high_mag_tile_um = high_mag_dataset.tile_um
+        self.low_mag_tile_px = low_mag_dataset.tile_px
+        self.low_mag_tile_um = low_mag_dataset.tile_um
+
+        log.info(f"Dual magnification config: High mag {self.high_mag_tile_px}px @ {self.high_mag_tile_um}, "
+                 f"Low mag {self.low_mag_tile_px}px @ {self.low_mag_tile_um}")
+
         # Get feature data
         high_activations = high_mag_features.activations
         high_locations = high_mag_features.locations
         low_activations = low_mag_features.activations
         low_locations = low_mag_features.locations
-        
+
         # Initialize containers
         self.activations = defaultdict(list)
         self.locations = defaultdict(list)
         self.predictions = defaultdict(list)
         self.uncertainty = defaultdict(list)
-        
+
         # Initialize list to collect matched tile data
         matched_tiles_data = []
-        
+
         # Process each slide with spatial matching
         slides_processed = 0
         for slide_name in track(high_activations.keys(), description="Matching and concatenating features"):
@@ -1792,22 +1854,6 @@ class DualMagnificationFeatures(DatasetFeatures):
         
         log.debug(f"Created filtered dataset with {len(filtered_dataset.tfrecords())} TFRecords")
         return filtered_dataset
-    
-    def dump_config(self):
-        """Return a dictionary of the dual magnification feature extraction configuration."""
-        # For dual magnification features, we don't have a single feature generator
-        # Return a simplified config that indicates this is a dual magnification extraction
-        config = dict(
-            extractor="dual_magnification_concatenated",
-            normalizer=None,
-            num_features=self.num_features,
-            tile_px=getattr(self, 'tile_px', None),
-            tile_um=getattr(self, 'tile_um', None),
-            high_mag_features_path=getattr(self, 'high_mag_features_path', None),
-            low_mag_features_path=getattr(self, 'low_mag_features_path', None),
-            concatenated_dir=getattr(self, 'concatenated_dir', None)
-        )
-        return config
 
 # -----------------------------------------------------------------------------
 

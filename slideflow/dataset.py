@@ -2113,7 +2113,7 @@ class Dataset:
 
         return SimpleNamespace(
             tile_px=kwargs.get('target_tile_px', self.tile_px),
-            tile_um=target_tile_um,
+            tile_um=target_tile_um,  # Keep as integer (microns) - Dataset can handle both formats
             qc=source_params.get('qc', 'None'),
             total_slides=len(source_tfrecords),
             slides_skipped=len(source_tfrecords) - len(all_reports),
