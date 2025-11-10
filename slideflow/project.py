@@ -2026,7 +2026,7 @@ class Project:
         high_csv = high_dir / "extraction_report.csv"
         low_matches = sorted(low_dir.glob("lower_mag_extraction_report_*.csv"))
         low_csv = low_matches[0] if low_matches else (low_dir / "extraction_report.csv")
-
+        print(low_csv)
         # Read
         high_df = pd.read_csv(high_csv)
         low_df  = pd.read_csv(low_csv)
@@ -2041,11 +2041,19 @@ class Project:
                         return None
             return None
 
-        # Pick tile_um without casting - slideflow can handle magnification strings like "40x"
+        # Pick tile_um and ensure it's a native Python type (not numpy)
         def pick_tile_um(df, name_options):
             for n in name_options:
                 if n in df.columns:
-                    return df[n].iloc[0]  # Return as-is (string or numeric)
+                    val = df[n].iloc[0]
+                    # Convert pandas/numpy types to native Python types for JSON serialization
+                    if isinstance(val, str):
+                        return val
+                    elif pd.isna(val):
+                        return None
+                    else:
+                        # Convert numeric to native Python int
+                        return int(val)
             return None
 
         px_names = ["tile_px", "target_tile_px", "source_tile_px"]
@@ -2069,7 +2077,6 @@ class Project:
 
     def extract_dual_magnification_features(
         self,
-        source: str,
         high_mag_tfr_dir: str,
         low_mag_tfr_dir: str,
         model_path: str,
@@ -2096,7 +2103,6 @@ class Project:
         compatible with MIL training without requiring additional conversion to bags.
         
         Args:
-            source (str): Dataset source name from the project
             high_mag_tfr_dir (str): Directory containing high magnification TFRecords
             low_mag_tfr_dir (str): Directory containing low magnification TFRecords  
             device (str): 'cuda' or 'cpu'
@@ -2165,7 +2171,7 @@ class Project:
             annotations=self.annotations,
             filters=filters
         )
-        
+
         # Low mag dataset with source_um to find "224px_10x_from_40x" directories
         low_mag_dataset = Dataset(
             tfrecords=tfrecords_base,
@@ -2175,9 +2181,23 @@ class Project:
             annotations=self.annotations,
             filters=filters
         )
-        
+
+        log.info(f"High mag dataset config: tile_px={out['high']['tile_px']}, tile_um={out['high']['tile_um']}")
+        log.info(f"Low mag dataset config: tile_px={out['low']['tile_px']}, tile_um={out['low']['tile_um']}, source_um={out['high']['tile_um']}")
         log.info(f"High mag dataset: {len(high_mag_dataset.tfrecords())} TFRecords")
         log.info(f"Low mag dataset: {len(low_mag_dataset.tfrecords())} TFRecords")
+
+        # Debug: show where datasets are looking for TFRecords
+        high_tfrs = high_mag_dataset.tfrecords()
+        low_tfrs = low_mag_dataset.tfrecords()
+        if high_tfrs:
+            log.debug(f"Example high mag TFRecord path: {high_tfrs[0]}")
+        else:
+            log.warning(f"No high mag TFRecords found! Expected directory: {high_mag_tfr_dir}")
+        if low_tfrs:
+            log.debug(f"Example low mag TFRecord path: {low_tfrs[0]}")
+        else:
+            log.warning(f"No low mag TFRecords found! Expected directory: {low_mag_tfr_dir}")
         
         # Use the specialized DualMagnificationFeatures subclass
         from .model.features import DualMagnificationFeatures
