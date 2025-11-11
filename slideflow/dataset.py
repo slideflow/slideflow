@@ -2631,7 +2631,6 @@ class Dataset:
 
         # Create SlideReport with combined tile locations for visualization
         combined_locations = [group_loc for group_loc in tile_groups.keys()
-        combined_locations = [group_loc for group_loc in tile_groups.keys()
                             if len(tile_groups[group_loc]) == mag_ratio * mag_ratio]
 
 
