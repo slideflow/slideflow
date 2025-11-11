@@ -2533,6 +2533,16 @@ class Dataset:
                     
         writer.close()
 
+        # Check if any tiles were successfully combined
+        if combined_count == 0:
+            # Remove empty TFRecord file
+            if os.path.exists(output_path):
+                os.remove(output_path)
+                log.warning(f"No tiles were combined for {slide_name}. Removing file {output_path}")
+
+            # Return None for slide_report since no tiles were processed
+            return None, 0
+
         # Create index file immediately after writing so target coordinates can be read for reports
         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
             try:
@@ -2542,12 +2552,12 @@ class Dataset:
                 log.warning(f"Failed to create index for {output_path}: {e}")
 
         # Create SlideReport with combined tile locations for visualization
-        combined_locations = [group_loc for group_loc in tile_groups.keys() 
+        combined_locations = [group_loc for group_loc in tile_groups.keys()
                             if len(tile_groups[group_loc]) == mag_ratio * mag_ratio]
-        
+
         # Collect example tiles from the output
         example_tiles = self._collect_example_tiles_from_tfrecord(output_path, max_examples=5)
-        
+
         # Create report data
         report_data = {
             'slide': slide_name,
@@ -2562,32 +2572,32 @@ class Dataset:
             'mag_ratio': mag_ratio,
             'locations': list(combined_locations)  # Ensure it stays as a list
         }
-        
+
         # Find the original slide path for thumbnail generation
         slide_path = self.find_slide(slide=slide_name)
         if slide_path and not os.path.exists(slide_path):
             log.warning(f"Slide path does not exist: {slide_path}")
             slide_path = None
-        
+
         # Create thumbnail coordinates for the existing WSI thumbnail system
         # Show original tile locations (where tiles were actually extracted from)
         thumb_coords = None
         if locations:
-            
+
             # Use only the original tile coordinates (these are known to be valid)
             all_coords = [(int(x), int(y)) for x, y in locations]
-            
+
             if all_coords:
                 # Convert to numpy array as expected by SlideReport
                 thumb_coords = np.array(all_coords, dtype=np.int64)
-                
+
                 # Verify coordinates are in the right format - should be (N, 2) array
                 if thumb_coords.ndim != 2 or thumb_coords.shape[1] != 2:
                     log.error(f"Invalid thumb_coords shape: {thumb_coords.shape}, expected (N, 2)")
                     thumb_coords = None
             else:
                 log.warning("No coordinates found for thumbnail generation")
-        
+
         # Create SlideReport using separate method
         slide_report = self._create_lower_mag_slide_report(
             slide_name=slide_name,
@@ -2828,7 +2838,8 @@ class Dataset:
         else:
             # For JPEG: use quality=100 and proper subsampling to avoid corruption
             # when encoding downsampled combined tiles
-            pil_image.save(img_bytes, format='JPEG', quality=100, subsampling=0, optimize=True)
+            # Note: optimize=True can cause issues with BytesIO, so it's omitted
+            pil_image.save(img_bytes, format='JPEG', quality=100, subsampling=0)
 
         # Ensure all data is written to buffer
         img_bytes.flush()
@@ -2841,14 +2852,16 @@ class Dataset:
         if tile_indices:
             matching_source_locations = [source_locations[i] for i in tile_indices]
         else:
+            log.debug("tile_indices is None or empty")
             matching_source_locations = []
-        
+
         if matching_source_locations:
             # Use average of matching source tiles as representative coordinate
             avg_x = sum(loc[0] for loc in matching_source_locations) // len(matching_source_locations)
             avg_y = sum(loc[1] for loc in matching_source_locations) // len(matching_source_locations)
             pixel_x, pixel_y = avg_x, avg_y
         else:
+            log.debug(f"Fallback: no matching source locations (tile_indices={tile_indices})")
             # Fallback: estimate coordinates from grid position and source data
             # Note: grid_x, grid_y are grid indices (0, 1, 2, ...), not pixel coordinates
             if source_locations:
