@@ -49,6 +49,11 @@ def conch(weights=None, **kwargs):
     from .conch import ConchFeatures
     return ConchFeatures(weights, **kwargs)
 
+@register_torch
+def conchv1_5(weights=None, **kwargs):
+    from .conch import ConchFeatures
+    return ConchFeatures(weights, **kwargs)
+
 def virchow(weights, **kwargs):
     from .virchow import VirchowFeatures
     return VirchowFeatures(weights, **kwargs)
