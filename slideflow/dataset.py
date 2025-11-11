@@ -2265,14 +2265,13 @@ class Dataset:
             (:class:`slideflow.slide.report.SlideReport`). When report=True,
 
         Raises:
-            DatasetError: If Dataset tile_um is not set, or if mag_ratio is invalid.
-                For example, mag_ratio=4 (20x→5x, 4×4 grid) is valid, but mag_ratio=3
-                (not a perfect square) is not.
+            DatasetError: If Dataset tile_um is not set or is not an integer, or if 
+            mag_ratio is invalid.
             ValueError: If required TFRecord directories are not configured.
 
         Example:
             >>> # Combine 20x tiles with mag_ratio=4 to create 5x tiles (4×4 grid)
-            >>> dataset = sf.Dataset(..., tile_um="20x")
+            >>> dataset = sf.Dataset(..., tile_um="112um")
             >>> reports = dataset.extract_lower_mag_tiles_from_tfr(mag_ratio=4)
             >>> print(f"Processed {len(reports)} slides")
 
@@ -2299,7 +2298,7 @@ class Dataset:
             raise errors.DatasetError(
                 f"extract_lower_mag_tiles_from_tfr only supports integer tile_um (microns), "
                 f"not string magnifications. Got tile_um={self.tile_um!r} (type: {type(self.tile_um).__name__}). "
-                f"Please set tile_um to an integer value in microns (e.g., 112 for 20x at 224px)."
+                f"Please set tile_um to an integer value in microns."
             )
 
         # Convert tile_um to integer microns at the beginning
@@ -2600,8 +2599,6 @@ class Dataset:
                     import traceback
                     log.debug(f"Full traceback: {traceback.format_exc()}")
                     continue
-            # else:
-            #     log.debug(f"Skipping incomplete group at {group_loc} with {len(tile_indices)} tiles (need {mag_ratio*mag_ratio})")
                     
         writer.close()
 
@@ -2619,7 +2616,6 @@ class Dataset:
         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
             try:
                 _create_index(output_path, force=True)
-                log.debug(f"Created index for {output_path}")
             except Exception as e:
                 log.warning(f"Failed to create index for {output_path}: {e}")
 
@@ -2901,8 +2897,6 @@ class Dataset:
         tile_image = self._resize_square_np(tile_image, target_tile_px)
 
         # Encode image to bytes
-        # Use PNG for combined tiles to avoid JPEG artifacts and corruption issues
-        # that can occur when aggressively downsampling large combined images
         pil_image = Image.fromarray(tile_image)
         img_bytes = io.BytesIO()
         if img_format.lower() == 'png':
@@ -2921,40 +2915,32 @@ class Dataset:
         grid_x, grid_y = grid_location
         
         # Use tile indices directly to get the exact source tile coordinates
-        if tile_indices:
-            matching_source_locations = [source_locations[i] for i in tile_indices]
-        else:
-            log.debug("tile_indices is None or empty")
-            matching_source_locations = []
+        if not tile_indices:
+            raise ValueError(
+                f"No tile_indices provided for combined tile at grid location {grid_location}. "
+                f"Cannot create combined tile record without source tile information."
+            )
 
-        if matching_source_locations:
-            # Use average of matching source tiles as representative coordinate
-            avg_x = sum(loc[0] for loc in matching_source_locations) // len(matching_source_locations)
-            avg_y = sum(loc[1] for loc in matching_source_locations) // len(matching_source_locations)
-            pixel_x, pixel_y = avg_x, avg_y
-        else:
-            log.debug(f"Fallback: no matching source locations (tile_indices={tile_indices})")
-            # Fallback: estimate coordinates from grid position and source data
-            # Note: grid_x, grid_y are grid indices (0, 1, 2, ...), not pixel coordinates
-            if source_locations:
-                x_coords = sorted(set(loc[0] for loc in source_locations))
-                y_coords = sorted(set(loc[1] for loc in source_locations))
-                stride_x = min(x_coords[i+1] - x_coords[i] for i in range(len(x_coords)-1)) if len(x_coords) > 1 else 512
-                stride_y = min(y_coords[i+1] - y_coords[i] for i in range(len(y_coords)-1)) if len(y_coords) > 1 else 512
-                min_x, min_y = min(x_coords), min(y_coords)
+        if not source_locations:
+            raise ValueError(
+                f"No source_locations provided for combined tile at grid location {grid_location}. "
+                f"Cannot create combined tile record without source location information."
+            )
 
-                # Calculate the center of the mag_ratio x mag_ratio region
-                # grid_x, grid_y represent the top-left grid index of the combined block
-                # Each grid cell is stride_x × stride_y pixels
-                # The block spans from grid_x to (grid_x + mag_ratio - 1)
-                # Center is at grid_x + (mag_ratio - 1) / 2
-                center_offset_x = (mag_ratio - 1) * stride_x // 2
-                center_offset_y = (mag_ratio - 1) * stride_y // 2
-                # Convert grid position to pixel position
-                pixel_x = min_x + grid_x * stride_x + center_offset_x
-                pixel_y = min_y + grid_y * stride_y + center_offset_y
-            else:
-                pixel_x, pixel_y = grid_x, grid_y
+        # Validate that all tile indices are valid
+        for idx in tile_indices:
+            if idx < 0 or idx >= len(source_locations):
+                raise ValueError(
+                    f"Invalid tile index {idx} for combined tile at grid location {grid_location}. "
+                    f"Source locations has {len(source_locations)} entries (indices 0-{len(source_locations)-1})."
+                )
+
+        matching_source_locations = [source_locations[i] for i in tile_indices]
+
+        # Use average of matching source tiles as representative coordinate
+        avg_x = sum(loc[0] for loc in matching_source_locations) // len(matching_source_locations)
+        avg_y = sum(loc[1] for loc in matching_source_locations) // len(matching_source_locations)
+        pixel_x, pixel_y = avg_x, avg_y
         
         return sf.io.serialized_record(
             slide=bytes(slide_name, 'utf-8'),
@@ -3048,7 +3034,6 @@ class Dataset:
                     target_locations = sf.io.get_locations_from_tfrecord(target_tfrecord_path)
                     if target_locations:
                         tgt_centers = [(int(x), int(y)) for x, y in target_locations]
-                        log.debug(f"Successfully read {len(tgt_centers)} target coordinates from {target_tfrecord_path}")
                     else:
                         raise errors.DatasetError(
                             f"Target TFRecord {target_tfrecord_path} exists but contains no location data. "
@@ -3066,7 +3051,6 @@ class Dataset:
                 )
 
             slide_report.target_thumb_coords = np.array(tgt_centers, dtype=np.int64)
-            log.debug(f"Final target_thumb_coords: {len(tgt_centers)} coordinates")
 
             # expose draw-level box sizes for the renderer (used by calc_thumb)
             slide_report.source_tile_px = int(source_box_px_draw)

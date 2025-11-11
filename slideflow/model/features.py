@@ -1406,9 +1406,6 @@ class DualMagnificationFeatures(DatasetFeatures):
             common_slides = high_slides.intersection(low_slides)
 
             log.info(f"Found {len(high_slides)} high mag slides, {len(low_slides)} low mag slides")
-            log.debug(f"High mag TFRecords: {[sf.util.path_to_name(t) for t in high_tfrs[:5]]}...")
-            log.debug(f"Low mag TFRecords: {[sf.util.path_to_name(t) for t in low_tfrs[:5]]}...")
-            log.info(f"Common slides for dual extraction: {len(common_slides)}")
 
             if not common_slides:
                 log.error(f"High mag slides: {sorted(high_slides)[:10]}")

@@ -548,7 +548,6 @@ class LowerMagSlideReport(SlideReport):
             if len(centers_draw) == 0:
                 log.debug(f"DEBUG _draw: {label} centers_draw is empty")
                 return
-            log.debug(f"DEBUG _draw: Drawing {len(centers_draw)} {label} rectangles with box_draw={box_draw}, scale={scale_draw_to_thumb:.4f}")
             half = box_draw / 2.0
             w_th = box_draw * scale_draw_to_thumb
             for i, coord_pair in enumerate(centers_draw):
@@ -564,9 +563,6 @@ class LowerMagSlideReport(SlideReport):
                 y_th = y_draw * scale_draw_to_thumb
                 rect_coords = [x_th, y_th, x_th + w_th, y_th + w_th]
                 draw.rectangle(rect_coords, outline=color, width=width)
-                # Log first few rectangles for debugging
-                if i < 3:
-                    log.debug(f"DEBUG _draw: {label}[{i}] coord=({cx},{cy}) -> rect=[{x_th:.1f},{y_th:.1f},{x_th+w_th:.1f},{y_th+w_th:.1f}]")
 
         source_coords = getattr(self, 'source_thumb_coords', None)
         target_coords = getattr(self, 'target_thumb_coords', None)
@@ -574,15 +570,9 @@ class LowerMagSlideReport(SlideReport):
         # Debug the actual coordinate values received in calc_thumb
         if source_coords is None:
             log.debug(f"DEBUG calc_thumb: source_coords is None for {self.path}")
-        else:
-            log.debug(f"DEBUG calc_thumb: source_coords has {len(source_coords)} coordinates for {self.path}")
 
         if target_coords is None:
             log.debug(f"DEBUG calc_thumb: target_coords is None for {self.path}")
-        else:
-            log.debug(f"DEBUG calc_thumb: target_coords has {len(target_coords)} coordinates for {self.path}")
-            if len(target_coords) > 0:
-                log.debug(f"DEBUG calc_thumb: First target coord: {target_coords[0]}")
         
         # Use black for source tiles, red for target tiles - with thin lines
         _draw(source_coords, s_box_draw, (0, 0, 0), 2, "SOURCE")
