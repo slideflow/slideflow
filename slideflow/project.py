@@ -2077,12 +2077,17 @@ class Project:
 
     def extract_dual_magnification_features(
         self,
-        high_mag_tfr_dir: str,
-        low_mag_tfr_dir: str,
         model_path: str,
         output_dir: str,
         device = 'cuda',
         *,
+        high_mag_tfr_dir: Optional[str] = None,
+        low_mag_tfr_dir: Optional[str] = None,
+        sources: Optional[Union[str, List[str]]] = None,
+        high_mag_um: Optional[int] = None,
+        low_mag_um: Optional[int] = None,
+        tile_px: Optional[int] = None,
+        mag_ratio: Optional[int] = None,
         filters: Optional[Dict] = None,
         batch_size: int = 32,
         num_workers: int = 4,
@@ -2101,13 +2106,33 @@ class Project:
         The output concatenated features are saved as individual .pt files per slide with
         accompanying .index files containing coordinate information. These files are directly
         compatible with MIL training without requiring additional conversion to bags.
-        
+
+        This method supports two modes:
+
+        **Mode 1 (Legacy - Direct directories):**
+        Provide `high_mag_tfr_dir` and `low_mag_tfr_dir` to specify exact TFRecord directories.
+
+        **Mode 2 (Source-based - Recommended for multi-source projects):**
+        Provide `sources`, `high_mag_um`, `low_mag_um`, `tile_px`, and optionally `mag_ratio`.
+        The method will automatically find the correct TFRecord directories across all sources.
+        All features from all sources will be saved to the same output directory.
+
         Args:
-            high_mag_tfr_dir (str): Directory containing high magnification TFRecords
-            low_mag_tfr_dir (str): Directory containing low magnification TFRecords  
-            device (str): 'cuda' or 'cpu'
             model_path (str): Path to the feature extraction model
             output_dir (str): Directory to save the concatenated feature bags
+            device (str): 'cuda' or 'cpu'. Defaults to 'cuda'.
+
+            high_mag_tfr_dir (str, optional): [Mode 1] Directory containing high magnification TFRecords
+            low_mag_tfr_dir (str, optional): [Mode 1] Directory containing low magnification TFRecords
+
+            sources (str or list, optional): [Mode 2] Source name(s) to process. Can be a single
+                source name (str) or list of source names. If None, processes all sources.
+            high_mag_um (int, optional): [Mode 2] High magnification in microns (integers only)
+            low_mag_um (int, optional): [Mode 2] Low magnification in microns (integers only)
+            tile_px (int, optional): [Mode 2] Tile size in pixels
+            mag_ratio (int, optional): [Mode 2] Magnification ratio (e.g., 4 for 4x4 grid).
+                If not provided, will be inferred from high_mag_um and low_mag_um.
+
             filters (dict, optional): Dataset filters to apply
             batch_size (int): Batch size for feature extraction. Defaults to 32.
             num_workers (int): Number of worker processes. Defaults to 4.
@@ -2118,72 +2143,136 @@ class Project:
             low_mag_features_path (str, optional): Path to pre-extracted low mag features
                 (for concatenate_only mode)
             **kwargs: Additional arguments passed to feature extraction
-            
+
         Returns:
             DatasetFeatures: Object containing MIL-ready concatenated features saved as
             individual .pt files per slide, directly usable for training without conversion
-            
-        Example:
-            >>> # Extract concatenated features from 40x and 10x tiles
-            >>> features = DatasetFeatures.extract_concatenated_features(
-            ...     high_mag_tfr_dir='project/tfrecords/512px_40x',
-            ...     low_mag_tfr_dir='project/tfrecords/224px_10x_from_40x', 
+
+        Examples:
+            >>> # Mode 1: Direct directories (legacy)
+            >>> features = project.extract_dual_magnification_features(
             ...     model_path='path/to/model.pt',
-            ...     output_dir='project/concatenated_features'
+            ...     output_dir='project/concatenated_features',
+            ...     high_mag_tfr_dir='project/tfrecords/224px_112um',
+            ...     low_mag_tfr_dir='project/tfrecords/224px_448um_from_112um'
+            ... )
+
+            >>> # Mode 2: Source-based (multi-source support)
+            >>> features = project.extract_dual_magnification_features(
+            ...     model_path='path/to/model.pt',
+            ...     output_dir='project/concatenated_features',
+            ...     sources=['source1', 'source2'],
+            ...     high_mag_um=112,
+            ...     low_mag_um=448,
+            ...     tile_px=224,
+            ...     mag_ratio=4
             ... )
         """
-        
-        log.info(f"Starting concatenated feature extraction")
-        log.info(f"  High mag TFRecords: {high_mag_tfr_dir}")
-        log.info(f"  Low mag TFRecords: {low_mag_tfr_dir}")
+
+        log.info(f"Starting dual magnification feature extraction")
         log.info(f"  Model: {model_path}")
         log.info(f"  Output: {output_dir}")
-        
-        # Validate input directories
-        if not os.path.exists(high_mag_tfr_dir):
-            raise FileNotFoundError(f"High magnification TFRecord directory not found: {high_mag_tfr_dir}")
-        if not os.path.exists(low_mag_tfr_dir):
-            raise FileNotFoundError(f"Low magnification TFRecord directory not found: {low_mag_tfr_dir}")
-        tfrecords_base = os.path.dirname(high_mag_tfr_dir)  # Get parent dir
+
         # Create output directory
         os.makedirs(output_dir, exist_ok=True)
 
-        # Get extraction information from report csvs
-        out = Project._get_extraction_csv(self, high_mag_tfr_dir, low_mag_tfr_dir)
-        
-        # Find all TFRecord files in both directories
-        high_mag_tfrs = glob.glob(os.path.join(high_mag_tfr_dir, "*.tfrecords"))
-        low_mag_tfrs = glob.glob(os.path.join(low_mag_tfr_dir, "*.tfrecords"))
-        
-        if not high_mag_tfrs:
-            raise ValueError(f"No TFRecord files found in high mag directory: {high_mag_tfr_dir}")
-        if not low_mag_tfrs:
-            raise ValueError(f"No TFRecord files found in low mag directory: {low_mag_tfr_dir}")
-            
-        log.info(f"Found {len(high_mag_tfrs)} high mag TFRecords and {len(low_mag_tfrs)} low mag TFRecords")
-        log.debug(f"Found high mag: {out['high']['tile_px']} px at {out['high']['tile_um']} and low mag : {out['low']['tile_px']}px at {out['low']['tile_um']}")
-        # Create datasets using the standard approach with source_um for low mag
-        # High mag dataset (standard approach)
-        high_mag_dataset = Dataset(
-            tfrecords=tfrecords_base,
-            tile_px=out['high']['tile_px'],
-            tile_um=out['high']['tile_um'],
-            annotations=self.annotations,
-            filters=filters
-        )
+        # Determine which mode we're in
+        mode_1 = high_mag_tfr_dir is not None and low_mag_tfr_dir is not None
+        mode_2 = high_mag_um is not None and low_mag_um is not None and tile_px is not None
 
-        # Low mag dataset with source_um to find "224px_10x_from_40x" directories
-        low_mag_dataset = Dataset(
-            tfrecords=tfrecords_base,
-            tile_px=out['low']['tile_px'],
-            tile_um=out['low']['tile_um'],
-            source_um=out['high']['tile_um'],  # This creates "224px_10x_from_40x" label
-            annotations=self.annotations,
-            filters=filters
-        )
+        if mode_1 and mode_2:
+            raise ValueError(
+                "Cannot specify both directory-based parameters (high_mag_tfr_dir, low_mag_tfr_dir) "
+                "and source-based parameters (high_mag_um, low_mag_um, tile_px) simultaneously. "
+                "Please use only one mode."
+            )
+        elif not mode_1 and not mode_2:
+            raise ValueError(
+                "Must specify either:\n"
+                "  Mode 1: high_mag_tfr_dir and low_mag_tfr_dir, OR\n"
+                "  Mode 2: high_mag_um, low_mag_um, and tile_px"
+            )
 
-        log.info(f"High mag dataset config: tile_px={out['high']['tile_px']}, tile_um={out['high']['tile_um']}")
-        log.info(f"Low mag dataset config: tile_px={out['low']['tile_px']}, tile_um={out['low']['tile_um']}, source_um={out['high']['tile_um']}")
+        # Mode 1: Legacy direct directory specification
+        if mode_1:
+            log.info(f"Using Mode 1 (direct directories)")
+            log.info(f"  High mag TFRecords: {high_mag_tfr_dir}")
+            log.info(f"  Low mag TFRecords: {low_mag_tfr_dir}")
+
+            # Validate input directories
+            if not os.path.exists(high_mag_tfr_dir):
+                raise FileNotFoundError(f"High magnification TFRecord directory not found: {high_mag_tfr_dir}")
+            if not os.path.exists(low_mag_tfr_dir):
+                raise FileNotFoundError(f"Low magnification TFRecord directory not found: {low_mag_tfr_dir}")
+            tfrecords_base = os.path.dirname(high_mag_tfr_dir)  # Get parent dir
+
+            # Get extraction information from report csvs
+            out = Project._get_extraction_csv(self, high_mag_tfr_dir, low_mag_tfr_dir)
+
+            # Find all TFRecord files in both directories
+            high_mag_tfrs = glob.glob(os.path.join(high_mag_tfr_dir, "*.tfrecords"))
+            low_mag_tfrs = glob.glob(os.path.join(low_mag_tfr_dir, "*.tfrecords"))
+
+            if not high_mag_tfrs:
+                raise ValueError(f"No TFRecord files found in high mag directory: {high_mag_tfr_dir}")
+            if not low_mag_tfrs:
+                raise ValueError(f"No TFRecord files found in low mag directory: {low_mag_tfr_dir}")
+
+            log.info(f"Found {len(high_mag_tfrs)} high mag TFRecords and {len(low_mag_tfrs)} low mag TFRecords")
+            log.debug(f"Found high mag: {out['high']['tile_px']} px at {out['high']['tile_um']} and low mag : {out['low']['tile_px']}px at {out['low']['tile_um']}")
+
+            # Create datasets using the standard approach with source_um for low mag
+            high_mag_dataset = Dataset(
+                tfrecords=tfrecords_base,
+                tile_px=out['high']['tile_px'],
+                tile_um=out['high']['tile_um'],
+                annotations=self.annotations,
+                filters=filters
+            )
+
+            low_mag_dataset = Dataset(
+                tfrecords=tfrecords_base,
+                tile_px=out['low']['tile_px'],
+                tile_um=out['low']['tile_um'],
+                source_um=out['high']['tile_um'],
+                annotations=self.annotations,
+                filters=filters
+            )
+
+        # Mode 2: Source-based specification
+        else:
+            log.info(f"Using Mode 2 (source-based)")
+
+            # Validate that magnifications are integers only
+            if not isinstance(high_mag_um, int):
+                raise ValueError(f"high_mag_um must be an integer (microns), got {type(high_mag_um).__name__}")
+            if not isinstance(low_mag_um, int):
+                raise ValueError(f"low_mag_um must be an integer (microns), got {type(low_mag_um).__name__}")
+            if not isinstance(tile_px, int):
+                raise ValueError(f"tile_px must be an integer, got {type(tile_px).__name__}")
+
+            log.info(f"  High mag: {high_mag_um}um at {tile_px}px")
+            log.info(f"  Low mag: {low_mag_um}um at {tile_px}px")
+            log.info(f"  Sources: {sources if sources else 'all'}")
+
+            # Create high mag dataset using project's dataset method
+            # This will automatically handle source selection and configuration
+            high_mag_dataset = self.dataset(
+                tile_px=tile_px,
+                tile_um=high_mag_um,
+                sources=sources,
+                filters=filters
+            )
+
+            # Create low mag dataset with source_um to find "_from_" directories
+            low_mag_dataset = self.dataset(
+                tile_px=tile_px,
+                tile_um=low_mag_um,
+                source_um=high_mag_um,
+                sources=sources,
+                filters=filters
+            )
+
         log.info(f"High mag dataset: {len(high_mag_dataset.tfrecords())} TFRecords")
         log.info(f"Low mag dataset: {len(low_mag_dataset.tfrecords())} TFRecords")
 
@@ -2193,16 +2282,27 @@ class Project:
         if high_tfrs:
             log.debug(f"Example high mag TFRecord path: {high_tfrs[0]}")
         else:
-            log.warning(f"No high mag TFRecords found! Expected directory: {high_mag_tfr_dir}")
+            log.warning(f"No high mag TFRecords found!")
         if low_tfrs:
             log.debug(f"Example low mag TFRecord path: {low_tfrs[0]}")
         else:
-            log.warning(f"No low mag TFRecords found! Expected directory: {low_mag_tfr_dir}")
-        
+            log.warning(f"No low mag TFRecords found!")
+
+        # Determine TFRecord directories for config
+        # Get the parent directory of the first TFRecord file for each magnification
+        high_mag_tfr_dir_for_config = os.path.dirname(high_tfrs[0]) if high_tfrs else None
+        low_mag_tfr_dir_for_config = os.path.dirname(low_tfrs[0]) if low_tfrs else None
+
         # Use the specialized DualMagnificationFeatures subclass
         from .model.features import DualMagnificationFeatures
-        
+
         dual_features = DualMagnificationFeatures(output_dir)
+
+        # Store the TFRecord directory paths in the dual_features object
+        # so they can be saved in the config
+        dual_features.high_mag_tfr_dir = high_mag_tfr_dir_for_config
+        dual_features.low_mag_tfr_dir = low_mag_tfr_dir_for_config
+
         result = dual_features.extract_and_concatenate(
             high_mag_dataset=high_mag_dataset,
             low_mag_dataset=low_mag_dataset,

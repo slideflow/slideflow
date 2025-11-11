@@ -1336,8 +1336,9 @@ class DualMagnificationFeatures(DatasetFeatures):
             'high_mag_tile_um': self.high_mag_tile_um,
             'low_mag_tile_px': self.low_mag_tile_px,
             'low_mag_tile_um': self.low_mag_tile_um,
-            'high_mag_features_path': getattr(self, 'high_mag_features_path', None),
-            'low_mag_features_path': getattr(self, 'low_mag_features_path', None),
+            # Store the TFRecord directory paths (where features were extracted from)
+            'high_mag_features_path': getattr(self, 'high_mag_tfr_dir', None),
+            'low_mag_features_path': getattr(self, 'low_mag_tfr_dir', None),
             'concatenated_dir': self.concatenated_dir,
             'slides': self.slides,
             'features_version': sf.__version__
