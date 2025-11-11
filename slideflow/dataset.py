@@ -2294,6 +2294,14 @@ class Dataset:
             ## throw an error that target_tile_px cannot be none
             raise errors.DatasetError("target_tile_px cannot be None")
 
+        # Validate that tile_um is an integer (microns), not a string magnification
+        if not isinstance(self.tile_um, int):
+            raise errors.DatasetError(
+                f"extract_lower_mag_tiles_from_tfr only supports integer tile_um (microns), "
+                f"not string magnifications. Got tile_um={self.tile_um!r} (type: {type(self.tile_um).__name__}). "
+                f"Please set tile_um to an integer value in microns (e.g., 112 for 20x at 224px)."
+            )
+
         # Convert tile_um to integer microns at the beginning
         # Uses mpp from kwargs if provided, otherwise calculates from magnification power
         mpp = kwargs.get('mpp', None)
