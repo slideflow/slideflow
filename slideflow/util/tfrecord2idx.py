@@ -170,7 +170,7 @@ def index_has_locations(index: str) -> bool:
     else:
         try:
             return 'locations' in np.load(index).files
-        except ValueError as e:
+        except (ValueError, EOFError) as e:
             raise ValueError(
                 f"Failed to load TFRecord index. Try regenerating index files "
                 f"with Dataset.rebuild_index(). Error received: {e}"
