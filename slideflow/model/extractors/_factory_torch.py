@@ -26,9 +26,43 @@ def build_torch_feature_extractor(name, **kwargs):
 # -----------------------------------------------------------------------------
 
 @register_torch
+def hoptimus0(**kwargs):
+    from .hoptimus0 import Hoptimus0Features
+    return Hoptimus0Features(**kwargs)
+
+@register_torch
+def dinobloom(**kwargs):
+    from .dinobloom import DinoBloomFeatures
+    return DinoBloomFeatures(**kwargs)
+
+@register_torch
+def uni(weights, **kwargs):
+    from .uni import UNIFeatures
+    return UNIFeatures(weights, **kwargs)
+
+@register_torch
+def uni2(weights, **kwargs):
+    from .uni2 import UNI2Features
+    return UNI2Features(weights, **kwargs)
+
+@register_torch
+def conch(weights=None, **kwargs):
+    from .conch import ConchFeatures
+    return ConchFeatures(weights, **kwargs)
+
+@register_torch
+def conchv1_5(weights=None, **kwargs):
+    from .conch import ConchFeatures
+    return ConchFeatures(weights, **kwargs)
+
 def virchow(weights, **kwargs):
     from .virchow import VirchowFeatures
     return VirchowFeatures(weights, **kwargs)
+
+@register_torch
+def titan(weights=None, **kwargs):
+    from .titan import TitanFeatures
+    return TitanFeatures(weights=weights, **kwargs)
 
 @register_torch
 def vit(**kwargs):

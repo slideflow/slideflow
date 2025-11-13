@@ -8,6 +8,8 @@ import time
 import warnings
 import multiprocessing as mp
 from collections import defaultdict
+import glob
+from pathlib import Path
 from math import isnan
 from os.path import exists, join
 from typing import (
@@ -1374,6 +1376,607 @@ class DatasetFeatures:
         return self.softmax_predict(*args, **kwargs)
 
 # -----------------------------------------------------------------------------
+class DualMagnificationFeatures(DatasetFeatures):
+    """Specialized subclass for extracting and concatenating features from dual magnification tiles.
+    
+    This class handles the extraction of features from both high and low magnification tiles,
+    performs spatial matching between corresponding tiles, and creates concatenated feature vectors.
+    Features are saved incrementally during the process for memory efficiency and resumability.
+    """
+    
+    def __init__(self, output_dir: str):
+        """Initialize with output directory for saving intermediate and final features.
+
+        Args:
+            output_dir: Directory to save features during extraction
+        """
+        # Initialize the basic attributes without calling parent __init__
+        # to avoid the "0/0 slides" logging from DatasetFeatures.__init__
+        self.activations = defaultdict(list)
+        self.predictions = defaultdict(list)
+        self.uncertainty = defaultdict(list)
+        self.locations = defaultdict(list)
+        self.num_features = 0
+        self.num_classes = 0
+        self.model = None
+        self.dataset = None
+        self.feature_generator = None
+        self.tile_px = None
+        self.manifest = dict()
+        self.tfrecords = []
+        self.slides = []
+        self.output_dir = output_dir
+
+        # Store dual magnification metadata
+        self.high_mag_tile_px = None
+        self.high_mag_tile_um = None
+        self.low_mag_tile_px = None
+        self.low_mag_tile_um = None
+
+        # Define subdirectories for different feature types
+        self.high_mag_dir = os.path.join(output_dir, "high_mag_features")
+        self.low_mag_dir = os.path.join(output_dir, "low_mag_features")
+        self.concatenated_dir = os.path.join(output_dir, "concatenated_features")
+
+        # Create subdirectories
+        os.makedirs(self.high_mag_dir, exist_ok=True)
+        os.makedirs(self.low_mag_dir, exist_ok=True)
+        os.makedirs(self.concatenated_dir, exist_ok=True)
+    
+    def dump_config(self):
+        """Override dump_config to provide consistent configuration for dual magnification features."""
+        # Get extractor config if available
+        if hasattr(self, 'extractor') and self.extractor is not None:
+            try:
+                # Try to get the extractor's dump_config (for built extractors)
+                if hasattr(self.extractor, 'dump_config'):
+                    extractor_config = self.extractor.dump_config()
+                elif hasattr(self.extractor, 'generator') and hasattr(self.extractor.generator, 'dump_config'):
+                    extractor_config = self.extractor.generator.dump_config()
+                else:
+                    extractor_config = getattr(self, 'model', 'dual_magnification_concatenated')
+            except:
+                extractor_config = getattr(self, 'model', 'dual_magnification_concatenated')
+        else:
+            extractor_config = getattr(self, 'model', 'dual_magnification_concatenated')
+
+        # Get normalizer config if available
+        normalizer_config = None
+        if hasattr(self, 'normalizer') and self.normalizer is not None:
+            normalizer_config = dict(
+                method=self.normalizer.method,
+                fit=self.normalizer.get_fit(as_list=True),
+            )
+
+        return {
+            'extractor': extractor_config,
+            'normalizer': normalizer_config,
+            'num_features': self.num_features,
+            # Include both specific and legacy fields
+            'tile_px': self.high_mag_tile_px,  # Legacy field
+            'tile_um': self.high_mag_tile_um,  # Legacy field
+            'high_mag_tile_px': self.high_mag_tile_px,
+            'high_mag_tile_um': self.high_mag_tile_um,
+            'low_mag_tile_px': self.low_mag_tile_px,
+            'low_mag_tile_um': self.low_mag_tile_um,
+            # Store the TFRecord directory paths (where features were extracted from)
+            'high_mag_features_path': getattr(self, 'high_mag_tfr_dir', None),
+            'low_mag_features_path': getattr(self, 'low_mag_tfr_dir', None),
+            'concatenated_dir': self.concatenated_dir,
+            'slides': self.slides,
+            'features_version': sf.__version__
+        } 
+    
+    def extract_and_concatenate(
+        self,
+        high_mag_dataset: "sf.Dataset",
+        low_mag_dataset: "sf.Dataset",
+        model_path: str,
+        device = 'cuda',
+        *,
+        batch_size: int = 32,
+        num_workers: int = 4,
+        min_tiles: Optional[int] = None,
+        max_tiles: Optional[int] = None,
+        high_mag_features_path: Optional[str] = None,
+        low_mag_features_path: Optional[str] = None,
+        **kwargs
+    ) -> "DualMagnificationFeatures":
+        """Extract features from both magnifications and concatenate spatially corresponding tiles.
+        
+        Args:
+            high_mag_dataset: Dataset containing high magnification TFRecords
+            low_mag_dataset: Dataset containing low magnification TFRecords
+            model_path: Path to model or name of built-in feature extractor
+            batch_size: Batch size for feature extraction
+            num_workers: Number of worker processes
+            min_tiles: Minimum tiles per slide. Slides with fewer tiles are excluded.
+            max_tiles: Maximum tiles per slide. Excess tiles are randomly sampled.
+            high_mag_features_path: Path to pre-extracted high mag features (for concatenate_only mode)
+            low_mag_features_path: Path to pre-extracted low mag features (for concatenate_only mode)
+            **kwargs: Additional arguments passed to feature extraction
+            
+        Returns:
+            Self with concatenated features loaded
+        """
+        
+        # Set up paths for checking existing features  
+        self.high_mag_features_path = high_mag_features_path
+        self.low_mag_features_path = low_mag_features_path
+
+        log.info(f"High mag features save to {self.high_mag_dir}")
+        log.info(f"Low mag features save to {self.low_mag_dir}")
+        log.info(f"Concatenated features will save to {self.concatenated_dir}")
+
+        # Check which features are already available
+        has_high_features = high_mag_features_path and os.path.exists(high_mag_features_path)
+        has_low_features = low_mag_features_path and os.path.exists(low_mag_features_path)
+        
+        if has_high_features and has_low_features:
+            log.info("Full concatenate-only mode: Loading pre-extracted features...")
+            log.info(f"Loading high mag features from: {high_mag_features_path}")
+            high_mag_features = DatasetFeatures.from_bags(high_mag_features_path)
+            log.info(f"Loading low mag features from: {low_mag_features_path}")
+            low_mag_features = DatasetFeatures.from_bags(low_mag_features_path)
+            
+        else:
+            # At least one set of features needs to be extracted
+            # Find common slides between high and low magnification datasets
+            high_tfrs = high_mag_dataset.tfrecords()
+            low_tfrs = low_mag_dataset.tfrecords()
+            high_slides = set(sf.util.path_to_name(tfr) for tfr in high_tfrs)
+            low_slides = set(sf.util.path_to_name(tfr) for tfr in low_tfrs)
+            common_slides = high_slides.intersection(low_slides)
+
+            log.info(f"Found {len(high_slides)} high mag slides, {len(low_slides)} low mag slides")
+
+            if not common_slides:
+                log.error(f"High mag slides: {sorted(high_slides)[:10]}")
+                log.error(f"Low mag slides: {sorted(low_slides)[:10]}")
+                raise ValueError(
+                    f"No common slides found between high and low magnification datasets. "
+                    f"High mag has {len(high_slides)} slides, low mag has {len(low_slides)} slides. "
+                    f"Check that both datasets are finding TFRecords in the correct directories."
+                )
+            
+            # Filter datasets to only include common slides
+            high_mag_dataset = self._filter_dataset_by_slides(high_mag_dataset, common_slides)
+            low_mag_dataset = self._filter_dataset_by_slides(low_mag_dataset, common_slides)
+            
+            log.info(f"Filtered datasets - High: {len(high_mag_dataset.tfrecords())} TFRecords, Low: {len(low_mag_dataset.tfrecords())} TFRecords")
+            
+            # Build feature extractor if needed (only if we need to extract features)
+            if not has_high_features or not has_low_features:
+                if isinstance(model_path, str) and not os.path.exists(model_path):
+                    # Built-in feature extractor
+                    log.info(f"Building feature extractor: {model_path}")
+                    kwargs['device'] = device
+                    extractor = sf.build_feature_extractor(model_path, tile_px=high_mag_dataset.tile_px, **kwargs)
+                    # Store model name for config
+                    self.model = model_path
+                else:
+                    # File path to saved model
+                    extractor = model_path
+                    self.model = model_path
+
+                # Store extractor for accessing normalizer later
+                self.extractor = extractor
+            
+            # Step 1: Handle high magnification features
+            if has_high_features:
+                log.info(f"Loading existing high mag features from: {high_mag_features_path}")
+                high_mag_features = DatasetFeatures.from_bags(high_mag_features_path)
+            else:
+                log.info("Extracting features from high magnification tiles...")
+                high_mag_features = self._extract_features_with_extractor(
+                    high_mag_dataset, extractor, batch_size, num_workers, **kwargs
+                )
+                high_mag_features.to_torch(self.high_mag_dir, verbose=True)
+                log.info(f"Saved high mag features to {self.high_mag_dir}")
+            
+            # Step 2: Handle low magnification features
+            if has_low_features:
+                log.info(f"Loading existing low mag features from: {low_mag_features_path}")
+                low_mag_features = DatasetFeatures.from_bags(low_mag_features_path)
+            else:
+                log.info("Extracting features from low magnification tiles...")
+                low_mag_features = self._extract_features_with_extractor(
+                    low_mag_dataset, extractor, batch_size, num_workers, **kwargs
+                )
+                low_mag_features.to_torch(self.low_mag_dir, verbose=True)
+                log.info(f"Saved low mag features to {self.low_mag_dir}")
+        
+        # Step 3: Create concatenated features with spatial matching
+        log.info("Creating concatenated features with spatial matching...")
+        self._create_concatenated_features(high_mag_features, low_mag_features, high_mag_dataset, low_mag_dataset, min_tiles, max_tiles)
+        log.info(f"Concatenated features saved iteratively to {self.concatenated_dir}")
+    
+        return self
+    
+    def to_bags(
+        self,
+        bags_dir: str,
+        *,
+        min_tiles: int = 16,
+        max_tiles: int = 0,
+        **kwargs
+    ) -> str:
+        """Convert the concatenated dual magnification features to bags for MIL training.
+        
+        This method converts all concatenated features to bags without additional filtering,
+        since the concatenated features already represent the intersection of slides that
+        exist in both high and low magnification datasets.
+        
+        Args:
+            bags_dir (str): Output directory for bags
+            
+        Keyword Args:
+            min_tiles (int): Minimum tiles per slide. Defaults to 16.
+            max_tiles (int): Maximum tiles per slide. Defaults to 0 (no limit).
+            **kwargs: Additional arguments (for compatibility)
+            
+        Returns:
+            str: Path to bags directory
+        """
+        import torch
+        
+        # Load the concatenated features
+        log.info(f"Loading concatenated dual magnification features from {self.concatenated_dir}")
+        features = DatasetFeatures.from_bags(self.concatenated_dir)
+        
+        # Use all available slides (no additional filtering needed)
+        slides_to_convert = features.slides
+        log.info(f"Converting all {len(slides_to_convert)} dual magnification slides to bags")
+        
+        # Create output directory
+        os.makedirs(bags_dir, exist_ok=True)
+        
+        # Convert each slide's features to a bag
+        log.info(f"Converting concatenated features to bags in {bags_dir}")
+        for slide in track(slides_to_convert, description="Creating bags"):
+            if slide not in features.activations:
+                log.warning(f"No features found for slide {slide}, skipping")
+                continue
+                
+            # Get features for this slide
+            slide_features = features.activations[slide]
+            
+            # Apply max_tiles limit if specified
+            if max_tiles > 0 and len(slide_features) > max_tiles:
+                # Randomly sample tiles to respect max_tiles limit
+                indices = np.random.choice(len(slide_features), max_tiles, replace=False)
+                slide_features = slide_features[indices]
+            
+            # Apply min_tiles filter
+            if len(slide_features) < min_tiles:
+                log.warning(f"Slide {slide} has only {len(slide_features)} tiles (< {min_tiles}), skipping")
+                continue
+            
+            # Convert to torch tensor and save as bag
+            bag_tensor = torch.from_numpy(slide_features).float()
+            bag_path = os.path.join(bags_dir, f"{slide}.pt")
+            torch.save(bag_tensor, bag_path)
+        
+        # Count successful conversions
+        bag_files = [f for f in os.listdir(bags_dir) if f.endswith('.pt')]
+        log.info(f"Successfully created {len(bag_files)} dual magnification bags in {bags_dir}")
+        
+        return bags_dir
+    
+    def _extract_features_with_extractor(
+        self, 
+        dataset: "sf.Dataset", 
+        extractor, 
+        batch_size: int, 
+        num_workers: int,
+        **kwargs
+    ) -> DatasetFeatures:
+        """Extract features from a single dataset using a pre-built extractor."""
+        
+        log.info(f"Starting feature extraction with batch_size={batch_size}, num_workers={num_workers}")
+        log.info(f"Dataset has {len(dataset.tfrecords())} TFRecords")
+        
+        # Extract features
+        features = DatasetFeatures(
+            extractor,
+            dataset, 
+            batch_size=batch_size,
+            num_workers=num_workers,
+            progress=True,
+            **kwargs
+        )
+        
+        # Debug logging to check what we extracted
+        log.info(f"Feature extraction completed. Extracted features for {len(features.slides)} slides")
+        log.debug(f"Feature slides list: {features.slides}")
+        log.debug(f"Number of features per vector: {features.num_features}")
+            
+        return features
+    
+    def _create_concatenated_features(
+        self,
+        high_mag_features: DatasetFeatures,
+        low_mag_features: DatasetFeatures,
+        high_mag_dataset: "sf.Dataset",
+        low_mag_dataset: "sf.Dataset",
+        min_tiles: Optional[int] = None,
+        max_tiles: Optional[int] = None
+    ):
+        """Create concatenated features with spatial matching logic."""
+        import pandas as pd
+
+        # Store dataset metadata for config
+        self.high_mag_tile_px = high_mag_dataset.tile_px
+        self.high_mag_tile_um = high_mag_dataset.tile_um
+        self.low_mag_tile_px = low_mag_dataset.tile_px
+        self.low_mag_tile_um = low_mag_dataset.tile_um
+
+        log.info(f"Dual magnification config: High mag {self.high_mag_tile_px}px @ {self.high_mag_tile_um}, "
+                 f"Low mag {self.low_mag_tile_px}px @ {self.low_mag_tile_um}")
+
+        # Get feature data
+        high_activations = high_mag_features.activations
+        high_locations = high_mag_features.locations
+        low_activations = low_mag_features.activations
+        low_locations = low_mag_features.locations
+
+        # Initialize containers
+        self.activations = defaultdict(list)
+        self.locations = defaultdict(list)
+        self.predictions = defaultdict(list)
+        self.uncertainty = defaultdict(list)
+
+        # Initialize list to collect matched tile data
+        matched_tiles_data = []
+
+        # Process each slide with spatial matching
+        slides_processed = 0
+        for slide_name in track(high_activations.keys(), description="Matching and concatenating features"):
+            if slide_name not in low_activations:
+                log.warning(f"Slide {slide_name} found in high mag but not low mag - skipping")
+                continue
+
+            # Get tile coordinates and features
+            high_coords = high_locations[slide_name]
+            high_feats = high_activations[slide_name]
+            low_coords = low_locations[slide_name]
+            low_feats = low_activations[slide_name]
+
+            # Spatial matching logic - pass the datasets to calculate proper thresholds
+            matched_pairs = self._find_spatial_matches(
+                high_coords, high_feats, low_coords, low_feats,
+                high_mag_dataset, low_mag_dataset
+            )
+
+            # Early filtering: check if we have enough matched pairs before processing
+            num_matched_tiles = len(matched_pairs)
+            if min_tiles is not None and num_matched_tiles < min_tiles:
+                log.warning(f"Slide {slide_name} has only {num_matched_tiles} matched tiles (< {min_tiles}), skipping")
+                continue
+
+            # Apply max_tiles filtering by randomly sampling matched pairs
+            if max_tiles is not None and num_matched_tiles > max_tiles:
+                log.info(f"Slide {slide_name} has {num_matched_tiles} matched tiles, randomly sampling {max_tiles}")
+                indices = np.random.choice(num_matched_tiles, max_tiles, replace=False)
+                matched_pairs = [matched_pairs[i] for i in sorted(indices)]
+                num_matched_tiles = max_tiles
+
+            # Create concatenated features for matched pairs
+            for high_idx, low_idx, high_coord, distance in matched_pairs:
+                high_feat = high_feats[high_idx]
+                low_feat = low_feats[low_idx]
+                low_coord = low_coords[low_idx]
+                
+                # Log matched tile data
+                matched_tiles_data.append({
+                    'slide_name': slide_name,
+                    'high_mag_x': high_coord[0],
+                    'high_mag_y': high_coord[1], 
+                    'low_mag_x': low_coord[0],
+                    'low_mag_y': low_coord[1],
+                    'distance': distance,
+                    'high_mag_idx': high_idx,
+                    'low_mag_idx': low_idx
+                })
+                
+                # Concatenate features
+                concat_feat = np.concatenate([high_feat, low_feat])
+                
+                self.activations[slide_name].append(concat_feat)
+                self.locations[slide_name].append(high_coord)
+                
+                # Handle predictions if available
+                if (slide_name in high_mag_features.predictions and 
+                    slide_name in low_mag_features.predictions):
+                    high_pred = high_mag_features.predictions[slide_name][high_idx]
+                    low_pred = low_mag_features.predictions[slide_name][low_idx]
+                    concat_pred = np.concatenate([high_pred, low_pred])
+                    self.predictions[slide_name].append(concat_pred)
+                
+                # Handle uncertainty if available  
+                if (slide_name in high_mag_features.uncertainty and
+                    slide_name in low_mag_features.uncertainty):
+                    high_unc = high_mag_features.uncertainty[slide_name][high_idx]
+                    low_unc = low_mag_features.uncertainty[slide_name][low_idx]
+                    concat_unc = np.concatenate([high_unc, low_unc])
+                    self.uncertainty[slide_name].append(concat_unc)
+            
+            # Convert lists to numpy arrays for this slide
+            if self.activations[slide_name]:
+                self.activations[slide_name] = np.stack(self.activations[slide_name])
+                self.locations[slide_name] = np.stack(self.locations[slide_name])
+                if self.predictions[slide_name]:
+                    self.predictions[slide_name] = np.stack(self.predictions[slide_name])
+                if self.uncertainty[slide_name]:
+                    self.uncertainty[slide_name] = np.stack(self.uncertainty[slide_name])
+                
+                # Save individual torch files for this slide immediately (but not config yet)
+                self._save_single_slide_torch_files(slide_name)
+                log.info(f"✓ Saved concatenated features for slide {slide_name} ({num_matched_tiles} tiles)")
+            else:
+                log.warning(f"No concatenated features created for slide {slide_name}")
+            
+            slides_processed += 1
+        
+        # Arrays were already converted and saved per slide above
+        
+        # Set metadata
+        self.slides = list(self.activations.keys())
+        self.num_features = self.activations[self.slides[0]].shape[-1] if self.slides else 0
+        self.num_classes = (self.predictions[self.slides[0]].shape[-1] 
+                           if self.slides and self.predictions[self.slides[0]] else 0)
+        
+        # Save matched tiles data to CSV
+        if matched_tiles_data:
+            matched_df = pd.DataFrame(matched_tiles_data)
+            csv_path = os.path.join(self.output_dir, "matched_tiles_coordinates.csv")
+            matched_df.to_csv(csv_path, index=False)
+            log.info(f"Saved {len(matched_tiles_data)} matched tile pairs to {csv_path}")
+        else:
+            log.warning("No matched tiles data to save")
+        
+        # Save the final config file now that all slides are processed
+        self._save_concatenated_config()
+        
+        log.info(f"Successfully processed {slides_processed} slides")
+        log.info(f"Concatenated feature extraction complete. Total features per tile: {self.num_features}")
+    
+    def _find_spatial_matches(self, high_coords, high_feats, low_coords, low_feats, high_mag_dataset, low_mag_dataset):
+        """Find spatial matches between high and low magnification tiles."""
+        
+        matched_pairs = []
+        
+        # Get magnification info from datasets using slideflow's utility functions
+        high_mag_px = high_mag_dataset.tile_px
+        low_mag_px = low_mag_dataset.tile_px
+        high_mag_um = high_mag_dataset.tile_um
+        low_mag_um = low_mag_dataset.tile_um
+        
+        # Convert tile_um to actual magnification values using slideflow's utility functions
+        if sf.util.is_mag(str(high_mag_um)):
+            high_mag_val = sf.util.to_mag(str(high_mag_um))
+        else:
+            # Convert microns to magnification using slideflow's formula
+            high_mag_val = 10 / (int(high_mag_um) / high_mag_px)
+            
+        if sf.util.is_mag(str(low_mag_um)):
+            low_mag_val = sf.util.to_mag(str(low_mag_um))
+        else:
+            # Convert microns to magnification using slideflow's formula
+            low_mag_val = 10 / (int(low_mag_um) / low_mag_px)
+        
+        # Calculate the magnification ratio
+        mag_ratio = high_mag_val / low_mag_val
+        
+        # Calculate spatial threshold: low mag tile covers larger area
+        # The coordinate system is typically in tile pixels, so we need to account for 
+        # the fact that a low mag tile covers the area of multiple high mag tiles
+        spatial_threshold = low_mag_px * mag_ratio / 2  # Half coverage for overlap tolerance
+        
+        # For each low magnification tile, find all high magnification tiles that fall within it
+        for j, low_coord in enumerate(low_coords):
+            for i, high_coord in enumerate(high_coords):
+                # Calculate spatial distance between tile centers in coordinate space
+                x_offset = abs(high_coord[0] - low_coord[0])
+                y_offset = abs(high_coord[1] - low_coord[1])
+                distance = np.sqrt(x_offset**2 + y_offset**2)
+                
+                # Check if the high mag tile falls within the low mag tile's coverage area
+                if x_offset <= spatial_threshold and y_offset <= spatial_threshold:
+                    matched_pairs.append((i, j, high_coord, distance))
+        
+        return matched_pairs
+    
+    
+    def _save_single_slide_torch_files(self, slide_name: str):
+        """Save torch and index files for a single slide without config."""
+        import torch
+        from os.path import join
+        
+        # Ensure output directory exists
+        if not os.path.exists(self.concatenated_dir):
+            os.makedirs(self.concatenated_dir)
+        
+        # Save the torch file
+        if len(self.activations[slide_name]):
+            slide_activations = torch.from_numpy(
+                self.activations[slide_name].astype(np.float32)
+            )
+            torch.save(slide_activations, join(self.concatenated_dir, f'{slide_name}.pt'))
+            
+            # Save the index file
+            sf.io.tfrecord2idx.save_index(
+                self.locations[slide_name],
+                join(self.concatenated_dir, f'{slide_name}.index')
+            )
+    
+    def _save_concatenated_config(self):
+        """Save the configuration file for concatenated features."""
+        from os.path import join
+        
+        config = self.dump_config()
+        config_path = join(self.concatenated_dir, 'bags_config.json')
+        sf.util.write_json(config, config_path)
+        log.info(f"Saved concatenated features config to {config_path}")
+    
+    def _save_concatenated_features(self):
+        """Save concatenated features to pickle file."""
+        with open(self.concatenated_dir, 'wb') as f:
+            pickle.dump({
+                'activations': self.activations,
+                'locations': self.locations,
+                'predictions': self.predictions,
+                'uncertainty': self.uncertainty,
+                'slides': self.slides,
+                'num_features': self.num_features,
+                'num_classes': self.num_classes
+            }, f)
+    
+    def _load_concatenated_features(self):
+        """Load concatenated features from pickle file."""
+        with open(self.concatenated_dir, 'rb') as f:
+            data = pickle.load(f)
+        
+        self.activations = data['activations']
+        self.locations = data['locations']
+        self.predictions = data['predictions'] 
+        self.uncertainty = data['uncertainty']
+        self.slides = data['slides']
+        self.num_features = data['num_features']
+        self.num_classes = data['num_classes']
+    
+    def _filter_dataset_by_slides(self, dataset: "sf.Dataset", slide_names: set) -> "sf.Dataset":
+        """Filter a dataset to only include TFRecords for the specified slides.
+        
+        Args:
+            dataset: The dataset to filter
+            slide_names: Set of slide names to keep
+            
+        Returns:
+            New dataset containing only TFRecords for the specified slides
+        """
+        # Get all TFRecord files from the dataset
+        all_tfrecords = dataset.tfrecords()
+        log.debug(f"Original dataset has {len(all_tfrecords)} TFRecords")
+        
+        # Filter to only include TFRecords for slides in the slide_names set
+        filtered_tfrecords = []
+        for tfr_path in all_tfrecords:
+            slide_name = sf.util.path_to_name(tfr_path)
+            if slide_name in slide_names:
+                filtered_tfrecords.append(tfr_path)
+        
+        log.debug(f"Filtered dataset will have {len(filtered_tfrecords)} TFRecords")
+        
+        # Use the standard filter approach to preserve all dataset attributes including source_um
+        # Create a filter that includes only the slide names we want
+        slide_filter = {'slide': list(slide_names)}
+        filtered_dataset = dataset.filter(slide_filter)
+        
+        log.debug(f"Created filtered dataset with {len(filtered_dataset.tfrecords())} TFRecords")
+        return filtered_dataset
+
+# -----------------------------------------------------------------------------
 
 class _FeatureGenerator:
     """Provides common API for feature generator interfaces."""
@@ -1541,7 +2144,7 @@ class _FeatureGenerator:
         elif self.is_torch():
             slides = batch_slides
             model_out = [
-                m.cpu().numpy() if not isinstance(m, list) else m
+                m.cpu().float().numpy() if not isinstance(m, list) else m # REVERT ASAP THIS IS JSUT FOR TESTING WITHOUT CUDA
                 for m in model_out
             ]
             if batch_loc[0] is not None:
@@ -1876,7 +2479,6 @@ class _FeatureGenerator:
         batch_proc_thread.join()
         if hasattr(dataset, 'close'):
             dataset.close()
-
         return activations, predictions, locations, uncertainty
 
 

@@ -1557,12 +1557,30 @@ def tfrecord_heatmap(
     )
 
 
-def tile_size_label(tile_px: int, tile_um: Union[str, int]) -> str:
-    """Return the string label of the given tile size."""
+def tile_size_label(tile_px: int, tile_um: Union[str, int], source_um: Optional[Union[str, int]] = None) -> str:
+    """Return the string label of the given tile size.
+    
+    Args:
+        tile_px: Tile size in pixels
+        tile_um: Target magnification/tile size
+        source_um: Optional source magnification for downscaled tiles
+        
+    Returns:
+        String label like "224px_40x" or "224px_10x_from_40x" for downscaled tiles
+    """
     if isinstance(tile_um, str):
-        return f"{tile_px}px_{tile_um.lower()}"
+        base_label = f"{tile_px}px_{tile_um.lower()}"
     else:
-        return f"{tile_px}px_{tile_um}um"
+        base_label = f"{tile_px}px_{tile_um}um"
+    
+    if source_um is not None:
+        if isinstance(source_um, str):
+            source_label = source_um.lower()
+        else:
+            source_label = f"{source_um}um"
+        return f"{base_label}_from_{source_label}"
+    else:
+        return base_label
 
 
 def get_valid_model_dir(root: str) -> List:
