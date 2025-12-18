@@ -7,7 +7,7 @@ import warnings
 import slideflow.slide.qc
 from slideflow.util import SUPPORTED_FORMATS  # noqa F401
 from .report import ExtractionPDF  # noqa F401
-from .report import ExtractionReport, SlideReport
+from .report import ExtractionReport, SlideReport, LowerMagExtractionReport, LowerMagSlideReport
 from .utils import *
 from .backends import tile_worker, wsi_reader, backend_formats
 from .wsi import WSI

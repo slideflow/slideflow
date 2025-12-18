@@ -92,6 +92,7 @@ import time
 import types
 import tempfile
 import warnings
+import glob
 from contextlib import contextmanager
 from collections import defaultdict
 from datetime import datetime
@@ -105,15 +106,17 @@ from pprint import pformat
 from functools import partial
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
                     Union, Callable)
+import io
 import numpy as np
 import pandas as pd
 import shapely.geometry as sg
 from rich.progress import track, Progress
 from tqdm import tqdm
+from PIL import Image
 
 import slideflow as sf
 from slideflow import errors
-from slideflow.slide import WSI, ExtractionReport, SlideReport
+from slideflow.slide import WSI, ExtractionReport, LowerMagExtractionReport, SlideReport, LowerMagSlideReport
 from slideflow.util import (log, Labels, _shortname, path_to_name,
                             tfrecord2idx, TileExtractionProgress, MultiprocessProgress)
 
@@ -515,6 +518,7 @@ class Dataset:
         filter_blank: Optional[Union[List[str], str]] = None,
         annotations: Optional[Union[str, pd.DataFrame]] = None,
         min_tiles: int = 0,
+        source_um: Optional[Union[str, int]] = None,
     ) -> None:
         """Initialize a Dataset to organize processed images.
 
@@ -567,6 +571,8 @@ class Dataset:
             annotations (str or pd.DataFrame, optional): Path
                 to annotations file or pandas DataFrame with slide-level
                 annotations. Defaults to None.
+            source_um (str or int, optional): Source magnification for tiles
+                extracted from a higher magnification. Defaults to None.
 
         Raises:
             errors.SourceNotFoundError: If provided source does not exist
@@ -627,9 +633,12 @@ class Dataset:
                 "The following sources were not found in the dataset "
                 f"configuration: {', '.join(missing_sources)}"
             )
+        # Store source_um for use in filtering
+        self._source_um = source_um
+        
         # Create labels for each source based on tile size
         if (tile_px is not None) and (tile_um is not None):
-            label = sf.util.tile_size_label(tile_px, tile_um)
+            label = sf.util.tile_size_label(tile_px, tile_um, source_um)
         else:
             label = None
         for source in self.sources:
@@ -1884,11 +1893,339 @@ class Dataset:
         all_reports = [r for r in all_reports if r is not None]
         return {report.path: report for report in all_reports}
 
+    def _parse_tile_um_to_microns(self, tile_um_value: Union[int, str], tile_px: int, mpp: Optional[float] = None) -> int:
+        """Convert tile_um (str like '40x' or int like 129) to integer microns.
+
+        Args:
+            tile_um_value: Either a string like "40x" or an integer in microns
+            tile_px: Tile size in pixels
+            mpp: Optional microns per pixel. If provided, uses this for conversion.
+                 If not provided, calculates from magnification power using standard formula.
+
+        Returns:
+            Integer microns for the full tile
+
+        Raises:
+            DatasetError: If tile_um_value format is invalid
+        """
+        if isinstance(tile_um_value, str):
+            tile_str = tile_um_value.strip().lower()
+            if tile_str.endswith('x'):
+                # Parse magnification power (e.g., "40x")
+                try:
+                    mag_power = float(tile_str[:-1])
+                except ValueError:
+                    raise errors.DatasetError(f"Invalid magnification string: {tile_um_value}")
+
+                # Calculate um per pixel
+                if mpp is not None:
+                    # Use provided mpp
+                    um_per_pixel = mpp
+                else:
+                    # Standard formula: um/px = 10 / mag_power
+                    # 40x → 0.25 um/px, 20x → 0.5 um/px, 10x → 1.0 um/px
+                    um_per_pixel = 10.0 / mag_power
+
+                # Calculate total um for tile
+                return int(round(um_per_pixel * tile_px))
+            elif tile_str.endswith('um'):
+                try:
+                    return int(tile_str[:-2])
+                except ValueError:
+                    raise errors.DatasetError(f"Invalid um string: {tile_um_value}")
+            else:
+                try:
+                    return int(tile_str)
+                except ValueError:
+                    raise errors.DatasetError(f"Cannot parse tile_um: {tile_um_value}")
+        else:
+            # Already an integer in microns
+            return int(tile_um_value)
+
+    def _validate_lower_mag_params(self, mag_ratio: int, source_tile_um: int) -> int:
+        """Validate magnification ratio and calculate target magnification.
+
+        Args:
+            mag_ratio: Linear magnification ratio (e.g., 4 for 40x→10x or 112um→448um)
+            source_tile_um: Source tile size in microns (integer)
+
+        Returns:
+            target_tile_um: Calculated target magnification as an integer (in um)
+
+        Raises:
+            DatasetError: If magnification parameters are invalid
+        """
+        # Validate mag_ratio
+        if not isinstance(mag_ratio, int) or mag_ratio < 1:
+            raise errors.DatasetError(f"mag_ratio must be a positive integer, got {mag_ratio}")
+
+        # Calculate target magnification (multiply um values by linear ratio)
+        # Example: 112um with ratio 4 → 448um
+        target_um = source_tile_um * mag_ratio
+
+        # Validate that target_um is reasonable (positive integer)
+        if target_um <= 0:
+            raise errors.DatasetError(
+                f"Invalid result: {source_tile_um}um with ratio {mag_ratio} produces "
+                f"target magnification {target_um}um"
+            )
+
+        return target_um
+
+    def _get_lower_mag_tfrecords(self, source: Optional[str] = None) -> List[str]:
+        """Get source TFRecords for processing.
+
+        Args:
+            source: Name of dataset source to select TFRecords from
+
+        Returns:
+            List of TFRecord file paths
+
+        Raises:
+            ValueError: If no TFRecords found
+        """
+        source_tfrecords = self.tfrecords(source=source)
+        if not source_tfrecords:
+            raise ValueError("No TFRecords found for processing")
+        return source_tfrecords
+
+    def _create_lower_mag_progress_bar(self, total_tfrecords: int) -> Tuple[Optional[Any], Optional[Any]]:
+        """Create progress bar for lower magnification extraction.
+
+        Args:
+            total_tfrecords: Total number of TFRecords to process
+
+        Returns:
+            Tuple of (progress_bar, task_id) or (None, None) if creation fails
+        """
+        try:
+            pb = TileExtractionProgress()
+            pb.add_task("Speed: ", progress_type="speed", total=None)
+            tfr_task = pb.add_task(
+                f"Processing TFRecords...",
+                progress_type="slide_progress",
+                total=total_tfrecords
+            )
+            pb.start()
+            return pb, tfr_task
+        except Exception:
+            return None, None
+
+    def _build_lower_mag_indices(self, target_tile_um: Union[int, str], target_tile_px: int, source_tile_um: Union[int, str], source_name: Optional[str] = None) -> None:
+        """Build index files and manifest for newly created TFRecords.
+
+        Args:
+            target_tile_um: Target magnification
+            target_tile_px: Target tile pixel size
+            source_tile_um: Source magnification
+            source_name: Optional source name to use for multi-source datasets
+        """
+        try:
+            dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um, target_tile_px=target_tile_px, source_tile_um=source_tile_um, source_name=source_name)
+            if not dummy_tfrecord_path:
+                log.warning(f"Could not determine output directory for {target_tile_um}")
+                return
+
+            output_dir = os.path.dirname(dummy_tfrecord_path)
+            if not os.path.exists(output_dir):
+                log.warning(f"Could not find output directory for {target_tile_um}")
+                return
+
+            # Find all TFRecord files in the output directory
+            tfrecord_files = glob(os.path.join(output_dir, "*.tfrecords"))
+
+            log.info(f"Building index files for {len(tfrecord_files)} TFRecord files")
+            for tfr_path in tfrecord_files:
+                try:
+                    _create_index(tfr_path, force=True)
+                except Exception as e:
+                    log.warning(f"Failed to create index for {tfr_path}: {str(e)}")
+
+            # Create manifest for the new TFRecord directory
+            try:
+                log.info(f"Creating manifest for {output_dir}")
+                sf.io.update_manifest_at_dir(output_dir, force_update=True)
+                log.info(f"Successfully created manifest for {target_tile_um} magnification")
+            except Exception as e:
+                log.warning(f"Failed to create manifest for {output_dir}: {str(e)}")
+
+            log.info(f"Built index files for {target_tile_um} magnification")
+
+        except Exception as e:
+            log.warning(f"Failed to build index files for {target_tile_um}: {str(e)}")
+
+    def _save_tile_combinations_csv(self, all_tile_combinations: List[Dict], target_tile_um: Union[int, str],
+                                   target_tile_px: int, source_tile_um: Union[int, str], source_name: Optional[str] = None) -> None:
+        """Save tile combination data to overview CSV.
+
+        Args:
+            all_tile_combinations: List of tile combination records
+            target_tile_um: Target magnification
+            target_tile_px: Target tile pixel size
+            source_tile_um: Source magnification
+            source_name: Optional source name to use for multi-source datasets
+        """
+        if not all_tile_combinations:
+            log.info("No tile combinations data to save to overview CSV")
+            return
+
+        import pandas as pd
+        try:
+            dummy_tfrecord_path = self._get_output_tfrecord_path("dummy", target_tile_um, target_tile_px=target_tile_px, source_tile_um=source_tile_um, source_name=source_name)
+            if not dummy_tfrecord_path:
+                log.warning("Could not determine output directory for saving tile combinations CSV")
+                return
+
+            output_dir = os.path.dirname(dummy_tfrecord_path)
+            combinations_df = pd.DataFrame(all_tile_combinations)
+
+            # Create informative filename
+            source_mag_str = str(source_tile_um).replace('x', '') + 'x'
+            target_mag_str = str(target_tile_um).replace('x', '') + 'x'
+            target_px_str = f"{target_tile_px}px"
+
+            csv_filename = f"{target_px_str}_{target_mag_str}_from_{source_mag_str}_tile_combinations.csv"
+            csv_path = os.path.join(output_dir, csv_filename)
+
+            combinations_df.to_csv(csv_path, index=False)
+            log.info(f"Saved {len(all_tile_combinations)} tile combination records to overview CSV: {csv_path}")
+
+        except Exception as e:
+            log.warning(f"Failed to save tile combinations overview CSV: {e}")
+
+    def _create_lower_mag_report_metadata(self, source_tfrecords: List[str], all_reports: List, target_tile_um: Union[int, str],
+                                        source_tile_um: Union[int, str], mag_ratio: int, **kwargs) -> Any:
+        """Create metadata for lower magnification extraction report.
+
+        Args:
+            source_tfrecords: List of source TFRecord files
+            all_reports: List of generated slide reports
+            target_tile_um: Target magnification
+            source_tile_um: Source magnification
+            mag_ratio: Magnification ratio
+            **kwargs: Additional parameters
+
+        Returns:
+            SimpleNamespace object with report metadata
+        """
+        from types import SimpleNamespace
+
+        # Read source extraction parameters from the source TFRecords directory
+        source_params = self._get_source_extraction_parameters(source_tfrecords[0] if source_tfrecords else None)
+
+        return SimpleNamespace(
+            tile_px=kwargs.get('target_tile_px', self.tile_px),
+            tile_um=target_tile_um,  # Keep as integer (microns) - Dataset can handle both formats
+            qc=source_params.get('qc', 'None'),
+            total_slides=len(source_tfrecords),
+            slides_skipped=len(source_tfrecords) - len(all_reports),
+            roi_method=source_params.get('roi_method', 'N/A'),
+            stride=source_params.get('stride', 1),
+            gs_frac=source_params.get('gs_fraction', 'N/A'),
+            gs_thresh=source_params.get('gs_threshold', 'N/A'),
+            ws_frac=source_params.get('ws_fraction', 'N/A'),
+            ws_thresh=source_params.get('ws_threshold', 'N/A'),
+            normalizer=source_params.get('normalizer', ''),
+            img_format=source_params.get('img_format', kwargs.get('img_format', 'jpg')),
+            source_tile_um=source_tile_um,
+            mag_ratio=mag_ratio
+        )
+
+    def _create_dummy_report(self, target_tile_um: Union[int, str], source_tile_um: Union[int, str],
+                           mag_ratio: int, **kwargs) -> Any:
+        """Create a dummy report when no slides were processed.
+
+        Args:
+            target_tile_um: Target magnification
+            source_tile_um: Source magnification
+            mag_ratio: Magnification ratio
+            **kwargs: Additional parameters
+
+        Returns:
+            LowerMagSlideReport dummy object
+        """
+        return LowerMagSlideReport(
+            images=[],
+            path="No slides processed",
+            tile_px=int(kwargs.get('target_tile_px', self.tile_px)),
+            tile_um=target_tile_um,
+            source_tile_um=source_tile_um,
+            mag_ratio=int(mag_ratio) if mag_ratio else 1,
+            data={'num_tiles': 0, 'num_rois': 0, 'message': 'No complete tile groups found'},
+            ignore_thumb_errors=True
+        )
+
+    def _generate_lower_mag_pdf_report(self, all_reports: List, source_tfrecords: List[str],
+                                     target_tile_um: Union[int, str], source_tile_um: Union[int, str],
+                                     mag_ratio: int, source_name: Optional[str] = None, **kwargs) -> None:
+        """Generate PDF and CSV reports for lower magnification extraction.
+
+        Args:
+            all_reports: List of slide reports
+            source_tfrecords: List of source TFRecord files
+            target_tile_um: Target magnification
+            source_tile_um: Source magnification
+            mag_ratio: Magnification ratio
+            source_name: Optional source name to use for multi-source datasets
+            **kwargs: Additional parameters
+        """
+        log.info(f'Generating lower magnification tile extraction PDF report...')
+        log.info(f'Found {len(all_reports)} reports to include in PDF')
+
+        # Create metadata for lower mag extraction
+        report_meta = self._create_lower_mag_report_metadata(
+            source_tfrecords, all_reports, target_tile_um, source_tile_um, mag_ratio, **kwargs
+        )
+
+        # Generate ExtractionReport PDF (handle empty reports case)
+        if all_reports:
+            pdf_report = LowerMagExtractionReport(
+                reports=all_reports,
+                meta=report_meta,
+                title=f'Lower Magnification Tile Extraction Report ({source_tile_um} to {target_tile_um})'
+            )
+        else:
+            log.warning('No valid reports generated - creating empty ExtractionReport')
+            dummy_report = self._create_dummy_report(target_tile_um, source_tile_um, mag_ratio, **kwargs)
+            pdf_report = LowerMagExtractionReport(
+                reports=[dummy_report],
+                meta=report_meta,
+                title=f'Lower Magnification Tile Extraction Report ({source_tile_um} to {target_tile_um}) - No Results'
+            )
+
+        # Save PDF and CSV with specific naming for lower mag
+        from datetime import datetime
+        _time = datetime.now().strftime('%Y%m%d-%H%M%S')
+        source_mag_str = source_tile_um if isinstance(source_tile_um, str) else f"{source_tile_um}um"
+        target_mag_str = target_tile_um if isinstance(target_tile_um, str) else f"{target_tile_um}um"
+
+        # Determine output directory (use target magnification directory)
+        if all_reports:
+            sample_output_path = self._get_output_tfrecord_path(
+                "dummy", target_tile_um,
+                target_tile_px=kwargs.get('target_tile_px', self.tile_px),
+                source_tile_um=source_tile_um,
+                source_name=source_name
+            )
+            pdf_dir = os.path.dirname(sample_output_path) if sample_output_path else ''
+        else:
+            pdf_dir = ''
+
+        pdf_filename = os.path.join(pdf_dir, f'lower_mag_extraction_report_{source_mag_str}_to_{target_mag_str}-{_time}.pdf')
+        csv_filename = os.path.join(pdf_dir, f'lower_mag_extraction_report_{source_mag_str}_to_{target_mag_str}.csv')
+
+        try:
+            pdf_report.save(pdf_filename)
+            pdf_report.update_csv(csv_filename)
+            log.info(f'Saved lower magnification extraction report: {pdf_filename}')
+        except Exception as e:
+            log.warning(f'Failed to save extraction report: {e}')
+
     def extract_lower_mag_tiles_from_tfr(
         self,
         *,
-        source_tile_um: Union[int, str],
-        target_tile_um: Union[int, str],
+        mag_ratio: int,
+        target_tile_px: int,
         source: Optional[str] = None,
         skip_extracted: bool = True,
         report: bool = True,
@@ -1898,26 +2235,26 @@ class Dataset:
 
         This function reads existing high-magnification TFRecord files and combines
         adjacent tiles to create lower-magnification tiles when spatial coverage
-        allows. For example, combining 4x4 grid of 20x tiles to create a single 5x tile.
+        allows. For example, combining a 4×4 grid of 20x tiles (mag_ratio=4) to create
+        a single 5x tile.
 
         The function reconstructs the spatial arrangement of tiles from their stored
         coordinates, identifies regions with sufficient tile coverage to form lower
         magnification tiles, combines the image data, and writes new TFRecord files
         at the target magnification. A PDF report is generated similar to extract_tiles.
 
+        The source magnification is taken from the Dataset's tile_um property.
+
         Keyword Args:
-            source_tile_um (int or str): Source tile size in microns (int) or 
-                magnification (str, e.g. "20x") of the input TFRecords.
-            target_tile_um (int or str): Target tile size in microns (int) or
-                magnification (str, e.g. "5x") for the output TFRecords.
+            mag_ratio (int): Magnification ratio determining how many source tiles
+                combine into one target tile. The grid size will be mag_ratio × mag_ratio.
+                For example, mag_ratio=4 means a 4×4 grid of source tiles (16 tiles total)
+                combine into 1 target tile. Valid values: 1, 4, 9, 16, etc.
             source (str, optional): Name of dataset source from which to select
                 TFRecords for processing. Defaults to None. If not provided, will
                 default to all sources in project.
             skip_extracted (bool): Skip TFRecords that have already been processed
                 for the target magnification. Defaults to True.
-            img_format (str, optional): 'png' or 'jpg'. Image format to use in 
-                output TFRecords. PNG (lossless) for fidelity, JPG (lossy) for 
-                efficiency. Defaults to 'jpg'.
             report (bool): Generate a PDF report of the tile combination process
                 showing spatial coverage, combination statistics, and quality metrics.
                 Defaults to True.
@@ -1925,22 +2262,17 @@ class Dataset:
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
-            (:class:`slideflow.slide.report.SlideReport`)
+            (:class:`slideflow.slide.report.SlideReport`). When report=True,
 
         Raises:
-            DatasetError: If source_tile_um or target_tile_um are invalid, or if
-                the magnification ratio doesn't allow for integer tile combination
-                (e.g., cannot combine 20x tiles to make 7x tiles).
-            ValueError: If target magnification is higher than source magnification,
-                or if required TFRecord directories are not configured.
+            DatasetError: If Dataset tile_um is not set or is not an integer, or if 
+            mag_ratio is invalid.
+            ValueError: If required TFRecord directories are not configured.
 
         Example:
-            >>> # Combine 20x tiles to create 5x tiles  
-            >>> dataset = sf.Dataset(...)
-            >>> reports = dataset.extract_lower_mag_tiles_from_tfr(
-            ...     source_tile_um="20x",
-            ...     target_tile_um="5x"
-            ... )
+            >>> # Combine 20x tiles with mag_ratio=4 to create 5x tiles (4×4 grid)
+            >>> dataset = sf.Dataset(..., tile_um="112um")
+            >>> reports = dataset.extract_lower_mag_tiles_from_tfr(mag_ratio=4)
             >>> print(f"Processed {len(reports)} slides")
 
         Note:
@@ -1952,9 +2284,840 @@ class Dataset:
             - The function preserves slide names and updates coordinates appropriately
               for the new magnification level.
             - Each combined tile's coordinates (loc_x, loc_y) will correspond to the
-              upper-left tile's coordinates from the original source TFRecords grid.
+              center/average coordinates of the source tiles that make up each combined tile.
         """
-        pass
+        # Validate that dataset has tile_um set
+        if self.tile_um is None:
+            raise errors.DatasetError("Dataset tile_um must be set before calling extract_lower_mag_tiles_from_tfr")
+        if not target_tile_px:
+            ## throw an error that target_tile_px cannot be none
+            raise errors.DatasetError("target_tile_px cannot be None")
+
+        # Validate that tile_um is an integer (microns), not a string magnification
+        if not isinstance(self.tile_um, int):
+            raise errors.DatasetError(
+                f"extract_lower_mag_tiles_from_tfr only supports integer tile_um (microns), "
+                f"not string magnifications. Got tile_um={self.tile_um!r} (type: {type(self.tile_um).__name__}). "
+                f"Please set tile_um to an integer value in microns."
+            )
+
+        # Convert tile_um to integer microns at the beginning
+        # Uses mpp from kwargs if provided, otherwise calculates from magnification power
+        mpp = kwargs.get('mpp', None)
+        source_tile_um = self._parse_tile_um_to_microns(self.tile_um, self.tile_px, mpp=mpp)
+
+        # Validate parameters and calculate target magnification
+        target_tile_um = self._validate_lower_mag_params(mag_ratio, source_tile_um)
+
+        # Determine which sources to process
+        if source is not None:
+            sources_to_process = [source]
+        else:
+            sources_to_process = list(self.sources.keys())
+
+        # Process each source separately
+        all_reports_dict = {}
+        for src in sources_to_process:
+            log.info(f"Processing source: {src}")
+
+            # Get source TFRecords for this specific source
+            src_tfrecords = self._get_lower_mag_tfrecords(source=src)
+            if not src_tfrecords:
+                log.warning(f"No TFRecords found for source {src}, skipping")
+                continue
+
+            # Initialize processing variables for this source
+            src_reports = []
+            src_tile_combinations = []
+
+            # Set up progress bar
+            pb, tfr_task = self._create_lower_mag_progress_bar(len(src_tfrecords))
+
+            # Ensure cleanup context matches other uses
+            with sf.util.cleanup_progress(pb) if pb is not None else contextlib.nullcontext():
+                for tfrecord_path in src_tfrecords:
+                    try:
+                        if skip_extracted:
+                            # Check if output already exists
+                            output_path = self._get_output_tfrecord_path(
+                                tfrecord_path,
+                                target_tile_um,
+                                target_tile_px=target_tile_px,
+                                source_tile_um=source_tile_um
+                            )
+                            if output_path and exists(output_path):
+                                log.info(f"Skipping {tfrecord_path} - already processed")
+                                if pb is not None:
+                                    pb.advance(tfr_task)
+                                continue
+
+                        report, tile_combinations = self._process_single_tfrecord_for_lower_mag(
+                            tfrecord_path=tfrecord_path,
+                            source_tile_um=source_tile_um,
+                            target_tile_um=target_tile_um,
+                            mag_ratio=mag_ratio,
+                            target_tile_px=target_tile_px,
+                            **kwargs
+                        )
+                        src_reports.append(report)
+                        if tile_combinations:
+                            src_tile_combinations.extend(tile_combinations)
+
+                        if pb is not None:
+                            pb.advance(tfr_task)
+
+                    except KeyboardInterrupt:
+                        log.info("Interrupted by user during lower-mag processing")
+                        break
+                    except errors.DatasetError as e:
+                        # DatasetErrors indicate configuration/data issues that should stop processing
+                        log.error(f"Fatal error processing {tfrecord_path}: {str(e)}")
+                        if pb is not None:
+                            pb.advance(tfr_task)
+                        # Re-raise to stop processing - these errors indicate fundamental problems
+                        raise
+                    except Exception as e:
+                        # Catch other unexpected errors but log them prominently
+                        log.error(f"Unexpected error processing {tfrecord_path}: {str(e)}")
+                        import traceback
+                        log.debug(f"Full traceback: {traceback.format_exc()}")
+                        if pb is not None:
+                            pb.advance(tfr_task)
+                        # Continue to next TFRecord for non-fatal errors
+                        continue
+            # --- End progress bar loop for this source ---
+
+            # Filter out None reports
+            src_reports = [r for r in src_reports if r is not None]
+
+            # Build index files and create manifest for the new TFRecords for this source
+            if src_reports:
+                self._build_lower_mag_indices(target_tile_um, target_tile_px, source_tile_um, source_name=src)
+
+            # Generate PDF report if requested for this source
+            if report and src_reports:
+                self._generate_lower_mag_pdf_report(src_reports, src_tfrecords, target_tile_um, source_tile_um, mag_ratio, source_name=src, **kwargs)
+
+            # Save tile combinations CSV for this source
+            if src_tile_combinations:
+                self._save_tile_combinations_csv(src_tile_combinations, target_tile_um, target_tile_px, source_tile_um, source_name=src)
+
+            # Store reports for this source
+            all_reports_dict[src] = {r.path: r for r in src_reports}
+
+        # Update manifest after processing all sources
+        self.update_manifest(force_update=True)
+        self.build_index(False)
+
+        # Flatten all reports for return value
+        all_reports = {}
+        for src_reports in all_reports_dict.values():
+            all_reports.update(src_reports)
+
+        return all_reports
+    
+    def _get_output_tfrecord_path(
+        self,
+        input_path: str,
+        target_tile_um: Union[int, str],
+        target_tile_px: Optional[int] = None,
+        source_tile_um: Optional[Union[int, str]] = None,
+        source_name: Optional[str] = None
+    ) -> str:
+        """Get output TFRecord path for lower magnification tiles.
+
+        Args:
+            input_path: Path to input TFRecord or slide name
+            target_tile_um: Target magnification
+            target_tile_px: Target tile pixel size
+            source_tile_um: Source magnification
+            source_name: Optional source name to use (if not provided, will be determined from input_path)
+
+        Raises:
+            DatasetError: If unable to determine output path due to missing sources or configuration.
+        """
+        slide_name = sf.util.path_to_name(input_path)
+
+        # Determine which source this input TFRecord belongs to
+        if source_name is not None:
+            # Use the provided source name
+            tfr_source = source_name
+        else:
+            try:
+                tfr_source = self.get_slide_source(slide_name)
+            except errors.DatasetError:
+                # If slide not found in sources, fall back to checking path
+                tfr_source = None
+                for source in self.sources:
+                    if 'tfrecords' in self.sources[source]:
+                        tfrecord_dir = self.sources[source]['tfrecords']
+                        if input_path.startswith(tfrecord_dir):
+                            tfr_source = source
+                            break
+
+                if tfr_source is None:
+                    # Last resort: if only one source, use it
+                    if len(self.sources) == 1:
+                        tfr_source = list(self.sources.keys())[0]
+                    else:
+                        raise errors.DatasetError(
+                            f"Unable to determine source for {input_path}. "
+                            f"Please provide source_name parameter for multi-source datasets."
+                        )
+
+        # Now build the output path using only the correct source
+        if tfr_source not in self.sources or 'tfrecords' not in self.sources[tfr_source]:
+            raise errors.DatasetError(
+                f"TFRecords directory not configured for source {tfr_source}"
+            )
+
+        tfrecord_dir = self.sources[tfr_source]['tfrecords']
+        px = int(target_tile_px) if target_tile_px is not None else int(self.tile_px)
+
+        # Create directory name with source magnification info
+        if isinstance(target_tile_um, str):
+            base_suffix = f"{px}px_{target_tile_um.lower()}"
+        else:
+            base_suffix = f"{px}px_{target_tile_um}um"
+
+        # Include source magnification in directory name
+        if source_tile_um is not None:
+            if isinstance(source_tile_um, str):
+                source_mag = source_tile_um.lower()
+            else:
+                source_mag = f"{source_tile_um}um"
+            mag_suffix = f"{base_suffix}_from_{source_mag}"
+        else:
+            mag_suffix = base_suffix
+        target_dir = join(tfrecord_dir, mag_suffix)
+        return join(target_dir, f"{slide_name}.tfrecords")
+            
+    def _process_single_tfrecord_for_lower_mag(
+        self,
+        tfrecord_path: str,
+        source_tile_um: Union[int, str],
+        target_tile_um: Union[int, str],
+        mag_ratio: Optional[int],
+        **kwargs
+    ) -> Optional[SlideReport]:
+        """Process a single TFRecord to extract lower magnification tiles.
+
+        Raises:
+            DatasetError: If TFRecord is missing required location data.
+        """
+
+        # Get locations and validate TFRecord has location data
+        if not sf.io.tfrecord_has_locations(tfrecord_path, check_x=True, check_y=True):
+            raise errors.DatasetError(
+                f"TFRecord {tfrecord_path} missing required location data (loc_x, loc_y). "
+                f"Location data is required for combining tiles into lower magnification tiles."
+            )
+            
+        # Read coordinates from source TFRecord (the original high-mag tiles)
+        source_locations = sf.io.get_locations_from_tfrecord(tfrecord_path)
+
+        # Get target_tile_px from kwargs (required parameter, should always be provided)
+        target_tile_px = int(kwargs.get('target_tile_px'))
+        # Use source locations for processing (this is what we're extracting FROM)
+        locations = source_locations
+            
+        total_tiles = len(locations)
+        
+        if total_tiles == 0:
+            log.error(f"No tiles found in {tfrecord_path}")
+            return None
+            
+        # Get slide name
+        slide_name = sf.util.path_to_name(tfrecord_path)
+        
+        # Initialize list to track tile combinations for CSV logging
+        tile_combinations = []
+        
+        # If mag_ratio wasn't calculated, we need to determine it from actual tile data
+        if mag_ratio is None:
+            raise errors.DatasetError(
+                f"mag_ratio is None for TFRecord {tfrecord_path}. "
+                f"Magnification ratio must be specified to combine tiles."
+            )
+
+        # Group tiles by spatial regions that can form target tiles
+        tile_groups = self._group_tiles_for_combination(locations, mag_ratio)
+        complete_groups = sum(1 for indices in tile_groups.values() if len(indices) == mag_ratio * mag_ratio)
+
+        # Generate output path (will raise DatasetError if unable to determine path)
+        output_path = self._get_output_tfrecord_path(tfrecord_path, target_tile_um, target_tile_px=target_tile_px, source_tile_um=source_tile_um)
+            
+        # Ensure output directory exists
+        os.makedirs(dirname(output_path), exist_ok=True)
+        
+        # Process tile groups and write combined tiles
+        combined_count = 0
+        writer = sf.io.TFRecordWriter(output_path)
+        
+        for group_loc, tile_indices in tile_groups.items():
+            if len(tile_indices) == mag_ratio * mag_ratio:  # Complete grid
+                try:
+                    combined_tile = self._combine_tiles_from_group(
+                        tfrecord_path, tile_indices, mag_ratio
+                    )
+                    if combined_tile is not None:
+                        # Write combined tile to output TFRecord
+                        img_format = kwargs.get('img_format', 'jpg')
+                        record = self._create_combined_tile_record(
+                            combined_tile, slide_name, group_loc, locations, mag_ratio, img_format,
+                            target_tile_px=target_tile_px, tile_indices=tile_indices
+                        )
+                        writer.write(record)
+                        combined_count += 1
+                        
+                        # Log tile combination data for CSV
+                        if tile_indices:
+                            matching_source_locations = [locations[i] for i in tile_indices]
+                            # Calculate target coordinates (same as in _create_combined_tile_record)
+                            if matching_source_locations:
+                                avg_x = sum(loc[0] for loc in matching_source_locations) // len(matching_source_locations)
+                                avg_y = sum(loc[1] for loc in matching_source_locations) // len(matching_source_locations)
+                                target_coord = (avg_x, avg_y)
+                            else:
+                                target_coord = group_loc
+                            
+                            # Log each source tile that went into this target tile
+                            for idx, source_idx in enumerate(tile_indices):
+                                source_coord = locations[source_idx]
+                                tile_combinations.append({
+                                    'slide_name': slide_name,
+                                    'target_tile_id': combined_count,
+                                    'target_x': target_coord[0],
+                                    'target_y': target_coord[1],
+                                    'source_tile_idx': source_idx,
+                                    'source_x': source_coord[0],
+                                    'source_y': source_coord[1],
+                                    'group_position': idx  # Position within the mag_ratio x mag_ratio grid
+                                })
+                except Exception as e:
+                    log.warning(f"✗ Error combining tile group at {group_loc}: {str(e)}")
+                    import traceback
+                    log.debug(f"Full traceback: {traceback.format_exc()}")
+                    continue
+                    
+        writer.close()
+
+        # Check if any tiles were successfully combined
+        if combined_count == 0:
+            # Remove empty TFRecord file
+            if os.path.exists(output_path):
+                os.remove(output_path)
+                log.warning(f"No tiles were combined for {slide_name}. Removing file {output_path}")
+
+            # Return None for slide_report since no tiles were processed
+            return None, 0
+
+        # Create index file immediately after writing so target coordinates can be read for reports
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+            try:
+                _create_index(output_path, force=True)
+            except Exception as e:
+                log.warning(f"Failed to create index for {output_path}: {e}")
+
+        # Create SlideReport with combined tile locations for visualization
+        combined_locations = [group_loc for group_loc in tile_groups.keys()
+                            if len(tile_groups[group_loc]) == mag_ratio * mag_ratio]
+
+        # Collect example tiles from the output
+        example_tiles = self._collect_example_tiles_from_tfrecord(output_path, max_examples=5)
+
+        # Create report data
+        report_data = {
+            'slide': slide_name,
+            'num_tiles': combined_count,
+            'num_rois': 0,  # ROIs not applicable for TFRecord combination
+            'total_source_tiles': total_tiles,
+            'discarded_tiles': total_tiles - (combined_count * mag_ratio * mag_ratio),
+            'source_tiles_used': combined_count * mag_ratio * mag_ratio,
+            'incomplete_groups': len(tile_groups) - combined_count,
+            'source_mag': source_tile_um,
+            'target_mag': target_tile_um,
+            'mag_ratio': mag_ratio,
+            'locations': list(combined_locations)  # Ensure it stays as a list
+        }
+
+        # Find the original slide path for thumbnail generation
+        slide_path = self.find_slide(slide=slide_name)
+        if slide_path and not os.path.exists(slide_path):
+            log.warning(f"Slide path does not exist: {slide_path}")
+            slide_path = None
+
+        # Create thumbnail coordinates for the existing WSI thumbnail system
+        # Show original tile locations (where tiles were actually extracted from)
+        thumb_coords = None
+        if locations:
+
+            # Use only the original tile coordinates (these are known to be valid)
+            all_coords = [(int(x), int(y)) for x, y in locations]
+
+            if all_coords:
+                # Convert to numpy array as expected by SlideReport
+                thumb_coords = np.array(all_coords, dtype=np.int64)
+
+                # Verify coordinates are in the right format - should be (N, 2) array
+                if thumb_coords.ndim != 2 or thumb_coords.shape[1] != 2:
+                    log.error(f"Invalid thumb_coords shape: {thumb_coords.shape}, expected (N, 2)")
+                    thumb_coords = None
+            else:
+                log.warning("No coordinates found for thumbnail generation")
+
+        # Create SlideReport using separate method
+        slide_report = self._create_lower_mag_slide_report(
+            slide_name=slide_name,
+            slide_path=slide_path,
+            original_locations=locations,
+            combined_locations=combined_locations,
+            example_tiles=example_tiles,
+            report_data=report_data,
+            source_tile_um=source_tile_um,
+            target_tile_um=target_tile_um,
+            target_tile_px=target_tile_px,     # ONLY for saved crops (224); not used in overlays
+            source_tile_px=self.tile_px,       # pass your source tile px (e.g., 512)
+            mag_ratio=mag_ratio,
+            target_tfrecord_path=output_path,  # Pass target TFRecord path for coordinate reading
+        )
+
+        return slide_report, tile_combinations
+    
+    def _resize_square_np(
+            self,
+            tile_image: np.ndarray, 
+            target_px: int) -> np.ndarray:
+        """Resize a HxWxC uint8 image to target_px x target_px (RGB)."""
+        if tile_image.ndim == 2:
+            mode = "L"
+        elif tile_image.shape[2] == 4:
+            # drop alpha; or keep if your pipelines support RGBA
+            tile_image = tile_image[:, :, :3]
+            mode = "RGB"
+        else:
+            mode = "RGB"
+        pil = Image.fromarray(tile_image, mode=mode)
+        # LANCZOS is high-quality for big downsampling (e.g., 2048 -> 224)
+        pil = pil.resize((target_px, target_px), resample=Image.LANCZOS)
+        return np.array(pil, dtype=np.uint8)
+
+    def _get_source_extraction_parameters(self, source_tfrecord_path: Optional[str]) -> Dict[str, Any]:
+        """Read extraction parameters from the source magnification's extraction report CSV."""
+        try:
+            if not source_tfrecord_path:
+                return {}
+                
+            # Get the source directory from the TFRecord path
+            source_dir = os.path.dirname(source_tfrecord_path)
+            csv_path = os.path.join(source_dir, "extraction_report.csv")
+            
+            if not os.path.exists(csv_path):
+                return {}
+                
+            # Read the CSV and get parameters from the first row (they should all be the same)
+            import pandas as pd
+            df = pd.read_csv(csv_path)
+            
+            if df.empty:
+                return {}
+                
+            # Get parameters from the first slide (they should be consistent across slides)
+            first_row = df.iloc[0]
+            params = {
+                'qc': first_row.get('qc', 'None'),
+                'roi_method': 'auto',  # Most common default
+                'stride': first_row.get('stride', 1),
+                'gs_fraction': first_row.get('gs_fraction', 'N/A'),
+                'gs_threshold': first_row.get('gs_threshold', 'N/A'),
+                'ws_fraction': first_row.get('ws_fraction', 'N/A'),
+                'ws_threshold': first_row.get('ws_threshold', 'N/A'),
+                'normalizer': first_row.get('normalizer', ''),
+                'img_format': first_row.get('img_format', 'jpg'),
+                'backend': first_row.get('backend', 'libvips')
+            }
+            
+            return params
+            
+        except Exception as e:
+            return {}
+
+    def _group_tiles_for_combination(self, locations: List[Tuple[int, int]], mag_ratio: int) -> Dict[Tuple[int, int], List[int]]:
+        """Group tile locations into spatial regions for combination using grid coordinates."""
+        groups = defaultdict(list)
+        
+        # Convert coordinates to grid indices for cleaner grouping
+        grid_locations = self._coords_to_grid_indices(locations)
+        
+        # Sort locations to process in a consistent order
+        sorted_locations = sorted(enumerate(grid_locations), key=lambda x: (x[1][1], x[1][0]))
+        
+        # Group tiles into mag_ratio x mag_ratio grids based on grid indices
+        for idx, (grid_x, grid_y) in sorted_locations:
+            # Calculate the top-left grid index of the group this tile belongs to
+            group_grid_x = (grid_x // mag_ratio) * mag_ratio
+            group_grid_y = (grid_y // mag_ratio) * mag_ratio
+            group_key = (group_grid_x, group_grid_y)
+            groups[group_key].append(idx)
+            
+        return dict(groups)
+    
+    def _coords_to_grid_indices(self, locations: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+        """Convert coordinate locations to grid indices."""
+        if len(locations) <= 1:
+            return [(0, 0)] * len(locations)
+        
+        # Find the minimum coordinates to use as origin
+        min_x = min(loc[0] for loc in locations)
+        min_y = min(loc[1] for loc in locations)
+        
+        # Estimate tile stride by finding minimum distance between tiles
+        x_coords = sorted(set(loc[0] for loc in locations))
+        y_coords = sorted(set(loc[1] for loc in locations))
+        
+        stride_x = min(x_coords[i+1] - x_coords[i] for i in range(len(x_coords)-1)) if len(x_coords) > 1 else 1
+        stride_y = min(y_coords[i+1] - y_coords[i] for i in range(len(y_coords)-1)) if len(y_coords) > 1 else 1
+        
+        # Convert each coordinate to grid index
+        grid_locations = []
+        for x, y in locations:
+            grid_x = (x - min_x) // stride_x
+            grid_y = (y - min_y) // stride_y
+            grid_locations.append((grid_x, grid_y))
+            
+        return grid_locations
+    
+    def _collect_example_tiles_from_tfrecord(self, tfrecord_path: str, max_examples: int = 5) -> List[bytes]:
+        """Collect example tile images from the TFRecord for the report."""
+        from slideflow.io import TFRecordDataset, get_tfrecord_parser
+       
+        try:
+            if not os.path.exists(tfrecord_path):
+                log.warning(f"TFRecord not found for examples: {tfrecord_path}")
+                return []
+            
+            example_tiles = []
+            dataset = TFRecordDataset(tfrecord_path)
+            parser = get_tfrecord_parser(tfrecord_path, ('image_raw',), decode_images=False)
+            
+            for i, record in enumerate(dataset):
+                if i>= max_examples:
+                    break
+                try:
+                    # Extract image from TFRecord
+                    parsed = parser(record)
+                    img_raw = parsed[0]
+
+                    #Convert to bytes
+                    if hasattr(img_raw, 'numpy'):
+                        img_raw = img_raw.numpy()
+                    example_tiles.append(img_raw)
+                except Exception as e:
+                    continue
+            
+            return example_tiles
+            
+        except Exception as e:
+            log.warning(f"Error collecting example tiles: {e}")
+            return []
+        
+    def _combine_tiles_from_group(self, tfrecord_path: str, tile_indices: List[int], mag_ratio: int) -> Optional[np.ndarray]:
+        """Combine tiles from a spatial group into a single lower-magnification tile."""
+        
+        tiles = []
+        locations = []
+        
+        for i, idx in enumerate(tile_indices):
+            try:
+                record = sf.io.get_tfrecord_by_index(tfrecord_path, idx)
+                image_data = sf.io.decode_image(record['image_raw'])
+                tiles.append(image_data)
+                locations.append((record['loc_x'], record['loc_y']))
+            except Exception as e:
+                log.warning(f"Error loading tile {idx}: {str(e)}")
+                return None
+                
+        if len(tiles) != mag_ratio * mag_ratio:
+            log.warning(f"Expected {mag_ratio * mag_ratio} tiles but got {len(tiles)}")
+            return None
+            
+        # Arrange tiles in spatial order and combine
+        tile_size = tiles[0].shape[0]  # Assume square tiles
+        combined_size = tile_size * mag_ratio
+        combined_tile = np.zeros((combined_size, combined_size, 3), dtype=np.uint8)
+        
+        # Get locations for proper tile arrangement
+        locations = []
+        for idx in tile_indices:
+            record = sf.io.get_tfrecord_by_index(tfrecord_path, idx)
+            locations.append((record['loc_x'], record['loc_y']))
+            
+        # Sort tiles by location
+        tile_loc_pairs = list(zip(tiles, locations))
+        tile_loc_pairs.sort(key=lambda x: (x[1][1], x[1][0]))  # Sort by y, then x
+        
+        # Place tiles in the combined image
+        for i, (tile_img, _) in enumerate(tile_loc_pairs):
+            row = i // mag_ratio
+            col = i % mag_ratio
+            y_start = row * tile_size
+            y_end = y_start + tile_size
+            x_start = col * tile_size
+            x_end = x_start + tile_size
+            combined_tile[y_start:y_end, x_start:x_end] = tile_img
+            
+        return combined_tile
+        
+    def _create_combined_tile_record(
+        self,
+        tile_image: np.ndarray,
+        slide_name: str,
+        grid_location: Tuple[int, int],
+        source_locations: List[Tuple[int, int]],
+        mag_ratio: int,
+        img_format: str,
+        target_tile_px: int,
+        tile_indices: List[int] = None,
+    ) -> bytes:
+        """Create a TFRecord for a combined tile.
+        
+        Args:
+            tile_image: Combined tile image as numpy array
+            slide_name: Name of the slide
+            grid_location: Grid coordinates (x, y) of the combined tile
+            source_locations: List of pixel coordinates from source tiles
+            mag_ratio: Magnification ratio (e.g., 4 for 40x->10x)
+            img_format: Image format ('png' or 'jpeg')
+            target_tile_px: Target tile size in pixels
+            
+        Returns:
+            Serialized TFRecord bytes
+        """
+        # ensure correct tile px size
+        tile_image = self._resize_square_np(tile_image, target_tile_px)
+
+        # Encode image to bytes
+        pil_image = Image.fromarray(tile_image)
+        img_bytes = io.BytesIO()
+        if img_format.lower() == 'png':
+            pil_image.save(img_bytes, format='PNG', optimize=True)
+        else:
+            # For JPEG: use quality=100 and proper subsampling to avoid corruption
+            # when encoding downsampled combined tiles
+            # Note: optimize=True can cause issues with BytesIO, so it's omitted
+            pil_image.save(img_bytes, format='JPEG', quality=100, subsampling=0)
+
+        # Ensure all data is written to buffer
+        img_bytes.flush()
+        img_bytes = img_bytes.getvalue()
+        
+        # Calculate pixel coordinates for the combined tile
+        grid_x, grid_y = grid_location
+        
+        # Use tile indices directly to get the exact source tile coordinates
+        if not tile_indices:
+            raise ValueError(
+                f"No tile_indices provided for combined tile at grid location {grid_location}. "
+                f"Cannot create combined tile record without source tile information."
+            )
+
+        if not source_locations:
+            raise ValueError(
+                f"No source_locations provided for combined tile at grid location {grid_location}. "
+                f"Cannot create combined tile record without source location information."
+            )
+
+        # Validate that all tile indices are valid
+        for idx in tile_indices:
+            if idx < 0 or idx >= len(source_locations):
+                raise ValueError(
+                    f"Invalid tile index {idx} for combined tile at grid location {grid_location}. "
+                    f"Source locations has {len(source_locations)} entries (indices 0-{len(source_locations)-1})."
+                )
+
+        matching_source_locations = [source_locations[i] for i in tile_indices]
+
+        # Use average of matching source tiles as representative coordinate
+        avg_x = sum(loc[0] for loc in matching_source_locations) // len(matching_source_locations)
+        avg_y = sum(loc[1] for loc in matching_source_locations) // len(matching_source_locations)
+        pixel_x, pixel_y = avg_x, avg_y
+        
+        return sf.io.serialized_record(
+            slide=bytes(slide_name, 'utf-8'),
+            image_raw=img_bytes,
+            loc_x=pixel_x,
+            loc_y=pixel_y
+        )
+
+    def _create_lower_mag_slide_report(
+            self,
+            slide_name: str,
+            slide_path: Optional[str],
+            original_locations: List[tuple],     # TFRecord-stored centers (divided by loc_scale)
+            combined_locations: List[tuple],     # target grid coords (top-left grid indices, in SOURCE grid)
+            example_tiles: List[bytes],
+            report_data: Dict[str, Any],
+            source_tile_um: Union[int, str],
+            target_tile_um: Union[int, str],
+            target_tile_px: int,                 # used only for saved crops; NOT for overlays
+            source_tile_px: int,                 # native source tile edge (e.g., 512)
+            mag_ratio: int,                      # r = source_mag / target_mag
+            target_tfrecord_path: Optional[str] = None,  # Path to target TFRecord for coordinate reading
+        ) -> LowerMagSlideReport:
+        """Create LowerMagSlideReport with dual overlays (centers/boxes in DRAW space)."""
+        try:
+            import numpy as np
+
+            # -------- constants / helpers --------
+            r = int(mag_ratio)
+
+            # Box sizes in level-0 WSI pixel space (same coordinate space as stored coordinates)
+            # Source tiles are extracted at the source tile size (e.g., 224×224 pixels)
+            # Target tiles are r×r grids of source tiles (e.g., 4×4 = 896×896 pixels)
+            src_px_native = int(source_tile_px) if source_tile_px else int(getattr(self, "tile_px"))
+            source_box_px_draw = int(src_px_native)  # Source tile size in WSI pixels (e.g., 224)
+            target_box_px_draw = int(src_px_native * r)  # Target box is r×r source tiles (e.g., 224*4=896)
+
+            # Robust stride/origin on SOURCE space (after undoing loc_scale)
+            def _stride_origin_source(stored_centers):
+                if not stored_centers:
+                    return src_px_native, src_px_native, 0, 0
+                xs = sorted(set(int(round(x)) for x, _ in stored_centers))
+                ys = sorted(set(int(round(y)) for _, y in stored_centers))
+                def _step(u):
+                    if len(u) < 2:
+                        return src_px_native
+                    diffs = [u[i+1] - u[i] for i in range(len(u)-1) if u[i+1] > u[i]]
+                    if not diffs:
+                        return src_px_native
+                    # median is robust to gaps/outliers
+                    return int(round(float(np.median(diffs))))
+                sx = _step(xs)
+                sy = _step(ys)
+                ox = xs[0] if xs else 0
+                oy = ys[0] if ys else 0
+                return sx, sy, ox, oy
+
+            # -------- create report shell --------
+            slide_report = LowerMagSlideReport(
+                images=example_tiles,
+                path=slide_path or slide_name,
+                tile_px=target_box_px_draw,       # report tile size == target box size AT DRAW LEVEL
+                tile_um=target_tile_um,
+                source_tile_um=source_tile_um,
+                mag_ratio=r,
+                thumb=None,
+                thumb_coords=None,
+                data=report_data,
+                compress=True,
+                ignore_thumb_errors=False,
+            )
+
+            # -------- SOURCE centers: read directly from source TFRecord --------
+            # Source coordinates are already in pixel space, no scaling needed
+            if original_locations:
+                src_coords = [(int(round(x)), int(round(y))) for (x, y) in original_locations]
+                slide_report.source_thumb_coords = np.array(src_coords, dtype=np.int64)
+            else:
+                slide_report.source_thumb_coords = None
+
+            # -------- TARGET centers: read directly from target TFRecord --------
+
+            # Get target coordinates directly from target TFRecord
+            # DO NOT fall back to deriving coordinates - this can mislead users into thinking
+            # tiles were created correctly when they may not have been
+            tgt_centers = []
+            if target_tfrecord_path and os.path.exists(target_tfrecord_path):
+                try:
+                    # Use get_locations_from_tfrecord to read target coordinates
+                    import slideflow as sf
+                    target_locations = sf.io.get_locations_from_tfrecord(target_tfrecord_path)
+                    if target_locations:
+                        tgt_centers = [(int(x), int(y)) for x, y in target_locations]
+                    else:
+                        raise errors.DatasetError(
+                            f"Target TFRecord {target_tfrecord_path} exists but contains no location data. "
+                            f"Cannot create accurate report visualization."
+                        )
+                except Exception as e:
+                    raise errors.DatasetError(
+                        f"Failed to read target coordinates from {target_tfrecord_path}: {e}. "
+                        f"Accurate target coordinates are required for report visualization."
+                    )
+            else:
+                raise errors.DatasetError(
+                    f"Target TFRecord path does not exist: {target_tfrecord_path}. "
+                    f"Cannot create report without target tile coordinates."
+                )
+
+            slide_report.target_thumb_coords = np.array(tgt_centers, dtype=np.int64)
+
+            # expose draw-level box sizes for the renderer (used by calc_thumb)
+            slide_report.source_tile_px = int(source_box_px_draw)
+            slide_report.target_tile_px = int(target_box_px_draw)
+
+            return slide_report
+
+        except errors.DatasetError:
+            # Re-raise DatasetErrors so they bubble up properly
+            raise
+        except Exception as e:
+            # For unexpected errors, raise with context
+            raise errors.DatasetError(
+                f"Unexpected error creating LowerMagSlideReport for {slide_name}: {e}"
+            ) from e
+    
+    def _estimate_stride_and_origin(
+        self,
+        centers,
+        *,
+        r: int = 1,                # mag_ratio; set r>1 to get DRAW-level values, else r=1 for SOURCE
+        space: str = "draw"        # "draw" (target) or "source"
+    ) -> tuple[int, int, int, int]:
+        """
+        Estimate (stride_x, stride_y, origin_x, origin_y) in the requested `space`.
+
+        - centers: list[(x_stored, y_stored)] from TFRecords (i.e., values were divided by loc_scale).
+        - r: source->draw downsample (mag_ratio). If space="draw", values are divided by r.
+        - space: "draw" returns values at target/draw level; "source" returns at source level.
+
+        Returns ints: (stride_x, stride_y, origin_x, origin_y).
+        """
+        import numpy as np
+
+        if not centers:
+            return 1, 1, 0, 0
+
+        # Use TFRecord coordinates directly (no loc_scale)
+        # 1) Use stored coordinates as SOURCE px
+        xs_src = np.array([c[0] for c in centers], dtype=float)
+        ys_src = np.array([c[1] for c in centers], dtype=float)
+
+        # 2) Robust stride (median of positive diffs of unique coords)
+        def _stride(v):
+            u = np.unique(np.round(v).astype(np.int64))
+            if u.size < 2:
+                return 1
+            diffs = np.diff(u)
+            diffs = diffs[diffs > 0]
+            if diffs.size == 0:
+                return 1
+            return int(max(1, np.round(np.median(diffs))))
+
+        stride_x_src = _stride(xs_src)
+        stride_y_src = _stride(ys_src)
+        origin_x_src = int(np.min(np.round(xs_src)))
+        origin_y_src = int(np.min(np.round(ys_src)))
+
+        if space.lower() == "source" or r <= 1:
+            return stride_x_src, stride_y_src, origin_x_src, origin_y_src
+
+        # 3) SOURCE -> DRAW (target) px by dividing by r
+        stride_x_draw = max(1, int(round(stride_x_src / r)))
+        stride_y_draw = max(1, int(round(stride_y_src / r)))
+        origin_x_draw = int(round(origin_x_src / r))
+        origin_y_draw = int(round(origin_y_src / r))
+        return stride_x_draw, stride_y_draw, origin_x_draw, origin_y_draw
 
     def extract_tiles_from_tfrecords(self, dest: str) -> None:
         """Extract tiles from a set of TFRecords.
@@ -2254,7 +3417,7 @@ class Dataset:
                 skip_p = f'{to_skip}/{len(all_slides)}'
                 log.info(f"Skipping {skip_p} finished slides.")
             if not slides_to_generate:
-                log.warn("No slides for which to generate features.")
+                log.warning("No slides for which to generate features.")
                 return outdir
             dataset = dataset.filter(filters={'slide': slides_to_generate})
             filtered_slides_to_generate = dataset.slides()
@@ -2715,7 +3878,7 @@ class Dataset:
         else:
             return results, unique_labels
 
-    def load_indices(self, verbose=False) -> Dict[str, np.ndarray]:
+    def load_indices(self) -> Dict[str, np.ndarray]:
         """Return TFRecord indices."""
         pool = DPool(8)
         tfrecords = self.tfrecords()
@@ -3978,11 +5141,18 @@ class Dataset:
         # Filter the list by filters
         if self.annotations is not None:
             slides = self.slides()
+            # DEBUG: Log filtering details
+            log.debug(f"tfrecords: Available slides from annotations: {slides}")
+            log.debug(f"tfrecords: TFRecords found before filtering: {[path_to_name(tfr) for tfr in tfrecords_list]}")
+            
             filtered_tfrecords_list = [
                 tfrecord for tfrecord in tfrecords_list
                 if path_to_name(tfrecord) in slides
             ]
             filtered = filtered_tfrecords_list
+            
+            # DEBUG: Log what survived filtering
+            log.debug(f"tfrecords: TFRecords after slide filtering: {[path_to_name(tfr) for tfr in filtered]}")
         else:
             log.warning("Error filtering TFRecords, are annotations empty?")
             filtered = tfrecords_list
@@ -4076,7 +5246,7 @@ class Dataset:
             tfrecord_dir = join(config['tfrecords'], config['label'])
             tiles_dir = join(config['tiles'], config['label'])
             if not exists(tiles_dir):
-                log.warn(f'No tiles found for source [bold]{source}')
+                log.warning(f'No tiles found for source [bold]{source}')
                 continue
             sf.io.write_tfrecords_multi(tiles_dir, tfrecord_dir)
             self.update_manifest()
@@ -4471,7 +5641,7 @@ class Dataset:
     def verify_annotations_slides(self) -> None:
         """Verify that annotations are correctly loaded."""
         if self.annotations is None:
-            log.warn("Annotations not loaded.")
+            log.warning("Annotations not loaded.")
             return
 
         # Verify no duplicate slide names are found
@@ -4504,9 +5674,9 @@ class Dataset:
              | self.annotations.slide.isna())
         ])
         if n_missing == 1:
-            log.warn("1 patient does not have a slide assigned.")
+            log.warning("1 patient does not have a slide assigned.")
         if n_missing > 1:
-            log.warn(f"{n_missing} patients do not have a slide assigned.")
+            log.warning(f"{n_missing} patients do not have a slide assigned.")
 
     def verify_img_format(self, *, progress: bool = True) -> Optional[str]:
         """Verify that all tfrecords have the same image format (PNG/JPG).

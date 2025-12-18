@@ -10,11 +10,11 @@ import numpy as np
 import cv2
 
 from fpdf import FPDF, XPos, YPos
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageDraw, UnidentifiedImageError
 from datetime import datetime
 from os.path import join, exists
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING, Tuple
 
 import slideflow as sf
 from slideflow.util import log, path_to_name  # noqa F401
@@ -234,6 +234,444 @@ class SlideReport:
             row_image.save(output, format="JPEG", quality=75)
             return output.getvalue()
 
+# -----------------------------------------------------------------------------
+
+class LowerMagSlideReport(SlideReport):
+    """Report for lower magnification tile extraction (e.g., 40x → 10x)."""
+
+    def __init__(
+        self,
+        images: List[bytes],
+        path: str,
+        tile_px: int,
+        tile_um: Union[int, str],
+        source_tile_um: Union[int, str],
+        mag_ratio: int,
+        *,
+        thumb: Optional[Image.Image] = None,
+        thumb_coords: Optional[np.ndarray] = None,
+        source_thumb_coords: Optional[np.ndarray] = None,
+        data: Optional[Dict[str, Any]] = None,
+        compress: bool = True,
+        ignore_thumb_errors: bool = False
+    ) -> None:
+        super().__init__(
+            images=images,
+            path=path,
+            tile_px=tile_px,
+            tile_um=tile_um,
+            thumb=thumb,
+            thumb_coords=thumb_coords,
+            data=data,
+            compress=compress,
+            ignore_thumb_errors=ignore_thumb_errors
+        )
+        self.source_tile_um = source_tile_um
+        self.mag_ratio = int(mag_ratio)
+        self.source_thumb_coords = source_thumb_coords
+
+    @property
+    def combination_efficiency(self) -> Optional[float]:
+        """% of source tiles successfully combined into target tiles."""
+        total_source = self.data.get('total_source_tiles', 0)
+        used_source = self.data.get('source_tiles_used', 0)
+        if not total_source:
+            return None
+        return (used_source / total_source) * 100.0
+
+    @property
+    def spatial_coverage_reduction(self) -> Optional[float]:
+        """% reduction in number of tiles (spatial coverage)."""
+        total_source = self.data.get('total_source_tiles', 0)
+        num_combined = self.data.get('num_tiles', 0)
+        if not total_source:
+            return None
+        return (1.0 - (num_combined / total_source)) * 100.0
+
+    @property
+    def incomplete_groups_percent(self) -> Optional[float]:
+        """% of tile groups that were incomplete."""
+        incomplete = self.data.get('incomplete_groups', 0)
+        combined = self.data.get('num_tiles', 0)
+        total_groups = incomplete + combined
+        if not total_groups:
+            return None
+        return (incomplete / total_groups) * 100.0
+
+    def _get_target_tfrecord_path(self) -> Optional[str]:
+        """Get the path to the target TFRecord file for this slide."""
+        try:
+            import slideflow as sf
+            from os.path import exists, join
+            
+            # Build target TFRecord path based on slide name and magnifications
+            slide_name = sf.util.path_to_name(self.path)
+            
+            # Construct target directory name: "{target_px}px_{target_mag}_from_{source_mag}"
+            target_px = getattr(self, 'target_tile_px', self.tile_px)  # Default to current tile_px if not set
+            source_mag = getattr(self, 'source_tile_um')
+            target_mag = getattr(self, 'tile_um')
+            
+            target_dir_name = f"{target_px}px_{target_mag}_from_{source_mag}"
+            
+            # Look for TFRecord in project structure
+            # Assuming we can get to the project root from self.path
+            project_root = self._find_project_root()
+            if project_root:
+                target_path = join(project_root, 'tfrecords', target_dir_name, f"{slide_name}.tfrecords")
+                if exists(target_path):
+                    return target_path
+                    
+        except Exception as e:
+            import slideflow as sf
+            log.debug(f"Error finding target TFRecord path: {e}")
+            
+        return None
+    
+    def _find_project_root(self) -> Optional[str]:
+        """Find the project root directory."""
+        from os.path import dirname, exists, join
+        
+        # Start from slide path and work up to find project root
+        current = dirname(self.path)
+        for _ in range(5):  # Limit search depth
+            if exists(join(current, 'tfrecords')):
+                return current
+            current = dirname(current)
+        return None
+
+    def _extract_target_locations(self) -> List[Tuple[int, int]]:
+        """Return target grid locations as list of (grid_x, grid_y)."""
+        # Try to read target coordinates directly from the target TFRecord
+        if hasattr(self, 'source_tile_um') and hasattr(self, 'tile_um'):
+            target_tfrecord_path = self._get_target_tfrecord_path()
+            if target_tfrecord_path:
+                try:
+                    target_coords = sf.io.get_locations_from_tfrecord(target_tfrecord_path)
+                    return target_coords
+                except Exception as e:
+                    log.debug(f"Could not read target TFRecord {target_tfrecord_path}: {e}")
+        
+        # First check if we have the combined_grid_coords attribute set directly  
+        if hasattr(self, 'combined_grid_coords') and self.combined_grid_coords:
+            return list(self.combined_grid_coords)
+        
+        # Otherwise look in the data dict
+        locs = self.data.get('locations')
+        if locs is None:
+            return []
+        # If DataFrame, prefer grid_x/grid_y; fall back to loc_x/loc_y if those are grids
+        if isinstance(locs, pd.DataFrame):
+            if {'grid_x', 'grid_y'}.issubset(locs.columns):
+                gx = locs['grid_x'].astype(int).tolist()
+                gy = locs['grid_y'].astype(int).tolist()
+                return list(zip(gx, gy))
+            elif {'loc_x', 'loc_y'}.issubset(locs.columns):
+                # assume loc_* are already grid indices at lower mag
+                gx = locs['loc_x'].astype(int).tolist()
+                gy = locs['loc_y'].astype(int).tolist()
+                return list(zip(gx, gy))
+            else:
+                return []
+        # Else assume iterable of tuples
+        try:
+            out = []
+            for t in locs:
+                if isinstance(t, (tuple, list)) and len(t) >= 2:
+                    out.append((int(t[0]), int(t[1])))
+            return out
+        except Exception:
+            return []
+
+    def calc_thumb(self) -> None:
+        """Draw source (black) and target (red) overlays on the WSI thumbnail.
+        Magnification-agnostic: no hardcoded DS/512/10x. Uses slide metadata + report fields."""
+        import numpy as np
+        from PIL import Image, ImageDraw
+        import slideflow as sf
+
+        # ----- 0) Open WSI (params here don't affect geometry; we map via level-0 size) -----
+        try:
+            wsi = sf.WSI(
+                self.path,
+                tile_px=getattr(self, 'tile_px'),
+                tile_um=getattr(self, 'tile_um'),
+                verbose=False,
+            )
+        except Exception as e:
+            # If slideflow exposes specific error types, include them; otherwise catch generic Exception.
+            try:
+                SlideLoadError = sf.errors.SlideLoadError
+                SlideMissingMPPError = sf.errors.SlideMissingMPPError
+            except Exception:
+                SlideLoadError = None
+                SlideMissingMPPError = None
+
+            is_slide_error = (
+                (SlideLoadError and isinstance(e, SlideLoadError)) or
+                (SlideMissingMPPError and isinstance(e, SlideMissingMPPError))
+            )
+
+            # Log and gracefully skip this slide's overlay drawing.
+            log.warning(f"Skipping thumbnail overlay for {self.path} due to WSI open error: {e}")
+            # Mark as skipped so higher-level reports can count this.
+            self.data = self.data or {}
+            self.data['skipped'] = True
+
+            # Try to generate a basic thumbnail safely; if that fails, create a blank placeholder.
+            try:
+                base_thumb = sf.WSI(self.path, tile_px=getattr(self, 'tile_px', 512), tile_um=getattr(self, 'tile_um')).thumb(
+                    coords=None, rois=getattr(self, 'has_rois', False), low_res=True, width=1024, rect_linewidth=1
+                )
+                thumb = Image.fromarray(np.asarray(base_thumb)[:, :, :3])
+            except Exception as e_thumb:
+                log.debug(f"Couldn't create fallback thumbnail for {self.path}: {e_thumb}; using blank placeholder.")
+                thumb = Image.new('RGB', (1024, 1024), (255, 255, 255))
+
+            # Save placeholder and exit early — don't attempt any overlay drawing.
+            self._thumb = thumb
+            return
+
+        # ----- 1) Build thumbnail & get level-0 geometry -----
+        base_thumb = wsi.thumb(coords=None, rois=self.has_rois, low_res=True, width=1024, rect_linewidth=1)
+        thumb = Image.fromarray(np.asarray(base_thumb)[:, :, :3])
+        draw = ImageDraw.Draw(thumb)
+
+        try:
+            W0, H0 = wsi.slide.level_dimensions[0]   # level-0 size in px
+        except Exception as e:
+            log.warning(f"Could not read level-0 dimensions for {self.path}: {e}")
+            self._thumb = thumb
+            return
+
+        # ----- 2) Compute coordinate→THUMB scale -----
+        # For LowerMagSlideReport, coordinates are stored in level-0 WSI pixel space,
+        # so we use a simple scale: level-0 pixels → thumbnail pixels.
+        # For regular SlideReport, coordinates may be in a "DRAW" space requiring transformation.
+
+        # Simple scale for level-0 coordinates → thumbnail
+        scale_level0_to_thumb = thumb.width / float(W0)
+
+        # Check if coordinates are in level-0 space (LowerMagSlideReport) or need transformation
+        # LowerMagSlideReport stores coordinates directly from TFRecords which are level-0 pixels
+        coords_are_level0 = isinstance(self, LowerMagSlideReport)
+
+        if coords_are_level0:
+            # Coordinates are already in level-0 WSI pixel space
+            # Just scale directly to thumbnail
+            scale_draw_to_thumb = scale_level0_to_thumb
+            log.debug(f"[calc_thumb] Using level-0 coordinate scale: {scale_draw_to_thumb:.4f} (thumb.width={thumb.width}, W0={W0})")
+        else:
+            # Original logic for regular SlideReport where coordinates may be in DRAW space
+            # base_mpp (µm/px) at level-0
+            try:
+                base_mpp = float(getattr(wsi, 'mpp', 0.0)) or float(getattr(wsi, 'level_mpp', [0.0])[0] or 0.0)
+                if base_mpp <= 0:
+                    raise ValueError
+            except Exception:
+                base_mpp = 0.25  # conservative fallback
+
+            # Prefer a physical mpp for the DRAW level, else fall back to magnification strings
+            mpp_draw = None
+            try:
+                if isinstance(self.tile_um, (int, float)) and isinstance(self.tile_px, (int, float)) and self.tile_px > 0:
+                    mpp_draw = float(self.tile_um) / float(self.tile_px)  # µm per DRAW px
+            except Exception:
+                mpp_draw = None
+
+            if mpp_draw and mpp_draw > 0:
+                d_draw = mpp_draw / base_mpp
+            else:
+                # Fallback: try to parse a magnification string for the DRAW level
+                def _to_mag(val):
+                    try:
+                        return float(sf.util.to_mag(val)) if isinstance(val, str) else float(val)
+                    except Exception:
+                        return None
+
+                mag_draw = _to_mag(getattr(self, 'tile_um', None))
+                if mag_draw and mag_draw > 0:
+                    d_draw = 10.0 / (mag_draw * base_mpp)
+                else:
+                    # Last resort: infer draw mag from source mag and mag_ratio if available
+                    src_mag = _to_mag(getattr(self, 'source_tile_um', None))
+                    ratio  = float(getattr(self, 'mag_ratio', 0) or 0)
+                    if src_mag and ratio and ratio > 0:
+                        mag_draw = src_mag / ratio
+                        d_draw = 10.0 / (mag_draw * base_mpp)
+                    else:
+                        # Absolute fallback: assume draw==level-0 (no extra scaling)
+                        d_draw = 1.0
+                        log.debug("[calc_thumb] Falling back to d_draw=1.0 (no draw-level metadata).")
+
+            scale_draw_to_thumb = d_draw * (thumb.width / float(W0))
+
+        # ----- 3) Resolve box sizes -----
+        # For LowerMagSlideReport with level-0 coordinates, calculate actual extraction sizes
+        # using the same method as wsi.thumb() (which uses wsi.full_extract_px)
+
+        if coords_are_level0:
+            # For source tiles: need to create a temporary WSI with source magnification
+            # to get the correct full_extract_px value
+            try:
+                source_wsi = sf.WSI(
+                    self.path,
+                    tile_px=self.tile_px,  # This doesn't matter for full_extract_px calculation
+                    tile_um=getattr(self, 'source_tile_um'),
+                    verbose=False,
+                )
+                s_box_draw = float(source_wsi.full_extract_px)  # Actual extraction size in level-0 pixels
+                log.debug(f"[calc_thumb] Calculated source box size from WSI: {s_box_draw} pixels")
+            except Exception as e:
+                log.error(f"Failed to calculate source box size from WSI: {e}")
+                raise
+
+            # Target box is mag_ratio times the source box
+            t_box_draw = s_box_draw * float(getattr(self, 'mag_ratio'))
+            log.debug(f"[calc_thumb] Box sizes in level-0 pixels: source={s_box_draw:.0f}, target={t_box_draw:.0f}")
+        else:
+            # Original logic for regular SlideReport
+            try:
+                s_box_draw = float(getattr(self, 'source_tile_px'))
+            except Exception as e:
+                s_box_draw = float(getattr(self, 'tile_px')) / max(1.0, float(getattr(self, 'mag_ratio', 1)))
+            try:
+                t_box_draw = float(getattr(self, 'target_tile_px'))
+            except Exception as e:
+                t_box_draw = float(getattr(self, 'tile_px'))
+
+        # ----- 4) Draw rectangles (centers are already in DRAW coordinates) -----
+        def _draw(centers_draw, box_draw, color, width, label):
+            if centers_draw is None:
+                log.debug(f"DEBUG _draw: {label} centers_draw is None")
+                return
+            if len(centers_draw) == 0:
+                log.debug(f"DEBUG _draw: {label} centers_draw is empty")
+                return
+            half = box_draw / 2.0
+            w_th = box_draw * scale_draw_to_thumb
+            for i, coord_pair in enumerate(centers_draw):
+                # Handle both (x, y) tuples and [x, y] arrays
+                if len(coord_pair) == 2:
+                    cx, cy = coord_pair[0], coord_pair[1]
+                else:
+                    log.error(f"DEBUG: Invalid coordinate format: {coord_pair}")
+                    continue
+                x_draw = float(cx) - half
+                y_draw = float(cy) - half
+                x_th = x_draw * scale_draw_to_thumb
+                y_th = y_draw * scale_draw_to_thumb
+                rect_coords = [x_th, y_th, x_th + w_th, y_th + w_th]
+                draw.rectangle(rect_coords, outline=color, width=width)
+
+        source_coords = getattr(self, 'source_thumb_coords', None)
+        target_coords = getattr(self, 'target_thumb_coords', None)
+
+        # Debug the actual coordinate values received in calc_thumb
+        if source_coords is None:
+            log.debug(f"DEBUG calc_thumb: source_coords is None for {self.path}")
+
+        if target_coords is None:
+            log.debug(f"DEBUG calc_thumb: target_coords is None for {self.path}")
+        
+        # Use black for source tiles, red for target tiles - with thin lines
+        _draw(source_coords, s_box_draw, (0, 0, 0), 2, "SOURCE")
+        _draw(target_coords, t_box_draw, (255, 0, 0), 3, "TARGET_RED") 
+        
+        # ----- 5) Save -----
+        self._thumb = thumb
+
+    def create_combination_visualization(self) -> Optional[bytes]:
+        """Create a visualization showing source→target tile relationships."""
+        target_locations = self._extract_target_locations()
+        if not target_locations:
+            return None
+        try:
+            import matplotlib.pyplot as plt
+            with sf.util.matplotlib_backend('Agg'):
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+                # Estimate source locations by upsampling each target grid cell
+                src = []
+                R = self.mag_ratio
+                for tx, ty in target_locations:
+                    for i in range(R):
+                        for j in range(R):
+                            src.append((tx * R + i, ty * R + j))
+
+                if src:
+                    sx, sy = zip(*src)
+                    ax1.scatter(sx, sy, s=2, alpha=0.6)
+                    ax1.set_title(f'Source Tiles ({self.source_tile_um}) — est. {len(src)}')
+                    ax1.set_xlabel('Grid X'); ax1.set_ylabel('Grid Y'); ax1.grid(True, alpha=0.3)
+
+                tx, ty = zip(*target_locations)
+                ax2.scatter(tx, ty, s=8, alpha=0.8)
+                ax2.set_title(f'Combined Tiles ({self.tile_um}) — {len(target_locations)}')
+                ax2.set_xlabel('Grid X'); ax2.set_ylabel('Grid Y'); ax2.grid(True, alpha=0.3)
+
+                plt.tight_layout()
+                with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                    plt.savefig(temp.name, dpi=150, bbox_inches='tight')
+                    plt.close(fig)
+                    with open(temp.name, 'rb') as f:
+                        return f.read()
+        except Exception as e:
+            log.error(f"Error creating combination visualization for {self.path}: {e}")
+            return None
+
+    def create_before_after_comparison(self) -> Optional[bytes]:
+        """Create before/after example grids by visualizing a split of combined tiles."""
+        if not self.images:
+            return None
+        try:
+            import matplotlib.pyplot as plt
+            n_examples = min(3, len(self.images))
+            with sf.util.matplotlib_backend('Agg'):
+                fig, axes = plt.subplots(2, n_examples, figsize=(4*n_examples, 8))
+                # Normalize axes shape for n_examples==1
+                if n_examples == 1:
+                    axes = np.array([[axes[0]], [axes[1]]])
+
+                for i in range(n_examples):
+                    img = Image.open(io.BytesIO(self.images[i])).convert('RGB')
+                    axes[0, i].imshow(img)
+                    axes[0, i].set_title(f'Combined Tile {i+1} ({self.tile_um})')
+                    axes[0, i].axis('off')
+
+                    img_array = np.array(img)
+                    h, w = img_array.shape[:2]
+                    R = max(self.mag_ratio, 1)
+                    tile_h, tile_w = h // R, w // R
+                    before_grid = np.zeros_like(img_array)
+
+                    for r in range(R):
+                        for c in range(R):
+                            y0, y1 = r * tile_h, (r + 1) * tile_h
+                            x0, x1 = c * tile_w, (c + 1) * tile_w
+                            tile_region = img_array[y0:y1, x0:x1].copy()
+                            # white borders
+                            tile_region[:2, :] = 255
+                            tile_region[-2:, :] = 255
+                            tile_region[:, :2] = 255
+                            tile_region[:, -2:] = 255
+                            before_grid[y0:y1, x0:x1] = tile_region
+
+                    axes[1, i].imshow(before_grid)
+                    axes[1, i].set_title(f'Source Tiles ({self.source_tile_um}) — {R}×{R}')
+                    axes[1, i].axis('off')
+
+                plt.tight_layout()
+                with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                    plt.savefig(temp.name, dpi=150, bbox_inches='tight')
+                    plt.close(fig)
+                    with open(temp.name, 'rb') as f:
+                        return f.read()
+        except Exception as e:
+            log.error(f"Error creating before/after comparison for {self.path}: {e}")
+            return None
+
+# -----------------------------------------------------------------------------
 
 class ExtractionPDF(FPDF):
     # Length is 220
@@ -544,3 +982,91 @@ class ExtractionReport:
             df = pd.concat([df, ex_df[~ex_df.slide.isin(df.slide.unique())]])
         df.to_csv(filename, index=False)
         return df
+
+# -----------------------------------------------------------------------------
+
+class LowerMagExtractionReport(ExtractionReport):
+    """ExtractionReport variant for lower magnification tile extraction."""
+
+    def __init__(
+        self,
+        reports: List[LowerMagSlideReport],
+        meta: Optional[Any] = None,
+        title: str = 'Lower Magnification Tile Extraction Report',
+        *,
+        pool: Optional[Any] = None
+    ) -> None:
+        # Initialize parent (bb_threshold not really used here but keep signature)
+        super().__init__(
+            reports=reports,
+            meta=meta,
+            bb_threshold=0.05,
+            title=title,
+            pool=pool
+        )
+        # Add lower mag specific content to PDF
+        self._add_lower_mag_summary()
+        self._add_combination_metrics()
+
+    def _add_lower_mag_summary(self) -> None:
+        pdf = self.pdf
+        # Aggregate stats safely
+        total_slides = len([r for r in self.reports if r is not None])
+        total_source_tiles = int(sum((r.data or {}).get('total_source_tiles', 0) for r in self.reports if r is not None))
+        total_combined_tiles = int(sum((r.data or {}).get('num_tiles', 0) for r in self.reports if r is not None))
+        total_discarded = int(sum((r.data or {}).get('discarded_tiles', 0) for r in self.reports if r is not None))
+
+        effs = [r.combination_efficiency for r in self.reports if r is not None and hasattr(r, 'combination_efficiency') and r.combination_efficiency is not None]
+        avg_efficiency = float(np.mean(effs)) if len(effs) else 0.0
+
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, 'Lower Magnification Extraction Summary', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(5)
+
+        pdf.set_font('Arial', '', 10)
+        summary_lines = [
+            f"Total slides processed: {total_slides}",
+            f"Source tiles processed: {total_source_tiles:,}",
+            f"Combined tiles created: {total_combined_tiles:,}",
+            f"Tiles discarded: {total_discarded:,}",
+            f"Average combination efficiency: {avg_efficiency:.1f}%"
+        ]
+        for line in summary_lines:
+            pdf.cell(0, 5, line, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(10)
+
+    def _add_combination_metrics(self) -> None:
+        pdf = self.pdf
+        pdf.set_font('Arial', 'B', 11)
+        pdf.cell(0, 8, 'Tile Combination Metrics', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(3)
+
+        # Table header
+        pdf.set_font('Arial', 'B', 8)
+        pdf.cell(60, 6, 'Slide', 1, 0, 'C')
+        pdf.cell(25, 6, 'Source Tiles', 1, 0, 'C')
+        pdf.cell(25, 6, 'Combined', 1, 0, 'C')
+        pdf.cell(25, 6, 'Efficiency', 1, 0, 'C')
+        pdf.cell(25, 6, 'Coverage Red.', 1, 0, 'C')
+        pdf.cell(25, 6, 'Incomplete', 1, 1, 'C')
+
+        # Rows
+        pdf.set_font('Arial', '', 7)
+        for report in self.reports:
+            if report is None:
+                continue
+            slide_name = path_to_name(report.path)[:40]
+            data = report.data or {}
+            source_tiles = int(data.get('total_source_tiles', 0))
+            combined = int(data.get('num_tiles', 0))
+            efficiency = float(getattr(report, 'combination_efficiency', 0.0) or 0.0)
+            coverage_red = float(getattr(report, 'spatial_coverage_reduction', 0.0) or 0.0)
+            incomplete = float(getattr(report, 'incomplete_groups_percent', 0.0) or 0.0)
+
+            pdf.cell(60, 5, slide_name, 1, 0, 'L')
+            pdf.cell(25, 5, f"{source_tiles}", 1, 0, 'C')
+            pdf.cell(25, 5, f"{combined}", 1, 0, 'C')
+            pdf.cell(25, 5, f"{efficiency:.1f}%", 1, 0, 'C')
+            pdf.cell(25, 5, f"{coverage_red:.1f}%", 1, 0, 'C')
+            pdf.cell(25, 5, f"{incomplete:.1f}%", 1, 1, 'C')
+        pdf.ln(10)
