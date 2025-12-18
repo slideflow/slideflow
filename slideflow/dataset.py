@@ -2356,6 +2356,7 @@ class Dataset:
                             source_tile_um=source_tile_um,
                             target_tile_um=target_tile_um,
                             mag_ratio=mag_ratio,
+                            target_tile_px=target_tile_px,
                             **kwargs
                         )
                         src_reports.append(report)
@@ -2514,9 +2515,9 @@ class Dataset:
             
         # Read coordinates from source TFRecord (the original high-mag tiles)
         source_locations = sf.io.get_locations_from_tfrecord(tfrecord_path)
-        
-        # Try to read target TFRecord coordinates (the newly created low-mag tiles)
-        target_tile_px = kwargs.get('target_tile_px')
+
+        # Get target_tile_px from kwargs (required parameter, should always be provided)
+        target_tile_px = int(kwargs.get('target_tile_px'))
         # Use source locations for processing (this is what we're extracting FROM)
         locations = source_locations
             
@@ -2541,7 +2542,6 @@ class Dataset:
 
         # Group tiles by spatial regions that can form target tiles
         tile_groups = self._group_tiles_for_combination(locations, mag_ratio)
-        target_tile_px = int(kwargs.get('target_tile_px', 224))
         complete_groups = sum(1 for indices in tile_groups.values() if len(indices) == mag_ratio * mag_ratio)
 
         # Generate output path (will raise DatasetError if unable to determine path)
