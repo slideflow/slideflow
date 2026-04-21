@@ -252,12 +252,12 @@ def rebuild_extractor(
         if submodule_name in _extras_extractors:
             raise errors.InvalidFeatureExtractor(
                 "{} requires the package {}, please install with 'pip install {}'".format(
-                    submodule_name, 
-                    _extras_extractors[submodule_name], 
+                    submodule_name,
+                    _extras_extractors[submodule_name],
                     _extras_extractors[submodule_name]
             ))
         if allow_errors:
-            return None
+            return None, None
         else:
             raise ValueError(
                 f'Could not rebuild extractor from configuration at {bags_or_model}.'
