@@ -286,9 +286,11 @@ class ModelWidget:
 
     def _apply_pred_means(self, outcome, pred_array):
         if self.is_classification():
-            self.pred_means[outcome] = pred_array.mean(axis=(0,1)).filled()
+            self.pred_means[outcome] = np.nanmean(pred_array.filled(np.nan), axis=(0,1))
         else:
-            self.pred_means[outcome] = pred_array.mean()
+            if np.ma.is_masked(pred_array):
+                pred_array = pred_array.filled(np.nan)
+            self.pred_means[outcome] = np.nanmean(pred_array)
 
     def _apply_pred_histograms(self, outcome, pred_array, uq_array=None):
         self.pred_hist[outcome] = self._masked_histogram(pred_array)
@@ -317,7 +319,7 @@ class ModelWidget:
             # Single categorical or regression outcome
             elif not multiple_outcomes:
                 outcome = config['outcomes'][0]
-                self._apply_pred_means(outcome, np.dstack([overlay.grid for overlay in hw.predictions]))
+                self._apply_pred_means(outcome, np.ma.dstack([overlay.grid for overlay in hw.predictions]))
 
             # Multiple regression outcome(s)
             else:
