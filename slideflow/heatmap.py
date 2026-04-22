@@ -307,7 +307,7 @@ class Heatmap:
 
         if asynchronous:
             it = self.interface
-            grid = np.ma.ones((
+            grid = np.ma.masked_all((
                     self.slide.grid.shape[1],
                     self.slide.grid.shape[0],
                     it.num_features + it.num_classes + it.num_uncertainty),
