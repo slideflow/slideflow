@@ -93,7 +93,6 @@ def features_from_slide_torch(
             batch_images = normalizer.transform(batch_images)
             if preprocess_fn:
                 batch_images = preprocess_fn(batch_images)
-        batch_images = batch_images.to(extractor.device)
         model_out = sf.util.as_list(extractor(batch_images))
 
         # Flatten the output, relevant when

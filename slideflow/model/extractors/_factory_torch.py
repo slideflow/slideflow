@@ -257,9 +257,12 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         antialias: bool = False,
         norm_mean: Optional[Tuple[float, float, float]] = (0.485, 0.456, 0.406),
         norm_std: Optional[Tuple[float, float, float]] = (0.229, 0.224, 0.225),
+        jpeg: bool = False,
+        jpeg_quality: int = 90
     ):
         """Get a list of preprocessing image transforms."""
         from torchvision import transforms
+        from slideflow.io.torch.augment import JPEGCompression
 
         all_transforms = []
         if center_crop:
@@ -276,6 +279,8 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
                     antialias=antialias
                 )
             ]
+        if jpeg:
+            all_transforms += [JPEGCompression(q=jpeg_quality)]
         all_transforms += [
             transforms.Lambda(lambda x: x / 255.),
             transforms.Normalize(

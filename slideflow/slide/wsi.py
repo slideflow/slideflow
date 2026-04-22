@@ -1488,6 +1488,13 @@ class WSI:
         area_in_sq_mm = area_in_sq_microns * 1e-6
         return area_in_sq_mm
 
+    def roi_area(self) -> List[float]:
+        """Calculate area (mm^2) of each ROI."""
+        if not self.has_rois():
+            return []
+        else:
+            return [r.area() * self.mpp **2 * 1e-6 for r in self.get_rois()]
+
     def build_generator(
         self,
         *,

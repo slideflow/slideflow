@@ -247,6 +247,10 @@ class ROI:
         inverted_ROI.add_hole(self)
         return inverted_ROI
 
+    def area(self) -> float:
+        """Calculate the area of the polygon, excluding holes."""
+        return self.poly.area
+
     def create_triangles(self) -> Optional[np.ndarray]:
         """Create a triangulated mesh from the polygon."""
 
