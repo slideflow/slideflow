@@ -19,6 +19,12 @@ class Hoptimus0Features(TorchFeatureExtractor):
 
     """
     tag = 'hoptimus0'
+    # sha1 of the canonical pretrained checkpoint at
+    # huggingface.co/bioptimus/H-optimus-0/blob/main/pytorch_model.bin
+    # (4.5 GB, hash from `sha1sum pytorch_model.bin`). Used so a
+    # ``weights=None`` invocation produces the same model_sig as a
+    # ``weights=<path-to-that-file>`` invocation across machines.
+    weights_hash = '105e006ee8fb2f51709a51432c1a273e35ed10d4'
     license = """Apache License 2.0 (License available at https://github.com/bioptimus/releases/tree/main/models/h-optimus/v0)"""
     citation = """
 @software{hoptimus0,

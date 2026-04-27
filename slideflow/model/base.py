@@ -477,6 +477,18 @@ class BaseFeatureExtractor:
     license = ''
     citation = ''
 
+    # Optional: sha1 hex digest of this extractor's canonical pretrained
+    # weights. Used by ``slideflow.util.predict_cache.resolve_weights_hash``
+    # to compute a stable model-identity hash when ``weights=None``
+    # (HuggingFace auto-download path) -- avoids hashing a 1+GB checkpoint
+    # on every cache write/read. When set, the value MUST equal what
+    # ``hashlib.sha1(open(<path>, 'rb').read()).hexdigest()`` returns for
+    # the exact published file the extractor downloads, so an explicit
+    # ``weights=<path>`` matches a ``weights=None`` invocation. Leave as
+    # None for extractors without a single canonical pretrained file
+    # (ImageNet wrappers, custom-trained variants).
+    weights_hash: Optional[str] = None
+
     def __init__(self, backend: str, include_preds: bool = False) -> None:
         """Initialize the base feature extractor.
 
