@@ -28,9 +28,6 @@ def main(
 
     Optional PATH argument can be used specify which slide to initially load.
     """
-    if low_memory is None:
-        low_memory = False
-
     # Load widgets
     widgets = Studio.get_default_widgets()
     if stylegan:

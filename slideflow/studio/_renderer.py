@@ -61,7 +61,7 @@ def _reduce_dropout_preds_torch(yp_drop, num_outcomes, stack=True):
         if stack:
             yp_drop = [torch.stack(yp_drop[n], dim=0) for n in range(num_outcomes)]
         else:
-            yp_drop = [yp_drop[0] for n in range(num_outcomes)]
+            yp_drop = [yp_drop[n] for n in range(num_outcomes)]
         yp_mean = [torch.mean(yp_drop[n], dim=0) for n in range(num_outcomes)]
         yp_std = [torch.std(yp_drop[n], dim=0) for n in range(num_outcomes)]
     else:
@@ -80,7 +80,7 @@ def _reduce_dropout_preds_tf(yp_drop, num_outcomes, stack=True):
         if stack:
             yp_drop = [tf.stack(yp_drop[n], axis=0) for n in range(num_outcomes)]
         else:
-            yp_drop = [yp_drop[0] for n in range(num_outcomes)]
+            yp_drop = [yp_drop[n] for n in range(num_outcomes)]
         yp_mean = [tf.math.reduce_mean(yp_drop[n], axis=0).numpy() for n in range(num_outcomes)]
         yp_std = [tf.math.reduce_std(yp_drop[n], axis=0).numpy() for n in range(num_outcomes)]
     else:
@@ -481,6 +481,11 @@ class Renderer:
                 if assess_focus == 'deepfocus':
                     # DeepFocus target size is tile_px=64 tile_um=256 (40X),
                     # but we'll work at 20X since it's more practical.
+                    if not tile_um:
+                        raise ValueError(
+                            "tile_um must be set before assess_focus='deepfocus' "
+                            "(load a model or call viewer.set_tile_um first)."
+                        )
                     crop_ratio = 128. / tile_um
                     if crop_ratio > 1:
                         raise NotImplementedError
