@@ -43,7 +43,7 @@ def remove_ticks(axis):
 def comparison_plot(
     original: np.ndarray,
     maps: Dict[str, np.ndarray],
-    cmap: Any = "plt.cm.gray",
+    cmap: Any = "gray",
     n_rows: int = 3,
     n_cols: int = 3,
 ) -> None:
@@ -54,16 +54,28 @@ def comparison_plot(
         maps (dict(str, np.ndarray)): Dictionary mapping saliency map names
             to the numpy array maps.
         cmap (matplotlib colormap, optional): Colormap for maps.
-            Defaults to plt.cm.gray.
+            Defaults to "gray".
     """
     import matplotlib.pyplot as plt
 
+    # Validate up-front so an oversized maps dict produces a clear error
+    # instead of a generic IndexError when ax_idx[i+1] runs off the end.
+    if len(maps) >= n_rows * n_cols:
+        raise ValueError(
+            f"Number of maps ({len(maps)}) exceeds grid capacity "
+            f"({n_rows * n_cols - 1}); increase n_rows / n_cols."
+        )
+
     scale = 5
     ax_idx = [[i, j] for i in range(n_rows) for j in range(n_cols)]
+    # squeeze=False so the axes array is always 2-D, even when n_rows
+    # or n_cols is 1. Without it, matplotlib returns a 1-D array (or a
+    # bare Axes) and the [row, col] indexing below IndexError's.
     fig, ax = plt.subplots(
         n_rows,
         n_cols,
-        figsize=(n_rows * scale, n_cols * scale)
+        figsize=(n_rows * scale, n_cols * scale),
+        squeeze=False,
     )
 
     ax[ax_idx[0][0], ax_idx[0][1]].axis('off')
@@ -142,9 +154,11 @@ def multi_plot(
     masks = [method(p_img, **kwargs) for p_img in processed_imgs]
     overlays = [overlay(img, mask) for img, mask in zip(raw_imgs, masks)]
 
-    # Initialize figure.
+    # Initialize figure. squeeze=False so a single-image input still
+    # produces a 2-D axes array — without it, ax[0, i] / ax[1, i] /
+    # ax[2, i] below IndexError when len(raw_imgs) == 1.
     figsize = (len(raw_imgs)*5, 15)
-    fig, ax = plt.subplots(3, len(raw_imgs), figsize=figsize)
+    fig, ax = plt.subplots(3, len(raw_imgs), figsize=figsize, squeeze=False)
 
     # Plot labels if provided.
     if xlabels:
@@ -202,10 +216,14 @@ def saliency_map_comparison(
 
     n_imgs = len(orig_imgs)
     n_saliency = len(saliency_fn)
+    # squeeze=False — same reason as comparison_plot / multi_plot above:
+    # ax[idx, ...] indexing requires a 2-D array, but n_imgs=1 or
+    # n_saliency=0 would otherwise collapse it.
     fig, ax = plt.subplots(
         n_imgs,
         n_saliency+1,
-        figsize=((n_saliency+1)*5, n_imgs*5)
+        figsize=((n_saliency+1)*5, n_imgs*5),
+        squeeze=False,
     )
     if saliency_labels is None:
         saliency_labels = [f"Saliency{n}" for n in range(n_saliency)]

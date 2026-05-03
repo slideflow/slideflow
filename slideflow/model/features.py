@@ -198,7 +198,7 @@ class DatasetFeatures:
         self.slides = sorted([sf.util.path_to_name(t) for t in self.tfrecords])
 
         if labels is not None and annotations is not None:
-            raise DeprecationWarning(
+            raise ValueError(
                 'Cannot supply both "labels" and "annotations" to sf.DatasetFeatures. '
                 '"annotations" is deprecated and has been replaced with "labels".'
             )
@@ -214,22 +214,9 @@ class DatasetFeatures:
 
         if self.labels:
             self.categories = list(set(self.labels.values()))
-            if self.activations:
-                for slide in self.slides:
-                    try:
-                        if self.activations[slide]:
-                            used = (self.used_categories
-                                    + [self.labels[slide]])
-                            self.used_categories = list(set(used))  # type: List[Union[str, int, List[float]]]
-                            self.used_categories.sort()
-                    except KeyError:
-                        raise KeyError(f"Slide {slide} not in labels.")
-                total = len(self.used_categories)
-                cat_list = ", ".join([str(c) for c in self.used_categories])
-                log.debug(f'Observed categories (total: {total}): {cat_list}')
         else:
             self.categories = []
-            self.used_categories = []
+        self.used_categories = []  # type: List[Union[str, int, List[float]]]
 
         # Load from PKL (cache) if present
         if cache and exists(cache):
@@ -276,9 +263,6 @@ class DatasetFeatures:
         cat_list = ", ".join([str(c) for c in self.used_categories])
         log.debug(f'Observed categories (total: {total}): {cat_list}')
 
-        # Show total number of features
-        if self.num_features is None:
-            self.num_features = self.activations[self.slides[0]].shape[-1]
         log.debug(f'Number of activation features: {self.num_features}')
 
     @classmethod
@@ -306,7 +290,8 @@ class DatasetFeatures:
                 s: np.stack(df.loc[df.slide==s].activations.values)
                 for s in obj.slides
             }
-            obj.num_features = next(df.iterrows())[1].activations.shape[0]
+            if not df.empty:
+                obj.num_features = next(df.iterrows())[1].activations.shape[0]
         if 'locations' in df.columns:
             obj.locations = {
                 s: np.stack(df.loc[df.slide==s].locations.values)
@@ -322,7 +307,8 @@ class DatasetFeatures:
                 s: np.stack(df.loc[df.slide==s].predictions.values)
                 for s in obj.slides
             }
-            obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
+            if not df.empty:
+                obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
         return obj
 
     @classmethod
@@ -380,6 +366,9 @@ class DatasetFeatures:
                 >>> df = DatasetFeatures.concat([df1, df2])
 
         """
+        # Type hint says Iterable; force to list so len() / multiple
+        # passes work for generators too.
+        args = list(args)
         assert len(args) > 1
         dfs = []
         for f, ftrs in enumerate(args):
@@ -421,10 +410,10 @@ class DatasetFeatures:
         log.debug("Sorting by TFRecord index")
         dfs[0].sort_values('tfr_index', inplace=True)
         log.debug("Creating DatasetFeatures object")
-        return DatasetFeatures.from_df(dfs[0])
+        return cls.from_df(dfs[0])
 
     @property
-    def uq(self) -> bool:
+    def uq(self) -> Optional[bool]:
         if self.feature_generator is None:
             return None
         else:
@@ -489,14 +478,20 @@ class DatasetFeatures:
         self.uncertainty = {s: np.stack(v) for s, v in uncertainty.items()}
 
         # Sort using TFRecord location information,
-        # to ensure dictionary indices reflect TFRecord indices
+        # to ensure dictionary indices reflect TFRecord indices.
         if fg.tfrecords_have_loc:
+            # Only sort slides that actually have activations and locations.
+            # predictions / uncertainty may legitimately be missing for the
+            # whole dataset (include_preds=False, uq=False, etc.) — the
+            # per-array assignments in the loop below already gate on
+            # `slide in self.X`, so we don't need to require them here.
+            # Use .get() so a slide missing from any dict (e.g., empty
+            # tile output) skips cleanly instead of KeyError-ing.
+            _empty = np.empty(0)
             slides_to_sort = [
                 s for s in self.slides
-                if (self.activations[s].size
-                    or not self.predictions[s].size
-                    or not self.locations[s].size
-                    or not self.uncertainty[s].size)
+                if (self.activations.get(s, _empty).size
+                    and self.locations.get(s, _empty).size)
             ]
             if pool_sort and len(slides_to_sort) > 1:
                 pool = mp.Pool(sf.util.num_cpu())
@@ -517,28 +512,36 @@ class DatasetFeatures:
             else:
                 iterable = imap_iterable
 
-            for i, true_locs in enumerate(iterable):
-                slide = slides_to_sort[i]
-                # Get the order of locations stored in TFRecords,
-                # and the corresponding indices for sorting
-                cur_locs = self.locations[slide]
-                idx = [true_locs.index(tuple(cur_locs[i])) for i in range(cur_locs.shape[0])]
+            try:
+                for i, true_locs in enumerate(iterable):
+                    slide = slides_to_sort[i]
+                    # Get the order of locations stored in TFRecords,
+                    # and the corresponding indices for sorting
+                    cur_locs = self.locations[slide]
+                    idx = [true_locs.index(tuple(cur_locs[i])) for i in range(cur_locs.shape[0])]
 
-                # Make sure that the TFRecord indices are continuous, otherwise
-                # our sorted indices will be inaccurate
-                assert max(idx)+1 == len(idx)
+                    if not idx:
+                        # No locations for this slide; skip rather than
+                        # crashing the assert.
+                        continue
 
-                # Final sorting
-                sorted_idx = np.argsort(idx)
-                if slide in self.activations:
-                    self.activations[slide] = self.activations[slide][sorted_idx]
-                if slide in self.predictions:
-                    self.predictions[slide] = self.predictions[slide][sorted_idx]
-                if slide in self.uncertainty:
-                    self.uncertainty[slide] = self.uncertainty[slide][sorted_idx]
-                self.locations[slide] = self.locations[slide][sorted_idx]
-            if pool is not None:
-                pool.close()
+                    # Make sure that the TFRecord indices are continuous,
+                    # otherwise our sorted indices will be inaccurate.
+                    assert max(idx)+1 == len(idx)
+
+                    # Final sorting
+                    sorted_idx = np.argsort(idx)
+                    if slide in self.activations:
+                        self.activations[slide] = self.activations[slide][sorted_idx]
+                    if slide in self.predictions:
+                        self.predictions[slide] = self.predictions[slide][sorted_idx]
+                    if slide in self.uncertainty:
+                        self.uncertainty[slide] = self.uncertainty[slide][sorted_idx]
+                    self.locations[slide] = self.locations[slide][sorted_idx]
+            finally:
+                if pool is not None:
+                    pool.close()
+                    pool.join()
 
         fla_calc_time = time.time()
         log.debug(f'Calculation time: {fla_calc_time-fla_start_time:.0f} sec')
@@ -570,11 +573,15 @@ class DatasetFeatures:
             )
 
         def act_by_cat(c):
-            return np.concatenate([
+            acts = [
                 self.activations[pt][:, idx]
                 for pt in self.slides
                 if self.labels[pt] == c
-            ])
+            ]
+            # np.concatenate raises on empty input; return a 1-D empty
+            # array so downstream consumers (stats, box_plots) still see
+            # a sized array.
+            return np.concatenate(acts) if acts else np.empty((0,))
         return {c: act_by_cat(c) for c in self.used_categories}
 
     def box_plots(self, features: List[int], outdir: str) -> None:
@@ -688,7 +695,7 @@ class DatasetFeatures:
             raise errors.FeaturesError(f"Export error: unknown level {level}")
 
         meth_fn = {'mean': np.mean, 'median': np.median}
-        slides = self.slides if not slides else slides
+        slides = self.slides if slides is None else slides
 
         with open(filename, 'w') as outfile:
             csvwriter = csv.writer(outfile)
@@ -697,12 +704,17 @@ class DatasetFeatures:
             header = ['Slide'] + logit_header + feature_header
             csvwriter.writerow(header)
             for slide in track(slides):
+                # self.predictions may not contain every slide when
+                # include_preds=False at generation time; .get() with an
+                # empty list folds the absent case into the existing
+                # "no predictions" branch instead of KeyError-ing.
+                slide_preds = self.predictions.get(slide, [])
                 if level == 'tile':
                     for i, tile_act in enumerate(self.activations[slide]):
-                        if self.num_classes and self.predictions[slide] != []:
+                        if self.num_classes and len(slide_preds) > 0:
                             csvwriter.writerow(
                                 [slide]
-                                + self.predictions[slide][i].tolist()
+                                + slide_preds[i].tolist()
                                 + tile_act.tolist()
                             )
                         else:
@@ -712,9 +724,9 @@ class DatasetFeatures:
                         self.activations[slide],
                         axis=0
                     ).tolist()
-                    if self.num_classes and self.predictions[slide] != []:
+                    if self.num_classes and len(slide_preds) > 0:
                         logit = meth_fn[method](
-                            self.predictions[slide],
+                            slide_preds,
                             axis=0
                         ).tolist()
                         csvwriter.writerow([slide] + logit + act)
@@ -739,9 +751,8 @@ class DatasetFeatures:
         """
         import torch
 
-        if not exists(outdir):
-            os.makedirs(outdir)
-        slides = self.slides if not slides else slides
+        os.makedirs(outdir, exist_ok=True)
+        slides = self.slides if slides is None else slides
         for slide in (slides if not verbose else track(slides)):
             if not len(self.activations[slide]):
                 log.info(f'Skipping empty slide [green]{slide}')
@@ -750,10 +761,13 @@ class DatasetFeatures:
                 self.activations[slide].astype(np.float32)
             )
             torch.save(slide_activations, join(outdir, f'{slide}.pt'))
-            tfrecord2idx.save_index(
-                self.locations[slide],
-                join(outdir, f'{slide}.index')
-            )
+            # locations may be unavailable (tfrecords_have_loc=False) —
+            # skip the .index sidecar in that case rather than KeyError.
+            if slide in self.locations:
+                tfrecord2idx.save_index(
+                    self.locations[slide],
+                    join(outdir, f'{slide}.index')
+                )
 
         # Log the feature extraction configuration
         config = self.dump_config()
@@ -783,40 +797,45 @@ class DatasetFeatures:
             'predictions', 'uncertainty', and 'locations'.
         """
 
-        index = [s for s in self.slides
+        # The DataFrame is keyed on per-tile location, so restrict to
+        # slides that actually have a populated locations entry. Slides
+        # missing from self.locations (no loc data extracted) drop out
+        # of the frame instead of KeyError-ing here.
+        slides = [s for s in self.slides if s in self.locations]
+        index = [s for s in slides
                    for _ in range(len(self.locations[s]))]
         df_dict = dict()
         df_dict.update({
             'locations': pd.Series([
                 self.locations[s][i]
-                for s in self.slides
+                for s in slides
                 for i in range(len(self.locations[s]))], index=index)
         })
         df_dict.update({
             'tfr_index': pd.Series([
                 i
-                for s in self.slides
+                for s in slides
                 for i in range(len(self.locations[s]))], index=index)
         })
         if self.activations:
             df_dict.update({
                 'activations': pd.Series([
                     self.activations[s][i]
-                    for s in self.slides
+                    for s in slides
                     for i in range(len(self.activations[s]))], index=index)
             })
         if self.predictions:
             df_dict.update({
                 'predictions': pd.Series([
                     self.predictions[s][i]
-                    for s in self.slides
+                    for s in slides
                     for i in range(len(self.predictions[s]))], index=index)
             })
         if self.uncertainty:
             df_dict.update({
                 'uncertainty': pd.Series([
                     self.uncertainty[s][i]
-                    for s in self.slides
+                    for s in slides
                     for i in range(len(self.uncertainty[s]))], index=index)
             })
         df = pd.DataFrame(df_dict)
@@ -894,21 +913,28 @@ class DatasetFeatures:
                 # Mean of each feature across tiles
                 summarized = np.mean(self.activations[slide], axis=0)
             elif method == 'threshold':
-                # For each feature, count number of tiles with value above
-                # threshold, divided by number of tiles
+                # For each feature, count tiles above threshold and divide
+                # by the number of tiles (axis=0), not the number of
+                # features (axis=-1).
                 act_sum = np.sum((self.activations[slide] > threshold), axis=0)
-                summarized = act_sum / self.activations[slide].shape[-1]
+                summarized = act_sum / self.activations[slide].shape[0]
             activation_stats[slide] = summarized
         for c in self.used_categories:
-            category_stats += [np.array([
+            cat_arr = np.array([
                 activation_stats[slide]
                 for slide in self.slides
                 if self.labels[slide] == c
-            ])]
+            ])
+            # Empty categories produce a 1-D shape (0,); reshape so later
+            # `cat_arr[:, f]` slicing stays 2-D-safe.
+            if cat_arr.size == 0:
+                cat_arr = cat_arr.reshape(0, self.num_features)
+            category_stats.append(cat_arr)
+
+        # Default ordering, in case sorting by p-value fails below.
+        pt_sorted_ft = list(range(self.num_features))
 
         for f in range(self.num_features):
-            # Tile-level ANOVA
-            stats_vals = list(self.activations_by_category(f).values())
             with warnings.catch_warnings():
                 if hasattr(stats, "F_onewayConstantInputWarning"):
                     warnings.simplefilter(
@@ -918,21 +944,28 @@ class DatasetFeatures:
                     warnings.simplefilter(
                         "ignore",
                         category=stats.ConstantInputWarning)
-                fvalue, pvalue = stats.f_oneway(*stats_vals)
-                if not isnan(fvalue) and not isnan(pvalue):
-                    tile_stats.update({f: {'f': fvalue,
-                                        'p': pvalue}})
+                # Tile-level ANOVA — drop empty groups; f_oneway needs ≥2.
+                tile_groups = [
+                    v for v in self.activations_by_category(f).values()
+                    if len(v) > 0
+                ]
+                if len(tile_groups) >= 2:
+                    fvalue, pvalue = stats.f_oneway(*tile_groups)
+                    if isnan(fvalue) or isnan(pvalue):
+                        fvalue, pvalue = -1, 1
                 else:
-                    tile_stats.update({f: {'f': -1,
-                                        'p': 1}})
-                # Patient-level ANOVA
-                fvalue, pvalue = stats.f_oneway(*[c[:, f] for c in category_stats])
-                if not isnan(fvalue) and not isnan(pvalue):
-                    pt_stats.update({f: {'f': fvalue,
-                                        'p': pvalue}})
+                    fvalue, pvalue = -1, 1
+                tile_stats[f] = {'f': fvalue, 'p': pvalue}
+
+                # Patient-level ANOVA — same guard.
+                pt_groups = [c[:, f] for c in category_stats if c.shape[0] > 0]
+                if len(pt_groups) >= 2:
+                    fvalue, pvalue = stats.f_oneway(*pt_groups)
+                    if isnan(fvalue) or isnan(pvalue):
+                        fvalue, pvalue = -1, 1
                 else:
-                    pt_stats.update({f: {'f': -1,
-                                        'p': 1}})
+                    fvalue, pvalue = -1, 1
+                pt_stats[f] = {'f': fvalue, 'p': pvalue}
         try:
             pt_sorted_ft = sorted(
                 range(self.num_features),
@@ -1018,23 +1051,29 @@ class DatasetFeatures:
                 isinstance(i, int)
                 for i in prediction_filter
             ])
-            assert max(prediction_filter) <= self.num_classes
+            assert max(prediction_filter) < self.num_classes
         else:
             prediction_filter = list(range(self.num_classes))
 
+        # Map argmax results (relative indices into prediction_filter) back
+        # to absolute class indices so non-contiguous filters count into
+        # the correct class slots.
+        filter_arr = np.asarray(prediction_filter)
         slide_percentages = {}
         for slide in self.predictions:
-            # Find the index of the highest prediction for each tile, only for
-            # logits within prediction_filter
             tile_pred = np.argmax(
                 self.predictions[slide][:, prediction_filter],
                 axis=1
             )
-            slide_perc = np.array([
-                np.count_nonzero(tile_pred == logit) / len(tile_pred)
-                for logit in range(self.num_classes)
-            ])
-            slide_percentages.update({slide: slide_perc})
+            n_tiles = len(tile_pred)
+            if n_tiles == 0:
+                slide_percentages[slide] = np.zeros(self.num_classes)
+                continue
+            tile_pred_abs = filter_arr[tile_pred]
+            slide_percentages[slide] = (
+                np.bincount(tile_pred_abs, minlength=self.num_classes)
+                  .astype(float) / n_tiles
+            )
         return slide_percentages
 
     def softmax_predict(
@@ -1057,23 +1096,24 @@ class DatasetFeatures:
         if prediction_filter:
             assert isinstance(prediction_filter, list)
             assert all([isinstance(i, int) for i in prediction_filter])
-            assert max(prediction_filter) <= self.num_classes
+            assert max(prediction_filter) < self.num_classes
         else:
             prediction_filter = list(range(self.num_classes))
 
+        # Map argmax results back to absolute class indices (see softmax_percent).
+        filter_arr = np.asarray(prediction_filter)
         slide_predictions = {}
         for slide in self.predictions:
-            # Find the index of the highest prediction for each tile, only for
-            # logits within prediction_filter
             tile_pred = np.argmax(
                 self.predictions[slide][:, prediction_filter],
                 axis=1
             )
-            slide_perc = np.array([
-                np.count_nonzero(tile_pred == logit) / len(tile_pred)
-                for logit in range(self.num_classes)
-            ])
-            slide_predictions.update({slide: int(np.argmax(slide_perc))})
+            if len(tile_pred) == 0:
+                slide_predictions[slide] = int(prediction_filter[0])
+                continue
+            tile_pred_abs = filter_arr[tile_pred]
+            counts = np.bincount(tile_pred_abs, minlength=self.num_classes)
+            slide_predictions[slide] = int(np.argmax(counts))
         return slide_predictions
 
     def map_activations(self, **kwargs) -> "sf.SlideMap":
@@ -1112,8 +1152,8 @@ class DatasetFeatures:
         """
         all_x, all_y, all_slides, all_tfr_idx = [], [], [], []
         for slide in self.slides:
-            all_x.append(self.predictions[slide].values[:, x])
-            all_y.append(self.predictions[slide].values[:, y])
+            all_x.append(self.predictions[slide][:, x])
+            all_y.append(self.predictions[slide][:, y])
             all_slides.append([slide for _ in range(self.predictions[slide].shape[0])])
             all_tfr_idx.append(np.arange(self.predictions[slide].shape[0]))
         all_x = np.concatenate(all_x)
@@ -1214,18 +1254,19 @@ class DatasetFeatures:
             for i, g in track(enumerate(gradient[sample_idx]),
                              total=tiles_per_feature,
                              description=f"Feature {f}"):
+                tfr_dir = None
                 for tfr in self.tfrecords:
                     if sf.util.path_to_name(tfr) == g['slide']:
                         tfr_dir = tfr
-                if not tfr_dir:
+                if tfr_dir is None:
                     log.warning("TFRecord location not found for "
                                 f"slide {g['slide']}")
+                    continue
                 slide, image = sf.io.get_tfrecord_by_index(tfr_dir, g['index'])
                 tile_filename = (f"{i}-tfrecord{g['slide']}-{g['index']}"
                                  + f"-{g['val']:.2f}.jpg")
-                image_string = open(join(outdir, str(f), tile_filename), 'wb')
-                image_string.write(image.numpy())
-                image_string.close()
+                with open(join(outdir, str(f), tile_filename), 'wb') as fh:
+                    fh.write(image.numpy())
 
     # --- Deprecated functions ----------------------------------------------------
 
@@ -1324,6 +1365,9 @@ class _FeatureGenerator:
         self.num_workers = num_workers
         self.augment = augment
         self.transform = transform
+        # Needed by the loaded-torch.nn.Module branch of
+        # _prepare_generator (passes tile_px to Features.from_model).
+        self.tile_px = dataset.tile_px if dataset is not None else None
 
         # Check if location information is stored in TFRecords
         self.tfrecords_have_loc = self.dataset.tfrecords_have_locations()
@@ -1440,9 +1484,17 @@ class _FeatureGenerator:
             predictions = None
             features = model_out
 
-        # Concatenate features if we have features from >1 layer
+        # Concatenate features if we have features from >1 layer.
+        # When include_preds is True and the model has only one output,
+        # `features = model_out[:-1]` is [] and np.concatenate([])
+        # raises ValueError; guard against that.
         if isinstance(features, list):
-            features = np.concatenate(features, axis=1)
+            if len(features) > 1:
+                features = np.concatenate(features, axis=1)
+            elif len(features) == 1:
+                features = features[0]
+            else:
+                features = None
 
         return features, predictions, uncertainty, slides, loc
 
@@ -1688,6 +1740,7 @@ class _FeatureGenerator:
         verbose: bool = True,
         progress: bool = True,
         pb: Optional[Progress] = None,
+        task_id: Optional[int] = None,
     ):
 
         # Get the dataloader for iterating through tfrecords
@@ -1739,20 +1792,30 @@ class _FeatureGenerator:
             task = pb.add_task("Generating...", total=estimated_tiles)
             pb.start()
         elif pb:
-            task = 0
+            # If the caller provided their own Progress with a task they
+            # want us to advance, honour that; otherwise add our own task
+            # to the supplied bar instead of guessing task=0.
+            if task_id is not None:
+                task = task_id
+            else:
+                task = pb.add_task("Generating...", total=estimated_tiles)
             progress = False
         else:
             pb = None
-        with sf.util.cleanup_progress((pb if progress else None)):
-            for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataset:
-                model_output = self._calculate_feature_batch(batch_img)
-                q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
-                if pb:
-                    pb.advance(task, batch_img.shape[0])
-        q.put((None, None, None))
-        batch_proc_thread.join()
-        if hasattr(dataset, 'close'):
-            dataset.close()
+        try:
+            with sf.util.cleanup_progress((pb if progress else None)):
+                for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataset:
+                    model_output = self._calculate_feature_batch(batch_img)
+                    q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
+                    if pb:
+                        pb.advance(task, batch_img.shape[0])
+        finally:
+            # Always send the sentinel so batch_proc_thread can exit,
+            # otherwise an exception in the loop would deadlock the join.
+            q.put((None, None, None))
+            batch_proc_thread.join()
+            if hasattr(dataset, 'close'):
+                dataset.close()
 
         return activations, predictions, locations, uncertainty
 

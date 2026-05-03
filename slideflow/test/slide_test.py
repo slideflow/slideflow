@@ -64,9 +64,16 @@ class TestSlide(unittest.TestCase):
             self.wsi.thumb(mpp=4, width=100, low_res=True)
 
     def test_preview(self):
+        # try/finally so the pool always closes and joins, even if the
+        # preview() call raises. The prior code was missing pool.join()
+        # entirely (workers could linger as daemons) and skipped the
+        # close() altogether on exception.
         pool = mp.dummy.Pool(8)
-        self._assert_is_pil(self.wsi.preview(show_progress=False, pool=pool))
-        pool.close()
+        try:
+            self._assert_is_pil(self.wsi.preview(show_progress=False, pool=pool))
+        finally:
+            pool.close()
+            pool.join()
 
 # -----------------------------------------------------------------------------
 

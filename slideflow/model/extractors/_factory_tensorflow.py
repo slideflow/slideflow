@@ -47,14 +47,6 @@ def resnet101_imagenet(tile_px, **kwargs):
     return TensorflowImagenetLayerExtractor('resnet101', tile_px, **kwargs)
 
 @register_tf
-def resnet101_imagenet(tile_px, **kwargs):
-    return TensorflowImagenetLayerExtractor('resnet101', tile_px, **kwargs)
-
-@register_tf
-def resnet152_imagenet(tile_px, **kwargs):
-    return TensorflowImagenetLayerExtractor('resnet152', tile_px, **kwargs)
-
-@register_tf
 def resnet152_imagenet(tile_px, **kwargs):
     return TensorflowImagenetLayerExtractor('resnet152', tile_px, **kwargs)
 

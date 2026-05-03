@@ -120,7 +120,10 @@ def print_module_summary(
         name = '<top-level>' if e.mod is module else submodule_names[e.mod]
         param_size = sum(t.numel() for t in e.unique_params)
         buffer_size = sum(t.numel() for t in e.unique_buffers)
-        output_shapes = [str(list(e.outputs[0].shape)) for t in e.outputs]
+        # Use the loop variable `t` (matches the dtype line below) — the
+        # prior code referenced e.outputs[0].shape inside the list comp,
+        # so every output row was reported with the first output's shape.
+        output_shapes = [str(list(t.shape)) for t in e.outputs]
         output_dtypes = [str(t.dtype).split('.')[-1] for t in e.outputs]
         rows += [[
             name + (':0' if len(e.outputs) >= 2 else ''),

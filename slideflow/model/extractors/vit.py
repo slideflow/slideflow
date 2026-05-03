@@ -355,7 +355,12 @@ def vit_base(patch_size=16, **kwargs):
 
 
 def load_pretrained_weights(weights):
-    state_dict = torch.load(weights)
+    # map_location='cpu' so a checkpoint saved on a GPU machine can be
+    # loaded on a CPU-only host without RuntimeError; the caller moves
+    # the model to its target device after weights are restored.
+    # weights_only=True is intentionally not passed: it requires
+    # torch>=1.13, but slideflow's requirements still allow torch>=1.9.1.
+    state_dict = torch.load(weights, map_location='cpu')
     # If this is a DINO model, load only the teacher.
     if 'teacher' in state_dict:
         state_dict = state_dict['teacher']
@@ -393,8 +398,15 @@ class ViTFeatures(TorchFeatureExtractor):
     }
 
     def __init__(self, size, weights, device=None, **kwargs):
-        kw = {k: w for k, w in kwargs.items() if k in ['mixed_precision', 'channels_last']}
-        super().__init__(**kw)
+        # Pop the extractor-level flags out of kwargs before forwarding
+        # to the model constructor; VisionTransformer.__init__ has no
+        # **kwargs catch-all, so leaving these in raised TypeError on
+        # any caller that set mixed_precision/channels_last.
+        parent_kw_names = ('mixed_precision', 'channels_last')
+        parent_kw = {
+            k: kwargs.pop(k) for k in list(kwargs) if k in parent_kw_names
+        }
+        super().__init__(**parent_kw)
 
         if size not in self.sizes:
             raise ValueError("Unrecognized size '{}'. Expected one of: {}".format(

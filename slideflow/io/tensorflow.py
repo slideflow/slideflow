@@ -16,7 +16,7 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
 import slideflow as sf
 from slideflow import errors
 from slideflow.io import gaussian
-from slideflow.io.io_utils import detect_tfrecord_format
+from slideflow.io.io_utils import detect_tfrecord_format, _detect_img_type
 from slideflow.util import Labels
 from slideflow.util import log
 
@@ -294,8 +294,7 @@ def decode_image(
 
 def auto_decode_image(img_string: bytes, *, img_type: Optional[str] = None):
     if img_type is None:
-        import imghdr
-        img_type = imghdr.what('', img_string)
+        img_type = _detect_img_type(img_string)
     return decode_image(img_string, img_type)
 
 

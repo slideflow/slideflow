@@ -97,7 +97,7 @@ def _decode_jpeg(img, _model_type):
     if _model_type in ('tensorflow', 'tflite'):
         return tf.image.decode_jpeg(img, channels=3)
     else:
-        np_data = torch.from_numpy(np.fromstring(img, dtype=np.uint8))
+        np_data = torch.from_numpy(np.frombuffer(img, dtype=np.uint8))
         return torchvision.io.decode_image(np_data)
 
 

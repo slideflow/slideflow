@@ -102,8 +102,7 @@ class Project:
             self._load(root)
         elif create:
             log.info(f"Creating project at {root}...")
-            if not exists(root):
-                os.makedirs(root)
+            os.makedirs(root, exist_ok=True)
             self._settings = project_utils._project_config(root, **kwargs)
             self.save()
         else:
@@ -114,10 +113,8 @@ class Project:
             )
 
         # Create directories, if not already made
-        if not exists(self.models_dir):
-            os.makedirs(self.models_dir)
-        if not exists(self.eval_dir):
-            os.makedirs(self.eval_dir)
+        os.makedirs(self.models_dir, exist_ok=True)
+        os.makedirs(self.eval_dir, exist_ok=True)
 
         # Create blank annotations file if one does not exist
         if not exists(self.annotations) and exists(self.dataset_config):
@@ -162,9 +159,9 @@ class Project:
 
     @annotations.setter
     def annotations(self, val: str) -> None:
-        if not isinstance(val, str):
+        if not isinstance(val, (str, os.PathLike)):
             raise errors.ProjectError("'annotations' must be a path.")
-        self._settings['annotations'] = val
+        self._settings['annotations'] = os.fspath(val)
 
     @property
     def dataset_config(self) -> str:
@@ -175,6 +172,18 @@ class Project:
     def dataset_config(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'dataset_config' must be path to JSON.")
+        resolved = self._read_relative_path(val)
+        if not exists(resolved):
+            raise errors.ProjectError(
+                f"'dataset_config' file not found: {resolved}"
+            )
+        try:
+            with open(resolved, 'r') as f:
+                json.load(f)
+        except json.JSONDecodeError as e:
+            raise errors.ProjectError(
+                f"'dataset_config' is not valid JSON ({resolved}): {e}"
+            ) from e
         self._settings['dataset_config'] = val
 
     @property
@@ -251,17 +260,20 @@ class Project:
     @property
     def sources(self) -> List[str]:
         """List of dataset sources active in this project."""
+        # Return a copy so callers mutating the result (e.g. .append())
+        # don't silently corrupt the project's internal settings.
         if 'sources' in self._settings:
-            return self._settings['sources']
+            return list(self._settings['sources'])
         elif 'datasets' in self._settings:
             log.debug("'sources' misnamed 'datasets' in project settings.")
-            return self._settings['datasets']
+            return list(self._settings['datasets'])
         else:
             raise ValueError('Unable to find project dataset sources')
 
     @sources.setter
     def sources(self, v: List[str]) -> None:
-        if not isinstance(v, list) or any([not isinstance(v, str) for v in v]):
+        if (not isinstance(v, list)
+                or any(not isinstance(item, str) for item in v)):
             raise errors.ProjectError("'sources' must be a list of str")
         self._settings['sources'] = v
 
@@ -1039,7 +1051,7 @@ class Project:
     def associate_slide_names(self) -> None:
         """Automatically associate patients with slides in the annotations."""
         dataset = self.dataset(tile_px=0, tile_um=0, verification=None)
-        dataset.update_annotations_with_slidenames(self.annotations)
+        dataset.update_annotations_with_slidenames(self.annotations) # Runs in place
 
     def cell_segmentation(
         self,
@@ -1116,8 +1128,7 @@ class Project:
         """
         if dest is None:
             dest = join(self.root, 'masks')
-            if not exists(dest):
-                os.makedirs(dest)
+        os.makedirs(dest, exist_ok=True)
         dataset = self.dataset(
             None,
             None,
@@ -1158,7 +1169,7 @@ class Project:
         )
         all_paths = dataset.slide_paths(apply_filters=False)
         slides = [path_to_name(s) for s in all_paths]
-        with open(filename, 'w') as csv_outfile:
+        with open(filename, 'w', newline='') as csv_outfile:
             csv_writer = csv.writer(csv_outfile, delimiter=',')
             header = ['patient', 'dataset', 'category']
             csv_writer.writerow(header)
@@ -1703,8 +1714,7 @@ class Project:
 
         # Setup directories
         gan_root = join(self.root, 'gan')
-        if not exists(gan_root):
-            os.makedirs(gan_root)
+        os.makedirs(gan_root, exist_ok=True)
         if exp_label is None:
             exp_label = 'gan_experiment'
         gan_dir = sf.util.get_new_model_dir(gan_root, exp_label)
@@ -2111,8 +2121,7 @@ class Project:
 
         # Make output directory
         outdir = outdir if outdir else join(self.root, 'heatmaps', model_name)
-        if not exists(outdir):
-            os.makedirs(outdir)
+        os.makedirs(outdir, exist_ok=True)
         args.outdir = outdir
 
         # Verbose output
@@ -2133,7 +2142,7 @@ class Project:
             name = path_to_name(slide)
             if (skip_completed and exists(join(outdir, f'{name}-custom.png'))):
                 log.info(f'Skipping completed heatmap for slide {name}')
-                return
+                continue
 
             ctx = multiprocessing.get_context('spawn')
             process = ctx.Process(target=project_utils._heatmap_worker,
@@ -2213,10 +2222,8 @@ class Project:
         # Set up paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
-        if not exists(stats_root):
-            os.makedirs(stats_root)
-        if not exists(mosaic_root):
-            os.makedirs(mosaic_root)
+        os.makedirs(stats_root, exist_ok=True)
+        os.makedirs(mosaic_root, exist_ok=True)
 
         # Prepare dataset & model
         if isinstance(df.model, str):
@@ -2391,10 +2398,8 @@ class Project:
         # Setup paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
-        if not exists(stats_root):
-            os.makedirs(stats_root)
-        if not exists(mosaic_root):
-            os.makedirs(mosaic_root)
+        os.makedirs(stats_root, exist_ok=True)
+        os.makedirs(mosaic_root, exist_ok=True)
 
         # Filter dataset to exclude slides blank in the x and y header columns
         dataset = dataset.filter(filter_blank=[header_x, header_y])
@@ -2881,8 +2886,7 @@ class Project:
 
         """
         log.info('Generating WSI prediction / activation maps...')
-        if not exists(outdir):
-            os.makedirs(outdir)
+        os.makedirs(outdir, exist_ok=True)
 
         if source:
             sources = sf.util.as_list(source)
@@ -3011,12 +3015,16 @@ class Project:
                 # Train model(s).
                 pretty = json.dumps(c, indent=2)
                 log.info(f"Training model with config={pretty}")
-                params.load_dict(c)
+                # `load_dict` is a partial update (model/base.py): deepcopy
+                # the base params so residual values from previous iterations
+                # don't leak across SMAC runs.
+                iteration_params = copy.deepcopy(params)
+                iteration_params.load_dict(c)
                 _prior_logging_level = sf.getLoggingLevel()
                 sf.setLoggingLevel(40)
                 results = self.train(
                     outcomes=outcomes,
-                    params=params,
+                    params=iteration_params,
                     **train_kwargs
                 )
                 sf.setLoggingLevel(_prior_logging_level)
@@ -3112,52 +3120,53 @@ class Project:
         smac_path = sf.util.get_new_model_dir(self.models_dir, exp_label)
         _initial_models_dir = self.models_dir
         self.models_dir = smac_path
-
-        # Create SMAC scenario.
-        scenario = Scenario(
-            {'run_obj': 'quality',  # Optimize quality (alternatively: runtime)
-             'runcount-limit': smac_limit,  # Max # of function evaluations
-             'cs': smac_configspace},
-            {'output_dir': self.models_dir})
-        train_kwargs['save_checkpoints'] = save_checkpoints
-        train_kwargs['save_model'] = save_model
-        train_kwargs['save_predictions'] = save_predictions
-        smac = SMAC4BB(
-            scenario=scenario,
-            tae_runner=self._get_smac_runner(
-                outcomes=outcomes,
-                params=params,
-                metric=smac_metric,
-                train_kwargs=train_kwargs,
-                n_replicates=smac_replicates,
+        try:
+            # Create SMAC scenario.
+            scenario = Scenario(
+                {'run_obj': 'quality',  # Optimize quality (alternatively: runtime)
+                 'runcount-limit': smac_limit,  # Max # of function evaluations
+                 'cs': smac_configspace},
+                {'output_dir': self.models_dir})
+            train_kwargs['save_checkpoints'] = save_checkpoints
+            train_kwargs['save_model'] = save_model
+            train_kwargs['save_predictions'] = save_predictions
+            smac = SMAC4BB(
+                scenario=scenario,
+                tae_runner=self._get_smac_runner(
+                    outcomes=outcomes,
+                    params=params,
+                    metric=smac_metric,
+                    train_kwargs=train_kwargs,
+                    n_replicates=smac_replicates,
+                )
             )
-        )
 
-        # Log.
-        log.info("Performing Bayesian hyperparameter optimization with SMAC")
-        log.info(
-            "=== SMAC config ==========================================\n"
-            "[bold]Options:[/]\n"
-            f"Metric: {smac_metric}\n"
-            f"Limit: {smac_limit}\n"
-            f"Model replicates: {smac_replicates}\n"
-            "[bold]Base parameters:[/]\n"
-            f"{params}\n\n"
-            "[bold]Configuration space:[/]\n"
-            f"{smac_configspace}\n"
-            "=========================================================="
-        )
+            # Log.
+            log.info("Performing Bayesian hyperparameter optimization with SMAC")
+            log.info(
+                "=== SMAC config ==========================================\n"
+                "[bold]Options:[/]\n"
+                f"Metric: {smac_metric}\n"
+                f"Limit: {smac_limit}\n"
+                f"Model replicates: {smac_replicates}\n"
+                "[bold]Base parameters:[/]\n"
+                f"{params}\n\n"
+                "[bold]Configuration space:[/]\n"
+                f"{smac_configspace}\n"
+                "=========================================================="
+            )
 
-        # Optimize.
-        best_config = smac.optimize()
-        log.info(f"Best configuration after SMAC optimization: {best_config}")
+            # Optimize.
+            best_config = smac.optimize()
+            log.info(f"Best configuration after SMAC optimization: {best_config}")
 
-        # Process history and write to dataframe.
-        configs = smac.runhistory.get_all_configs()
-        history = pd.DataFrame([c.get_dictionary() for c in configs])
-        history['metric'] = [smac.runhistory.get_cost(c) for c in configs]
-        history.to_csv(join(self.models_dir, 'run_history.csv'), index=False)
-        self.models_dir = _initial_models_dir
+            # Process history and write to dataframe.
+            configs = smac.runhistory.get_all_configs()
+            history = pd.DataFrame([c.get_dictionary() for c in configs])
+            history['metric'] = [smac.runhistory.get_cost(c) for c in configs]
+            history.to_csv(join(self.models_dir, 'run_history.csv'), index=False)
+        finally:
+            self.models_dir = _initial_models_dir
         return best_config, history
 
     def train(
@@ -3613,8 +3622,7 @@ class Project:
         # Set up SimCLR experiment data directory
         if exp_label is None:
             exp_label = 'simclr'
-        if not exists(join(self.root, 'simclr')):
-            os.makedirs(join(self.root, 'simclr'))
+        os.makedirs(join(self.root, 'simclr'), exist_ok=True)
         outdir = sf.util.create_new_model_dir(
             join(self.root, 'simclr'), exp_label
         )
@@ -3918,8 +3926,7 @@ def create(
     if download:
         df = sf.util.get_gdc_manifest()
         slide_manifest = dict(zip(df.filename.values, df.id.values))
-        if not exists(cfg.slides):
-            os.makedirs(cfg.slides)
+        os.makedirs(cfg.slides, exist_ok=True)
         to_download = [s for s in P.dataset().slides()
                        if not exists(join(cfg.slides, f'{s}.svs'))]
         for i, slide in enumerate(to_download):

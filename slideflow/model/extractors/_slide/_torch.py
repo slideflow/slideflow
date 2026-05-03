@@ -28,7 +28,7 @@ class _SlideIterator(torch.utils.data.IterableDataset):
             img = image_dict['image']
             if self.img_format not in ('numpy', 'png'):
                 np_data = torch.from_numpy(
-                    np.fromstring(img, dtype=np.uint8))
+                    np.frombuffer(img, dtype=np.uint8))
                 img = torchvision.io.decode_image(np_data)
             else:
                 img = torch.from_numpy(img).permute(2, 0, 1)
@@ -64,9 +64,11 @@ def features_from_slide_torch(
     features_grid = _build_grid(extractor, slide, grid=grid, dtype=dtype)
 
     _log_normalizer(normalizer)
-    opencv_norm = (isinstance(normalizer, str)
-                   or (isinstance(normalizer, sf.norm.StainNormalizer)
-                       and normalizer.__class__ == 'StainNormalizer'))
+    # Drop the dead `or (... and normalizer.__class__ == 'StainNormalizer')`
+    # clause — `__class__` is the type object, never equal to a string,
+    # so that branch always evaluated False and contributed nothing.
+    # Behavior is identical; this just clears the misleading code.
+    opencv_norm = isinstance(normalizer, str)
 
     # Build the tile generator
     generator = slide.build_generator(

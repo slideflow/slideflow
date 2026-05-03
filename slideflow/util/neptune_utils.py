@@ -42,7 +42,11 @@ class NeptuneLog:
             management.create_project(project_name, key=_id)
 
         self.run = neptune.init_run(project=project_name, api_token=self.api_token)
-        run_loc = f'{self.workspace}/{project_name}'
+        # project_name was already prefixed with self.workspace at line ~36;
+        # the prior `f'{self.workspace}/{project_name}'` here produced a
+        # log line of the form "workspace/workspace/project". Cosmetic but
+        # misleading.
+        run_loc = project_name
         log.info(f'Neptune run {name} initialized at {run_loc}')
         self.run['sys/name'] = name
         for t in tags:

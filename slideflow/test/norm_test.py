@@ -77,7 +77,7 @@ class TestSlide(unittest.TestCase):
     def _assert_valid_jpg(self, jpg):
         self.assertIsInstance(jpg, (str, bytes))
         cv_image = cv2.imdecode(
-            np.fromstring(jpg, dtype=np.uint8),
+            np.frombuffer(jpg, dtype=np.uint8),
             cv2.IMREAD_COLOR
         )
         self.assertEqual(cv_image.shape, (self.px, self.px, 3))
@@ -85,7 +85,7 @@ class TestSlide(unittest.TestCase):
     def _assert_valid_png(self, png):
         self.assertIsInstance(png, (str, bytes))
         cv_image = cv2.imdecode(
-            np.fromstring(png, dtype=np.uint8),
+            np.frombuffer(png, dtype=np.uint8),
             cv2.IMREAD_COLOR
         )
         self.assertEqual(cv_image.shape, (self.px, self.px, 3))

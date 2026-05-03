@@ -132,7 +132,12 @@ class SlideMap:
                 f"Unable to determine how to load {path}. Expected "
                 "a path to a directory, or a slidemap.parquet file."
             )
-        obj.slides = obj.data.slide.unique()
+        # The directory branch above only warns (rather than raising)
+        # when slidemap.parquet is missing, so obj.data may legitimately
+        # still be None here. Guard the .slide.unique() lookup so we
+        # leave self.slides empty instead of crashing with AttributeError
+        # right after the warning was logged.
+        obj.slides = obj.data.slide.unique() if obj.data is not None else []
         return obj
 
     @classmethod
@@ -392,15 +397,27 @@ class SlideMap:
         log.info("Calculating centroid indices...")
         opt_idx, centroid_activations = stats_utils.calculate_centroid(self.ftrs.activations)
 
-        # Restrict mosaic to only slides that had enough tiles to calculate
-        # an optimal index from centroid
-        successful_slides = list(opt_idx.keys())
+        # Restrict mosaic to only slides that had enough tiles to
+        # calculate an optimal index from centroid. Two prior bugs
+        # collided here: (1) num_warned was initialized but never
+        # incremented inside the loop, so the summary warning never
+        # fired; and (2) self.slides was never filtered to
+        # successful_slides, so the umap_input / locations / tfr_index
+        # comprehensions below would KeyError on
+        # `centroid_activations[slide]` / `opt_idx[slide]` for any slide
+        # that calculate_centroid couldn't compute (e.g., too few
+        # tiles). Fix both: count missing slides, log the summary, and
+        # filter self.slides down to successful_slides for the rest of
+        # this method.
+        successful_slides = set(opt_idx.keys())
         num_warned = 0
         for slide in self.ftrs.slides:
             if slide not in successful_slides:
                 log.debug(f"No centroid for [green]{slide}[/]; skipping")
+                num_warned += 1
         if num_warned:
             log.warning(f"No centroid for {num_warned} slides.")
+        self.slides = [s for s in self.slides if s in successful_slides]
         log.info(f"Calculating UMAP from slide-level {method}...")
 
         if method == 'centroid':
@@ -598,17 +615,27 @@ class SlideMap:
         log.info("Calculating nearest neighbors...")
         _, indices = nbrs.kneighbors(X)
 
+        # sklearn's NearestNeighbors.kneighbors returns *positional*
+        # indices into X (and therefore self.data, since X was built
+        # row-aligned to it above). Use .iloc — the prior .loc lookup
+        # was label-based, which only worked when self.data still had
+        # a default 0..N-1 RangeIndex. After SlideMap.filter() the
+        # index becomes non-contiguous, so .loc[positional_idx] either
+        # returned the wrong row (silent miscount of neighbor matches)
+        # or KeyError'd on positions absent from the filtered index.
+        # Slideflow <= 3 had this bug; results from neighbors() called
+        # after filter() were unreliable.
         def num_category_matching(idx_list, idx):
             list_cat = np.array([
-                slide_categories[self.data.loc[_i].slide] for _i in idx_list
+                slide_categories[self.data.iloc[_i].slide] for _i in idx_list
             ])
-            idx_cat = slide_categories[self.data.loc[idx].slide]
+            idx_cat = slide_categories[self.data.iloc[idx].slide]
             return (list_cat == idx_cat).sum()
 
         log.info('Matching neighbors...')
         #TODO: accelerate this step with multiprocessing
         self.data['num_unique_neighbors'] = [
-            len(self.data.loc[ind].slide.unique())
+            len(self.data.iloc[ind].slide.unique())
             for ind in indices
         ]
         if slide_categories:
@@ -1068,18 +1095,27 @@ class SlideMap:
             dest (str): Destination directory.
 
         """
+        # Use os.path.join so the filename is correctly placed inside
+        # `dest` regardless of whether the caller passed a trailing
+        # slash. The prior `dest + 'range_clip.npz'` produced
+        # `/path/dirrange_clip.npz` for callers without a trailing
+        # slash (which is everyone — save_umap / save_encoder pass
+        # `path` raw); load_range_clip's exists() check then never
+        # found the file and silently skipped normalization. Slideflow
+        # <= 3 saved range/clip outside the directory; old SlideMaps
+        # round-tripped without normalization data.
         if sf.util.zip_allowed():
             np.savez(
-                dest + 'range_clip.npz',
+                join(dest, 'range_clip.npz'),
                 range=self._umap_normalized_range,
                 clip=self._umap_normalized_clip
             )
         else:
-            np.save(dest + 'range.npy', self._umap_normalized_range)
-            np.save(dest + 'clip.npy', self._umap_normalized_clip)
+            np.save(join(dest, 'range.npy'), self._umap_normalized_range)
+            np.save(join(dest, 'clip.npy'), self._umap_normalized_clip)
 
     def load_range_clip(self, path: str) -> None:
-        """Load a saved range_clip.npz file for normalizing raw UMAP output.
+        r"""Load a saved range_clip.npz file for normalizing raw UMAP output.
 
         Args:
             path (str): Path to numpy file (\*.npz) with 'clip' and 'range' keys
@@ -1099,7 +1135,15 @@ class SlideMap:
                 f"Unable to find range/clip information at {path}."
             )
         if rc_path:
-            loaded = np.load(path)
+            # Load from the resolved file path. Slideflow <= 3 used
+            # `np.load(path)` here, but `path` is the original argument
+            # — typically a directory — so np.load raised OSError
+            # whenever the .npz lookup branch was taken. In practice
+            # this was masked because save_range_clip wrote the file
+            # to the wrong location (no separator), so the exists()
+            # check above never picked the rc_path branch and the
+            # FileNotFoundError downstream was caught by load().
+            loaded = np.load(rc_path)
             if not ('range' in loaded and 'clip' in loaded):
                 raise ValueError(f"Unable to load {path}; did not find values "
                                 "'range' and 'clip'.")

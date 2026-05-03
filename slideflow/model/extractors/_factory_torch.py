@@ -294,8 +294,14 @@ class TorchFeatureExtractor(BaseFeatureExtractor):
         """Compose the preprocessing transforms, updated with user keyword arguments"""
         # Use the user-specified transforms, if provided.
         from torchvision import transforms
-        kwargs.update(self.transform_kwargs)
-        return transforms.Compose(self.get_transforms(**kwargs))
+        # Merge so call-time kwargs win over init-time defaults; the
+        # prior `kwargs.update(self.transform_kwargs)` reversed precedence
+        # (init-time would overwrite explicit per-call args). No collision
+        # today since the only caller passes `img_size`, which
+        # _verify_transform_args excludes from self.transform_kwargs —
+        # but match standard precedence semantics for future callers.
+        merged = {**self.transform_kwargs, **kwargs}
+        return transforms.Compose(self.get_transforms(**merged))
 
     def tfrecord_inference(
         self,

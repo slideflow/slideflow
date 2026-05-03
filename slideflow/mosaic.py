@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
+import pandas as pd
 from rich.progress import track
 
 import slideflow as sf
@@ -29,7 +30,7 @@ def process_tile_image(args, decode_kwargs):
     if args is None:
         return None, None, None, None
     point_index, x, y, display_size, alpha, image = args
-    if not point_index:
+    if point_index is None:
         return None, None, None, None
     if isinstance(image, tuple):
         tfr, tfr_idx = image
@@ -71,12 +72,9 @@ def decode_image(
     if isinstance(image, np.ndarray):
         return image
     else:
-        image_arr = np.fromstring(image, np.uint8)
+        image_arr = np.frombuffer(image, np.uint8)
         tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
         return cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
-
-def find_corresponding_points(row, points):
-    return points.loc[((points.grid_x == row.x) & (points.grid_y == row.y))].index
 
 # -----------------------------------------------------------------------------
 
@@ -205,12 +203,19 @@ class Mosaic:
             elif isinstance(tfrecords, list) and not len(tfrecords):
                 raise errors.TFRecordsNotFoundError()
             self._prepare_from_slidemap(images)
-        elif isinstance(images[0], (tuple, list)) and isinstance(images[0][0], str):
-            self._prepare_from_tuples(images, coords)  # type: ignore
         else:
-            assert coords is not None
-            assert len(images) == len(coords)
-            self._prepare_from_coords(images, coords)  # type: ignore
+            if not len(images):
+                raise ValueError(
+                    "Mosaic requires at least one image; got an empty "
+                    "sequence."
+                )
+            if (isinstance(images[0], (tuple, list))
+                    and isinstance(images[0][0], str)):
+                self._prepare_from_tuples(images, coords)  # type: ignore
+            else:
+                assert coords is not None
+                assert len(images) == len(coords)
+                self._prepare_from_coords(images, coords)  # type: ignore
 
         # ---------------------------------------------------------------------
 
@@ -243,12 +248,19 @@ class Mosaic:
         log.info('Loading coordinates and plotting points...')
         self.images = images
         self.mapped_tiles = []  # type: List[int]
-        self.points = [{
-            'coord': coords[i],
-            'global_index': i,
+        # Downstream methods (generate_grid, plot, points_at_grid_index, ...)
+        # treat self.points as a DataFrame indexed by an integer position with
+        # x/y columns; build it that way directly instead of a list of dicts.
+        coords_arr = np.asarray(coords, dtype=float)
+        self.points = pd.DataFrame({
+            'x': coords_arr[:, 0],
+            'y': coords_arr[:, 1],
+            'global_index': range(len(coords)),
             'category': 'none',
             'has_paired_tile': False,
-        } for i in range(len(coords))]
+            'alpha': 1.,
+        })
+        self.points['points_index'] = self.points.index
 
     def _prepare_from_slidemap(
         self,
@@ -276,19 +288,29 @@ class Mosaic:
         """Prepare from a list of tuples with TFRecord names/indices."""
         log.info('Loading coordinates from SlideMap and plotting points...')
         self.mapped_tiles = {}  # type: Dict[str, List[int]]
-        self.points = []
+        # Always store the slide *basename* so _get_tfrecords_from_slide
+        # (which compares against path_to_name) works whether or not
+        # self.tfrecords is provided. Use 'tfr_index' (matching slidemap
+        # mode and downstream readers in _record_point / plot()), not the
+        # legacy 'tfrecord_index' key.
+        coords_arr = np.asarray(coords, dtype=float)
+        rows = []
         for i, (tfr, idx) in enumerate(images):
-            self.points.append({
-                'coord': np.array(coords[i]),
+            slide = sf.util.path_to_name(tfr)
+            rows.append({
+                'x': float(coords_arr[i, 0]),
+                'y': float(coords_arr[i, 1]),
                 'global_index': i,
                 'category': 'none',
-                'slide': (tfr if self.tfrecords is not None
-                          else sf.util.path_to_name(tfr)),
+                'slide': slide,
                 'tfrecord': (tfr if self.tfrecords is None
-                             else self._get_tfrecords_from_slide(tfr)),
-                'tfrecord_index': idx,
-                'has_paired_tile': None,
+                             else self._get_tfrecords_from_slide(slide)),
+                'tfr_index': idx,
+                'has_paired_tile': False,
+                'alpha': 1.,
             })
+        self.points = pd.DataFrame(rows)
+        self.points['points_index'] = self.points.index
 
     def _get_image_from_point(self, index):
         point = self.points.loc[index]
@@ -306,6 +328,8 @@ class Mosaic:
     def _get_tfrecords_from_slide(self, slide: str) -> Optional[str]:
         """Using the internal list of TFRecord paths, returns the path to a
         TFRecord for a given corresponding slide."""
+        if self.tfrecords is None:
+            return None
         for tfr in self.tfrecords:
             if sf.util.path_to_name(tfr) == slide:
                 return tfr
@@ -317,8 +341,9 @@ class Mosaic:
         fig = plt.figure(figsize=figsize)
         self.ax = fig.add_subplot(111, aspect='equal')
         self.ax.set_facecolor(background)
-        fig.tight_layout()
-        plt.subplots_adjust(
+        # Bind margins to this fig (not the active one) and skip
+        # tight_layout — fixed margins are intended.
+        fig.subplots_adjust(
             left=0.02,
             bottom=0,
             right=0.98,
@@ -345,16 +370,17 @@ class Mosaic:
 
     def _record_point(self, index):
         point = self.points.loc[index]
-        if 'tfr_index' in point:
+        # Storage type drives the branch — `mapped_tiles` is a dict in
+        # slidemap/tuples modes and a list in coords mode (see _prepare_*).
+        if isinstance(self.mapped_tiles, dict):
+            if 'tfr_index' not in point:
+                return
             tfr = self._get_tfrecords_from_slide(point.slide)
             if tfr is None:
                 return
-            if tfr in self.mapped_tiles:
-                self.mapped_tiles[tfr] += [point.tfr_index]
-            else:
-                self.mapped_tiles[tfr] = [point.tfr_index]
+            self.mapped_tiles.setdefault(tfr, []).append(point.tfr_index)
         else:
-            self.mapped_tiles += [index]
+            self.mapped_tiles.append(index)
 
     @property
     def decode_kwargs(self):
@@ -460,10 +486,12 @@ class Mosaic:
             self.points['selected'] = False
             dist_fn = partial(select_nearest_points)
             pool = DPool(sf.util.num_cpu())
-            for i, _ in track(enumerate(pool.imap_unordered(dist_fn, range(len(self.grid_idx))), 1), total=len(self.grid_idx)):
-                pass
-            pool.close()
-            pool.join()
+            try:
+                for i, _ in track(enumerate(pool.imap_unordered(dist_fn, range(len(self.grid_idx))), 1), total=len(self.grid_idx)):
+                    pass
+            finally:
+                pool.close()
+                pool.join()
         else:
             raise ValueError(
                 f'Unrecognized value for tile_select: "{tile_select}"'
@@ -484,8 +512,11 @@ class Mosaic:
             raise ValueError(
                 "Mosaic.export() requires a Mosaic built from a SlideMap."
             )
+        os.makedirs(path, exist_ok=True)
         self.slide_map.save(path)
-        if isinstance(self.tfrecords, list):
+        if self.tfrecords is None:
+            tfr = []
+        elif isinstance(self.tfrecords, list):
             tfr = self.tfrecords
         else:
             tfr = list(self.tfrecords)
@@ -566,17 +597,18 @@ class Mosaic:
         if pool is None:
             pool = DPool(sf.util.num_cpu())
             should_close_pool = True
-        for i, (point_idx, image, extent, alpha) in track(enumerate(pool.imap(partial(process_tile_image, decode_kwargs=self.decode_kwargs), to_map)), total=len(selected_points)):
-            if point_idx is not None:
-                self._record_point(point_idx)
-                self._plot_tile_image(image, extent, alpha)
-                point = self.points.loc[point_idx]
-                self.grid_images[(point.grid_x, point.grid_y)] = image
-                placed += 1
-
-        if should_close_pool:
-            pool.close()
-            pool.join()
+        try:
+            for i, (point_idx, image, extent, alpha) in track(enumerate(pool.imap(partial(process_tile_image, decode_kwargs=self.decode_kwargs), to_map)), total=len(selected_points)):
+                if point_idx is not None:
+                    self._record_point(point_idx)
+                    self._plot_tile_image(image, extent, alpha)
+                    point = self.points.loc[point_idx]
+                    self.grid_images[(point.grid_x, point.grid_y)] = image
+                    placed += 1
+        finally:
+            if should_close_pool:
+                pool.close()
+                pool.join()
         log.debug(f'Tile images placed: {placed} ({time.time()-start:.2f}s)')
         if focus:
             self.focus(focus)
@@ -611,7 +643,7 @@ class Mosaic:
     def save_report(self, filename: str) -> None:
         """Saves a report of which tiles (and their corresponding slide)
             were displayed on the Mosaic map, in CSV format."""
-        with open(filename, 'w') as f:
+        with open(filename, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['slide', 'index'])
             if isinstance(self.mapped_tiles, dict):
@@ -619,8 +651,10 @@ class Mosaic:
                     for idx in self.mapped_tiles[tfr]:
                         writer.writerow([tfr, idx])
             else:
+                # No per-slide grouping in coords mode; emit a blank slide
+                # column so every row matches the header width.
                 for idx in self.mapped_tiles:
-                        writer.writerow([idx])
+                    writer.writerow(['', idx])
         log.info(f'Mosaic report saved to [green]{filename}')
 
     def view(self, slides: List[str] = None) -> None:

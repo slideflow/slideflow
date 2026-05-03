@@ -56,12 +56,24 @@ def batch_loss_crossentropy(
         first_mean = tf.math.reduce_mean(first, axis=0)
         rest_mean = tf.math.reduce_mean(rest, axis=0)
 
-        # Variance
-        A = tf.math.reduce_sum(tf.math.square(first - first_mean), axis=0) / (first_mean.shape[0] - 1)
-        B = tf.math.reduce_sum(tf.math.square(rest - rest_mean), axis=0) / (rest_mean.shape[0] - 1)
+        # Variance and SE for the per-feature t-statistic between the
+        # split and the rest. The divisor for both must be the *sample*
+        # count (rows in the split), i.e. first.shape[0] / rest.shape[0].
+        # Slideflow <= 3 used first_mean.shape[0] / rest_mean.shape[0]
+        # — i.e. the feature dimension after reduce_mean collapsed the
+        # row axis — so the variance was divided by num_features instead
+        # of n_samples. That miscalibrates this auxiliary regularizer
+        # (added via model.add_loss in
+        # _build_classification_or_regression_model) by a factor of
+        # roughly num_features / batch_per_split, so models trained on
+        # earlier versions saw a different effective regularizer scale.
+        n_first = tf.cast(first.shape[0], tf.float32)
+        n_rest = tf.cast(rest.shape[0], tf.float32)
+        A = tf.math.reduce_sum(tf.math.square(first - first_mean), axis=0) / (n_first - 1)
+        B = tf.math.reduce_sum(tf.math.square(rest - rest_mean), axis=0) / (n_rest - 1)
 
         # Not performing square root of SE for computational reasons
-        se = tf.math.sqrt((A / first_mean.shape[0]) + (B / rest_mean.shape[0]))
+        se = tf.math.sqrt((A / n_first) + (B / n_rest))
         t_square = tf.math.square((first_mean - rest_mean - diff) / se)
         return tf.math.reduce_mean(t_square)
 
@@ -94,7 +106,19 @@ def negative_log_likelihood(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
     pred_hr = tf.reshape(y_pred[:, 0], [-1])  # y_pred
     time = tf.reshape(y_true, [-1])           # y_true
 
-    order = tf.argsort(time)  # direction='DESCENDING'
+    # Sort by descending time so the cumsum below correctly represents
+    # the Cox risk set R(t_i) = {j : time_j >= t_i} at each event:
+    # position k holds the k-th-longest survival time, and cumsum[k]
+    # accumulates exp(pred_j) over indices 0..k, which is exactly the
+    # set of patients still at risk at time t_k. See
+    # negative_log_likelihood_breslow below and pycox's cox_ph_loss for
+    # the same convention. Slideflow <= 3 omitted the direction kwarg
+    # here (the trailing comment was the only hint at intent), so
+    # tf.argsort defaulted to ascending — making the cumsum represent
+    # the complement of the risk set and producing mathematically
+    # incorrect loss values / gradients for survival models. Models
+    # trained on earlier versions optimized the wrong objective.
+    order = tf.argsort(time, direction='DESCENDING')
     sorted_events = tf.gather(events, order)            # pylint: disable=no-value-for-parameter
     sorted_predictions = tf.gather(pred_hr, order)      # pylint: disable=no-value-for-parameter
 
@@ -212,15 +236,23 @@ def add_regularization(
     # When we change the layers attributes, the change only happens in the model config file
     model_json = model.to_json()
 
-    # Save the weights before reloading the model.
-    tmp_weights_path = os.path.join(tempfile.gettempdir(), 'tmp_weights.h5')
-    model.save_weights(tmp_weights_path)
+    # Save the weights before reloading the model. Use a per-call unique
+    # temp path; the prior shared 'tmp_weights.h5' in tempfile.gettempdir()
+    # raced between concurrent callers and could corrupt each other's
+    # weights round-trip.
+    tmp_fd, tmp_weights_path = tempfile.mkstemp(suffix='.h5')
+    os.close(tmp_fd)
+    try:
+        model.save_weights(tmp_weights_path)
 
-    # load the model from the config
-    model = tf.keras.models.model_from_json(model_json)
+        # load the model from the config
+        model = tf.keras.models.model_from_json(model_json)
 
-    # Reload the model weights
-    model.load_weights(tmp_weights_path, by_name=True)
+        # Reload the model weights
+        model.load_weights(tmp_weights_path, by_name=True)
+    finally:
+        if os.path.exists(tmp_weights_path):
+            os.remove(tmp_weights_path)
     return model
 
 

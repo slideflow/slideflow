@@ -169,8 +169,12 @@ class SlideMapError(Exception):
 
 # --- Backend errors ----------------------------------------------------------
 class UnrecognizedBackendError(Exception):
-    def __init__(self):
-        super().__init__(f"Unrecognized backend: {os.environ['SF_BACKEND']}")
+    def __init__(self, *args):
+        if args:
+            super().__init__(*args)
+        else:
+            backend = os.environ.get('SF_BACKEND', '<not set>')
+            super().__init__(f"Unrecognized backend: {backend}")
 
 
 # --- Features errors ---------------------------------------------------------

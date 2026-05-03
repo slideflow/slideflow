@@ -203,7 +203,7 @@ class Heatmap:
                 )
             except errors.SlideLoadError:
                 raise errors.HeatmapError(
-                    f'Error loading slide {self.slide.name} for heatmap')
+                    f'Error loading slide {self.slide_path} for heatmap')
         elif isinstance(slide, WSI):
 
             if slide.tile_px != self.tile_px:
@@ -298,6 +298,15 @@ class Heatmap:
                 **kwargs
             )
             if self.uq:
+                # Sanity check: uncertainty quantification requires at
+                # least one uncertainty channel; otherwise the negative
+                # slices below would silently swap predictions and
+                # uncertainty (`:0` is empty, `0:` is everything).
+                if not self.num_uncertainty:
+                    raise ValueError(
+                        "Heatmap configured with uq=True but "
+                        "num_uncertainty is 0."
+                    )
                 self.predictions = out[:, :, :-(self.num_uncertainty)]
                 self.uncertainty = out[:, :, -(self.num_uncertainty):]
             else:
@@ -421,14 +430,18 @@ class Heatmap:
         Returns:
             None
         """
-        npzfile = np.load(path)
-        if ('predictions' not in npzfile) and ('logits' in npzfile):
-            log.warn("Loading predictions from 'logits' key.")
-            self.predictions = npzfile['logits']
-        else:
-            self.predictions = npzfile['predictions']
-        if 'uncertainty' in npzfile:
-            self.uncertainty = npzfile['uncertainty']
+        with np.load(path) as npzfile:
+            if 'predictions' in npzfile:
+                self.predictions = npzfile['predictions']
+            elif 'logits' in npzfile:
+                log.warn("Loading predictions from 'logits' key.")
+                self.predictions = npzfile['logits']
+            else:
+                raise errors.HeatmapError(
+                    f"Heatmap .npz at {path} has neither 'predictions' "
+                    "nor 'logits' key.")
+            self.uncertainty = (npzfile['uncertainty']
+                                if 'uncertainty' in npzfile else None)
 
     def plot_thumbnail(
         self,
@@ -517,6 +530,12 @@ class Heatmap:
             roi_color (str): ROI line color. Defaults to 'k' (black).
             linewidth (int): Width of ROI line. Defaults to 5.
         """
+        if self.predictions is None:
+            raise errors.HeatmapError(
+                "Cannot plot Heatmap which is not yet generated; generate with "
+                "either heatmap.generate() or Heatmap(..., generate=True)"
+            )
+
         ax = self._prepare_ax(ax)
         self.plot_thumbnail(ax=ax, **thumb_kwargs)
         ax.set_facecolor("black")
@@ -568,6 +587,12 @@ class Heatmap:
             linewidth (int): Width of ROI line. Defaults to 5.
         """
         import matplotlib.colors as mcol
+
+        if self.uncertainty is None:
+            raise errors.HeatmapError(
+                "No uncertainty data available; ensure the heatmap was "
+                "generated with a UQ-enabled model."
+            )
 
         ax = self._prepare_ax(ax)
         implot = self.plot_thumbnail(ax=ax, **thumb_kwargs)
@@ -950,7 +975,7 @@ class ModelHeatmap(Heatmap):
                 )
             except errors.SlideLoadError:
                 raise errors.HeatmapError(
-                    f'Error loading slide {self.slide.name} for heatmap')
+                    f'Error loading slide {self.slide_path} for heatmap')
         elif isinstance(slide, WSI):
 
             if tile_px is not None:
@@ -1043,10 +1068,17 @@ def calculate_heatmap_extent(
         wsi.dimensions[0] / thumbnail.size[0],
         wsi.dimensions[1] / thumbnail.size[1]
     )
+    # imshow's `extent` is (left, right, bottom, top) in data coords. When
+    # stride_div > 1 the grid cells are centered on tile centers and have
+    # size wsi_stride, so the heatmap spans from offset to offset + grid·stride
+    # in each dimension. Earlier code dropped the trailing offset on the right
+    # and bottom edges, compressing the heatmap by ~offset/grid·stride
+    # (sub-pixel for stride_div=1 where offset is 0, but visible at higher
+    # overlap factors).
     return (
         _overlay_offset_wsi_dim[0] / thumb_ratio[0],
-        _overlay_wsi_dim[0] / thumb_ratio[0],
-        _overlay_wsi_dim[1] / thumb_ratio[1],
+        (_overlay_offset_wsi_dim[0] + _overlay_wsi_dim[0]) / thumb_ratio[0],
+        (_overlay_offset_wsi_dim[1] + _overlay_wsi_dim[1]) / thumb_ratio[1],
         _overlay_offset_wsi_dim[1] / thumb_ratio[1]
     )
 
