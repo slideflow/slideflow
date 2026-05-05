@@ -334,7 +334,9 @@ class MILWidget(Widget):
         try:
             # First, check if we need to switch the renderer.
             _params = _get_mil_params(path)
-            _cfg = sf.mil.mil_config(trainer=_params['trainer'], **_params['params'])
+            _cfg = sf.mil.mil_config(
+                trainer=_params['trainer'], **_params['params'], validate=False,
+            )
             is_multimodal = (_cfg.model_config.model == 'mm_attention_mil')
             is_new_renderer = is_multimodal != self.is_multimodal
 
