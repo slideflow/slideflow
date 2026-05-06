@@ -334,6 +334,8 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.loader = None
 
     def __iter__(self):
+        if self.loader is not None:
+            self.loader.close()
         self.loader = reader.multi_tfrecord_loader(
             paths=self.paths,
             indices=self.indices,
