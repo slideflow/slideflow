@@ -76,7 +76,8 @@ class StyleGAN2Interpolator:
             if 'slideflow_kwargs' in opt:
                 _gan_px = opt['slideflow_kwargs']['tile_px']
                 _gan_um = opt['slideflow_kwargs']['tile_um']
-                if gan_px != gan_px or _gan_um != _gan_um:
+                if ((gan_px is not None and gan_px != _gan_px)
+                        or (gan_um is not None and gan_um != _gan_um)):
                     sf.log.warn("Provided GAN tile size (gan_px={}, gan_um={}) does "
                                 "not match training_options.json (gan_px={}, "
                                 "gan_um={})".format(gan_px, gan_um, _gan_px, _gan_um))
@@ -347,7 +348,14 @@ class StyleGAN2Interpolator:
             with torch.inference_mode():
                 res0 = self.features(embed0_batch)
                 res1 = self.features(embed1_batch)
-            if isinstance(res0, tuple) and len(res0) == 1:
+            # Features.__call__ returns a list: [layer_activations, ...,
+            # predictions] when both layers and include_preds are configured,
+            # or [predictions] when only include_preds. Treat the 2-element
+            # list as (features, predictions); anything else is preds-only.
+            # (The historical condition `isinstance(res0, tuple) and
+            # len(res0) == 1` was dead — Features returns lists, not tuples,
+            # and a 1-tuple wouldn't unpack into two variables anyway.)
+            if isinstance(res0, list) and len(res0) == 2:
                 features0, pred0 = res0
                 features1, pred1 = res1
             else:
@@ -692,7 +700,13 @@ class StyleGAN2Interpolator:
         for img in tqdm(self.class_interpolate(seed, steps),
                          total=steps,
                          desc=f"Working on seed {seed}..."):
-            img = torch.from_numpy(np.expand_dims(img, axis=0)).permute(0, 3, 1, 2)
+            # class_interpolate yields uint8 torch tensors (per its docstring).
+            # The historical `np.expand_dims(img)` round-trip went through
+            # numpy and would fail for tensors on a non-CPU device. Handle
+            # both tensor and ndarray inputs explicitly.
+            if not isinstance(img, torch.Tensor):
+                img = torch.from_numpy(img)
+            img = img.unsqueeze(0).permute(0, 3, 1, 2)
             img = (img / 127.5) - 1
             img = self._crop_and_convert_to_uint8(img)
             img = self._preprocess_from_uint8(img, standardize=False, normalize=True)

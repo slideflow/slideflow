@@ -45,4 +45,9 @@ def noise_tensor(seed: int, z_dim: int) -> "torch.Tensor":
         torch.Tensor: Noise vector of shape (1, z_dim)
     """
     import torch
-    return torch.from_numpy(np.random.RandomState(seed).randn(1, z_dim))
+    # randn returns float64; cast to float32 to match the GAN's expected
+    # input dtype (passing float64 either silently auto-converts or raises a
+    # dtype-mismatch error depending on the op).
+    return torch.from_numpy(
+        np.random.RandomState(seed).randn(1, z_dim).astype(np.float32)
+    )
