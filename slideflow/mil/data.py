@@ -120,7 +120,9 @@ class BagDataset(Dataset):
         self.dtype = dtype
 
         if self.preload:
-            self.bags = [self._load(i) for i in range(len(self.bags))]
+            self.bags = [
+                utils._load_bag(b, dtype=self.dtype) for b in self.bags
+            ]
 
     def __len__(self):
         return len(self.bags)

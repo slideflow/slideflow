@@ -58,6 +58,22 @@ class MILFeatures:
                     attention_pooling))
         self.attention_pooling = attention_pooling
 
+        # `from_df` constructs an empty shell via `cls(None, None)` and
+        # then populates slides/activations/predictions from the
+        # DataFrame directly. Short-circuit before `_find_bags` so
+        # iteration over a 0-d `np.array(None)` doesn't trip TypeError.
+        if model is None and bags is None:
+            self.slides = None
+            self.model = None
+            self.config = None
+            self.device = None
+            self.num_features = None
+            self.predictions = None
+            self.attentions = None
+            self.activations = None
+            self.locations = None
+            return
+
         # Find bags.
         bags = self._find_bags(bags, dataset, slides)
 
