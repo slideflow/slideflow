@@ -39,8 +39,8 @@ def _is_tf_uint8(img):
 
 def _is_tf_float(img):
     import tensorflow as tf
-    return (isinstance(img, tf.Tensor) and
-            img.dtype == tf.float16 or img.dtype == tf.float32)
+    return (isinstance(img, tf.Tensor)
+            and (img.dtype == tf.float16 or img.dtype == tf.float32))
 
 
 def _is_torch_uint8(img):
@@ -50,8 +50,8 @@ def _is_torch_uint8(img):
 
 def _is_torch_float(img):
     import torch
-    return (isinstance(img, torch.Tensor) and
-            img.dtype == torch.float16 or img.dtype == torch.float32)
+    return (isinstance(img, torch.Tensor)
+            and (img.dtype == torch.float16 or img.dtype == torch.float32))
 
 def _detect_img_type(img_str):
     kind = filetype.guess(img_str)

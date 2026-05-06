@@ -858,6 +858,10 @@ def join_tfrecord(
     """
     writer = tf.io.TFRecordWriter(output_file)
     tfrecord_files = glob(join(input_folder, "*.tfrecords"))
+    if not tfrecord_files:
+        raise errors.TFRecordsNotFoundError(
+            f"No tfrecords found in input folder: {input_folder}"
+        )
     datasets = []
     if assign_slide:
         slide = assign_slide.encode('utf-8')
@@ -907,7 +911,7 @@ def split_tfrecord(tfrecord_file: str, output_folder: str) -> None:
     )
     writers = {}  # type: ignore
     for record in dataset:
-        slide = parser(record)  # type: ignore
+        slide = parser(record)[0]  # type: ignore
         shortname = sf.util._shortname(slide.decode('utf-8'))
         if shortname not in writers.keys():
             tfrecord_path = join(output_folder, f"{shortname}.tfrecords")

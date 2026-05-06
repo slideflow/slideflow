@@ -50,6 +50,8 @@ def process_labels(
     """
     # Weakly supervised labels from slides.
     if labels is not None and not isinstance(labels, (str, pd.DataFrame)):
+        if not labels:
+            return labels, None, None, 1
         if onehot:
             _all_labels_raw = np.array(list(labels.values()))
             _unique_raw = np.unique(_all_labels_raw)
@@ -206,7 +208,10 @@ def get_tfrecord_parser(
         features_to_return = {k: k for k in features}
     elif not all(f in features for f in features_to_return):
         detected = ",".join(features)
-        _ftrs = list(features_to_return.keys())  # type: ignore
+        if isinstance(features_to_return, dict):
+            _ftrs = list(features_to_return.keys())
+        else:
+            _ftrs = list(features_to_return)
         raise errors.TFRecordsError(
             f'Not all features {",".join(_ftrs)} '
             f'were found in the tfrecord {detected}'

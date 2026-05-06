@@ -13,7 +13,18 @@ from .iterable import InterleaveIterator
 # -----------------------------------------------------------------------------
 
 def worker_init_fn(worker_id) -> None:
-    np.random.seed(np.random.get_state()[1][0])  # type: ignore
+    # The forked worker inherits the parent's NumPy RNG state, so
+    # `np.random.get_state()[1][0]` is identical across workers — without
+    # mixing in worker_id, all workers would share the same NumPy seed and
+    # produce correlated augmentations.
+    #
+    # `int(...)` is load-bearing: state[1][0] is np.uint32, and on numpy
+    # 2.x `np.uint32 + python_int` followed by `% (2**32)` raises
+    # OverflowError (2**32 isn't representable as uint32). Coercing to
+    # Python int before the arithmetic keeps the same modular semantics
+    # without tripping the stricter scalar-promotion rules.
+    seed = (int(np.random.get_state()[1][0]) + worker_id) % (2**32)
+    np.random.seed(seed)
 
 
 def interleave_dataloader(
@@ -123,16 +134,25 @@ def interleave_dataloader(
     """
     if batch_size is None:
         replica_batch_size = None
+    elif batch_size < num_replicas:
+        raise ValueError(
+            f"batch_size ({batch_size}) must be >= num_replicas "
+            f"({num_replicas}); otherwise the per-replica batch size "
+            f"rounds to 0 and DataLoader rejects the call."
+        )
     else:
         replica_batch_size = batch_size // num_replicas
-    if from_wsi and num_workers:
-        raise ValueError("Option `from_wsi=True` incompatible with "
-                         "num_workers > 0")
 
     if num_workers is None and sf.util.num_cpu():
         num_workers = max(sf.util.num_cpu() // 4, 1)  # type: ignore
     elif num_workers is None:
         num_workers = 8
+
+    # Validate from_wsi/num_workers AFTER num_workers is resolved; otherwise
+    # passing num_workers=None silently slips past this check.
+    if from_wsi and num_workers:
+        raise ValueError("Option `from_wsi=True` incompatible with "
+                         "num_workers > 0")
     log.debug(f"Using num_workers={num_workers}")
     torch.multiprocessing.set_sharing_strategy('file_system')
 
