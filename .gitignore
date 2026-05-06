@@ -1,4 +1,6 @@
 docs/build/*
+mil/*
+notes/*
 *.pyc
 *.egg-info
 *.ipynb_checkpoints
