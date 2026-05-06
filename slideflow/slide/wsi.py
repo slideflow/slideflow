@@ -580,8 +580,11 @@ class WSI:
         # For any indexes in y_range or x_range corresponding to a negative value,
         # set the corresponding index in self.grid to False.
         # This may occur after slide alignment.
-        self.grid[np.argwhere(x_range < 0), :] = False
-        self.grid[:, np.argwhere(y_range < 0)] = False
+        # Direct boolean indexing; np.argwhere(...) returns a 2D (N, 1)
+        # array which produces deprecation warnings / shape errors when
+        # used as an index in newer NumPy versions.
+        self.grid[x_range < 0, :] = False
+        self.grid[:, y_range < 0] = False
 
         # ROI filtering
         roi_by_center = (self.roi_filter_method == 'center')
@@ -1192,6 +1195,7 @@ class WSI:
                 ))
 
         pool.close()
+        pool.join()
 
         coord_mask = np.any(self.get_masked_coord().mask, 1)
         coord_mask[np.array(idx_to_remove).astype(int)] = True
@@ -1809,6 +1813,7 @@ class WSI:
 
             if should_close:
                 pool.close()
+                pool.join()
 
             # Reset stain normalizer context
             if normalizer and context_normalize:
@@ -1943,7 +1948,7 @@ class WSI:
             self.coord[:, 2:4].T,
             dims=self.grid.shape
         )
-        unmasked_coord_indices = np.in1d(
+        unmasked_coord_indices = np.isin(
             linear_indices_of_coord,
             true_grid_indices
         )

@@ -303,7 +303,7 @@ class _cuCIMReader:
                     else:
                         continue
                     #log.debug(f'Setting MPP by metadata ({prop_key}) "spacing" ({spacing_unit}) to {self._mpp}')
-        if not self.mpp:
+        if self._mpp is None:
             log.warn("Unable to auto-detect microns-per-pixel (MPP).")
 
         # Pyramid layers
@@ -460,7 +460,12 @@ class _cuCIMReader:
             target_size = (int(np.round(extract_size[0] * resize_factor)),
                            int(np.round(extract_size[1] * resize_factor)))
             if not __cv2_resize__:
-                region = resize(cucim2numpy(region), target_size)
+                # skimage.transform.resize wants (rows, cols) = (h, w);
+                # target_size is (w, h) per the rest of this module.
+                region = resize(
+                    cucim2numpy(region),
+                    (target_size[1], target_size[0]),
+                )
 
         # Final conversions.
         if flatten and region.shape[-1] == 4:
@@ -522,8 +527,9 @@ class _cuCIMReader:
             ds_level = max(0, ds_level-1)
             ds = self.level_downsamples[ds_level]
 
-        # Define region kwargs
-        region_kwargs = dict(
+        # cuCIM-native kwargs (used by cucim_padded_crop, which calls the
+        # underlying cuCIM API directly).
+        cucim_kwargs = dict(
             location=top_left,
             size=(int(window_size[0] / ds), int(window_size[1] / ds)),
             level=ds_level,
@@ -531,9 +537,19 @@ class _cuCIMReader:
         )
         if ((pad_missing is not None and pad_missing)
               or (pad_missing is None and self.pad_missing)):
-            region = cucim_padded_crop(self.reader, **region_kwargs)
+            region = cucim_padded_crop(self.reader, **cucim_kwargs)
         else:
-            region = self.read_region(**region_kwargs)
+            # self.read_region uses positional args (base_level_dim,
+            # downsample_level, extract_size); the cuCIM-style kwargs above
+            # would have raised TypeError on this branch. num_workers is
+            # only consumed by the padded path, so it's intentionally not
+            # forwarded here.
+            region = self.read_region(
+                top_left,
+                ds_level,
+                cucim_kwargs['size'],
+                pad_missing=False,
+            )
 
         # Resize using the same interpolation strategy as the Libvips backend (cv2).
         if not __cv2_resize__:
@@ -573,5 +589,8 @@ class _cuCIMReader:
             img = cucim2numpy(img)
             return cv2.resize(img, (width, height))
         else:
-            img = resize(np.asarray(img), (width, height))
+            # skimage.transform.resize takes (rows, cols) = (h, w);
+            # cv2.resize takes (w, h) — keep both branches dimensionally
+            # equivalent.
+            img = resize(np.asarray(img), (height, width))
             return cucim2numpy(img)

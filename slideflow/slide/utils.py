@@ -319,7 +319,15 @@ class ROI:
         """Remove a hole from the ROI."""
         if isinstance(roi, str):
             roi = self.get_hole(roi)
-        hole_idx = [h for h, r in self.holes.items() if r == roi]
+        # Find the hole's key. del self.holes[<list>] would raise TypeError
+        # because dict keys must be hashable; pull the first matching key
+        # instead and raise a clear error if no match exists.
+        hole_idx = next(
+            (h for h, r in self.holes.items() if r == roi),
+            None
+        )
+        if hole_idx is None:
+            raise ValueError(f"No matching hole found for {roi}")
         del self.holes[hole_idx]
         self.update_polygon()
 
@@ -330,7 +338,7 @@ class ROI:
                 return h
         raise ValueError(f"No hole found with name {name}")
 
-    def get_next_hole_name(self) -> str:
+    def get_next_hole_name(self) -> int:
         """Get the next available hole name."""
         return len(self.holes)
 
@@ -462,14 +470,14 @@ class Alignment:
 # -----------------------------------------------------------------------------
 # Functions
 
-def numpy2jpg(img: np.ndarray) -> str:
+def numpy2jpg(img: np.ndarray) -> bytes:
     if img.shape[-1] == 4:
         img = img[:, :, 0:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     return cv2.imencode(".jpg", img)[1].tobytes()   # Default quality = 95%
 
 
-def numpy2png(img: np.ndarray) -> str:
+def numpy2png(img: np.ndarray) -> bytes:
     if img.shape[-1] == 4:
         img = img[:, :, 0:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -580,7 +588,7 @@ def log_extraction_params(**kwargs) -> None:
 
 
 def draw_roi(
-    img: Union[np.ndarray, str],
+    img: Union[np.ndarray, bytes],
     coords: List[List[int]],
     color: str = 'red',
     linewidth: int = 5
@@ -588,7 +596,8 @@ def draw_roi(
     """Draw ROIs on image.
 
     Args:
-        img (Union[np.ndarray, str]): Image.
+        img (Union[np.ndarray, bytes]): Image. If bytes, must be encoded
+            image data (e.g. PNG/JPEG bytes) decodable by ``Image.open``.
         coords (List[List[int]]): ROI coordinates.
 
     Returns:
@@ -597,8 +606,8 @@ def draw_roi(
     annPolys = [sg.Polygon(b) for b in coords]
     if isinstance(img, np.ndarray):
         annotated_img = Image.fromarray(img)
-    elif isinstance(img, str):
-        annotated_img = Image.open(io.BytesIO(img))  # type: ignore
+    elif isinstance(img, bytes):
+        annotated_img = Image.open(io.BytesIO(img))
     else:
         raise ValueError("Expected img to be a numpy array or bytes, got: {}".format(
             type(img)
@@ -990,6 +999,6 @@ def _convert_img_to_format(image: np.ndarray, img_format: str) -> str:
             '.jpg',
             cv2.cvtColor(image, cv2.COLOR_RGB2BGR),
             [int(cv2.IMWRITE_JPEG_QUALITY), 100]
-        )[1].tostring()
+        )[1].tobytes()
     else:
         raise ValueError(f"Unknown image format {img_format}")

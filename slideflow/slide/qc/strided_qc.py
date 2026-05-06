@@ -309,16 +309,21 @@ class _StridedQC_V2:
         grid_j = item['grid'][0]
         image = item['image']
 
-        # Handle edge tiles.
+        # Handle edge tiles. grid_shape is WSI.grid.shape == (num_x, num_y),
+        # while grid_i is a y-coord in [0, num_y - 1] and grid_j is an x-coord
+        # in [0, num_x - 1]. The historical `grid_i >= grid_shape[1]` was
+        # `y >= num_y`, which can never be true for valid coords — leaving
+        # the bottom/right edge tiles cropped when they should keep their
+        # full extent. Detect "this is the last row/column" via `+ 1 >=`.
         start_i = start_j = self.overlap
         end_i = end_j = self.tile_px - self.overlap
         if grid_i == 0:
             start_i = 0
         if grid_j == 0:
             start_j = 0
-        if grid_i >= grid_shape[1]:
+        if grid_i + 1 >= grid_shape[1]:
             end_i = None
-        if grid_j >= grid_shape[0]:
+        if grid_j + 1 >= grid_shape[0]:
             end_j = None
 
         g_mask = self.apply(image)
@@ -327,16 +332,16 @@ class _StridedQC_V2:
 
     def _calc_empty_mask(self, grid_i, grid_j, grid_shape):
         """Build an empty (1s) mask for a given tile."""
-        # Handle edge tiles.
+        # Handle edge tiles (see _calc_mask for the semantics of the bounds).
         start_i = start_j = self.overlap
         end_i = end_j = self.tile_px - self.overlap
         if grid_i == 0:
             start_i = 0
         if grid_j == 0:
             start_j = 0
-        if grid_i >= grid_shape[1]:
+        if grid_i + 1 >= grid_shape[1]:
             end_i = None
-        if grid_j >= grid_shape[0]:
+        if grid_j + 1 >= grid_shape[0]:
             end_j = None
 
         g_mask = np.ones((self.tile_px, self.tile_px))

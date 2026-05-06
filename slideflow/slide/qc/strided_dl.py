@@ -267,8 +267,24 @@ class StridedDL_V2(_StridedQC_V2):
                 qc_mask[x0:x1, y0:y1] += tile_mask[0: x1-x0, 0: y1-y0] * taper_mask[0: x1-x0, 0: y1-y0]
             avg_mask[x0:x1, y0:y1] += taper_mask[0: x1-x0, 0: y1-y0]
 
-        # Normalize the mask
-        qc_mask = qc_mask / avg_mask
+        # Normalize the mask. Use safe division to avoid inf/nan in regions
+        # not covered by any tile (e.g. grayspace-skipped grid cells leave
+        # zeros in avg_mask).
+        if self.out_classes:
+            denom = avg_mask[np.newaxis, :, :]
+            qc_mask = np.divide(
+                qc_mask,
+                denom,
+                out=np.zeros_like(qc_mask),
+                where=denom != 0,
+            )
+        else:
+            qc_mask = np.divide(
+                qc_mask,
+                avg_mask,
+                out=np.zeros_like(qc_mask),
+                where=avg_mask != 0,
+            )
 
         # Close pools
         if not self.persistent_threads:

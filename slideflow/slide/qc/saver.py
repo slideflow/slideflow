@@ -1,5 +1,6 @@
 """Functions for saving/loading QC masks."""
 
+import os
 import numpy as np
 import slideflow as sf
 from os.path import dirname, join, exists
@@ -59,7 +60,10 @@ class Save:
         """
         dest = self.dest if self.dest is not None else dirname(wsi.path)
         mask = wsi.get_qc_mask(roi=False)
-        if mask:
+        # `if mask:` would raise ValueError on a multi-element ndarray;
+        # guard explicitly against None instead.
+        if mask is not None:
+            os.makedirs(dest, exist_ok=True)
             np.savez(join(dest, wsi.name+'_qc.npz'), mask=mask)
         return None
 
@@ -95,7 +99,12 @@ class Load:
             was found, otherwise returns None.
         """
         source = self.source if self.source is not None else dirname(wsi.path)
-        if exists(join(source, wsi.name+'_qc.npz')):
-            return np.load(join(source, wsi.name+'_qc.npz'))['mask']
+        path = join(source, wsi.name+'_qc.npz')
+        if exists(path):
+            # Use a context manager so the underlying file handle is closed
+            # promptly; np.load returns an NpzFile that lazily holds an open
+            # descriptor and would otherwise leak across batch loads.
+            with np.load(path) as data:
+                return data['mask']
         else:
             return None
