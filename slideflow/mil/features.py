@@ -224,7 +224,7 @@ class MILFeatures:
                     y_att.append(att.cpu().numpy())
 
                 # FC MIL (CLAM implementation)
-                elif self.model.__class__.__name__ in ('MIL_fc, MIL_fc_mc'):
+                elif self.model.__class__.__name__ in ('MIL_fc', 'MIL_fc_mc'):
                     model_out = self.model(*model_args)
                     h = self.model.get_last_layer_activations(*model_args)  # type: ignore
                     y_att = None
@@ -247,6 +247,8 @@ class MILFeatures:
                 yp = torch.nn.functional.softmax(model_out, dim=1).cpu().numpy()
                 y_pred.append(yp)
 
+        if not y_pred:
+            return 0, {}, {}, {}
         yp = np.concatenate(y_pred, axis=0)
         num_features, acts = self._get_activations(hs)
         atts = self._get_attentions(y_att)

@@ -514,7 +514,7 @@ def _verify_compatible_tile_size(mil_path: str, bag_path: str, strict: bool = Fa
     msg = None
     if not exists(join(mil_path, 'mil_params.json')):
         msg = f"Could not find mil_params.json at {mil_path}; unable to verify tile size compatibility."
-    if not exists(join(bag_path, 'bags_config.json')):
+    if msg is None and not exists(join(bag_path, 'bags_config.json')):
         msg = f"Could not find bags_config.json at {bag_path}; unable to verify tile size compatibility."
     if msg and strict:
         raise errors.IncompatibleTileSizeError(msg)
@@ -630,4 +630,4 @@ def _export_attention(
             out_path = join(dest, f'{slide}_att.npy')
             np.save(out_path, att)
 
-    log.info(f"Attention scores exported to [green]{out_path}[/]")
+    log.info(f"Attention scores exported to [green]{dest}[/]")
