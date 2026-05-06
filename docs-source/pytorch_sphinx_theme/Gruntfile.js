@@ -39,8 +39,8 @@ module.exports = function(grunt) {
           {
               expand: true,
               flatten: true,
-              src: ['fonts/FreightSans/*'],
-              dest: 'pytorch_sphinx_theme/static/fonts/FreightSans',
+              src: ['fonts/IBMPlexSans/*'],
+              dest: 'pytorch_sphinx_theme/static/fonts/IBMPlexSans',
               filter: 'isFile'
           },
 
