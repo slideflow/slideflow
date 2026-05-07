@@ -2870,6 +2870,7 @@ class Dataset:
         self,
         slide: str,
         loc: Tuple[int, int],
+        decode: Optional[bool] = None,
     ) -> Any:
         """Read a record from a TFRecord, indexed by location.
 
@@ -2881,6 +2882,9 @@ class Dataset:
                 TFRecord.
             loc ((int, int)): ``(x, y)`` tile location. Searches the TFRecord
                 for the tile that corresponds to this location.
+            decode (bool): Deprecated. The associated record is always
+                decoded; this argument is retained for backwards compatibility
+                and will be removed in Slideflow 4.
 
         Returns:
             A tuple containing ``(slide, image)``, where ``image`` is a
@@ -2891,6 +2895,14 @@ class Dataset:
         if tfr is None:
             raise errors.TFRecordsError(
                 f"Could not find associated TFRecord for slide '{slide}'"
+            )
+        if decode is not None:
+            warnings.warn(
+                "The 'decode' argument to `Dataset.read_tfrecord_by_location` "
+                "is deprecated and will be removed in Slideflow 4. Records "
+                "are always decoded.",
+                DeprecationWarning,
+                stacklevel=2,
             )
         return sf.io.get_tfrecord_by_location(tfr, loc, decode=True)
 
@@ -2947,6 +2959,38 @@ class Dataset:
             None
         """
         self.build_index(force=True)
+
+    def resize_tfrecords(self, tile_px: int) -> None:
+        """Resize images in a set of TFRecords to a given pixel size.
+
+        .. deprecated:: 3.1.0
+            ``Dataset.resize_tfrecords`` is deprecated and will be removed
+            in Slideflow 4.
+
+        Args:
+            tile_px (int): Target pixel size for resizing TFRecord images.
+
+        """
+        warnings.warn(
+            "`Dataset.resize_tfrecords` is deprecated and will be removed "
+            "in Slideflow 4.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if not sf.util.tf_available:
+            raise NotImplementedError(
+                "Dataset.resize_tfrecords() requires Tensorflow, which is "
+                "not installed.")
+
+        log.info(f'Resizing TFRecord tiles to ({tile_px}, {tile_px})')
+        tfrecords_list = self.tfrecords()
+        log.info(f'Resizing {len(tfrecords_list)} tfrecords')
+        for tfr in tfrecords_list:
+            sf.io.tensorflow.transform_tfrecord(
+                tfr,
+                tfr+'.transformed',
+                resize=tile_px
+            )
 
     def rois(self) -> List[str]:
         """Return a list of all ROIs."""
