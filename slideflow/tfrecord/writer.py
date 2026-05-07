@@ -11,7 +11,10 @@ import numpy as np
 try:
     import crc32c
 except ImportError:
-    crc32c = None
+    raise ImportError(
+        "The 'crc32c' package is required for TFRecord writing. "
+        "Install it via `pip install crc32c`."
+    )
 
 from slideflow.util import example_pb2
 

@@ -282,7 +282,7 @@ class IndexedInterleaver(IndexedMultiTFRecordDataset):
                 "TFRecord subsampling complete (kept: {}, removed: {}).".format(
                     n_tiles, diff
             ))
-            if len(self.labels) - n_tiles:
+            if len(self.labels) > n_tiles:
                 log.debug(
                     "{} labels in the dataframe have no corresponding tile.".format(
                         len(self.labels) - n_tiles

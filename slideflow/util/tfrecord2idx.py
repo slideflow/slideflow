@@ -40,50 +40,53 @@ def _build_index_from_tfrecord(file_path: str) -> Tuple[np.ndarray, np.ndarray]:
             - The second array contains the location information of each record.
 
     """
-    infile = open(file_path, "rb")
     start_bytes_array = []
     loc_array = []
     idx = 0
     datum_bytes = bytearray(1024 * 1024)
 
-    while True:
-        cur = infile.tell()
-        byte_len = infile.read(8)
-        if len(byte_len) == 0:
-            break
-        infile.read(4)
-        proto_len = struct.unpack("q", byte_len)[0]
+    # Use a context manager so the file handle is released on every exit
+    # path; the prior `infile = open(...)` followed by `infile.close()`
+    # at the end leaked the handle on any of the multiple `raise`
+    # branches (read failures, OverflowError, TFRecordsError).
+    with open(file_path, "rb") as infile:
+        while True:
+            cur = infile.tell()
+            byte_len = infile.read(8)
+            if len(byte_len) == 0:
+                break
+            infile.read(4)
+            proto_len = struct.unpack("q", byte_len)[0]
 
-        if proto_len > len(datum_bytes):
-            try:
-                _fill = int(proto_len * 1.5)
-                datum_bytes = datum_bytes.zfill(_fill)
-            except OverflowError:
-                raise OverflowError(
-                    f'Error reading tfrecord {file_path}'
+            if proto_len > len(datum_bytes):
+                try:
+                    _fill = int(proto_len * 1.5)
+                    datum_bytes = datum_bytes.zfill(_fill)
+                except OverflowError:
+                    raise OverflowError(
+                        f'Error reading tfrecord {file_path}'
+                    )
+            datum_bytes_view = memoryview(datum_bytes)[:proto_len]
+            if infile.readinto(datum_bytes_view) != proto_len:
+                raise RuntimeError(
+                    f"Failed to read record {idx} of file {file_path}"
                 )
-        datum_bytes_view = memoryview(datum_bytes)[:proto_len]
-        if infile.readinto(datum_bytes_view) != proto_len:
-            raise RuntimeError(
-                f"Failed to read record {idx} of file {file_path}"
-            )
-        infile.read(4)
-        start_bytes_array += [[cur, infile.tell() - cur]]
+            infile.read(4)
+            start_bytes_array += [[cur, infile.tell() - cur]]
 
-        # Process record bytes, to read location information.
-        try:
-            record = process_record_from_bytes(datum_bytes_view)
-        except errors.TFRecordsError:
-            raise errors.TFRecordsError(
-                f'Unable to detect TFRecord format: {file_path}'
-            )
-        if 'loc_x' in record and 'loc_y' in record:
-            loc_array += [[record['loc_x'], record['loc_y']]]
-        elif 'loc_x' in record:
-            loc_array += [[record['loc_x']]]
-        idx += 1
+            # Process record bytes, to read location information.
+            try:
+                record = process_record_from_bytes(datum_bytes_view)
+            except errors.TFRecordsError:
+                raise errors.TFRecordsError(
+                    f'Unable to detect TFRecord format: {file_path}'
+                )
+            if 'loc_x' in record and 'loc_y' in record:
+                loc_array += [[record['loc_x'], record['loc_y']]]
+            elif 'loc_x' in record:
+                loc_array += [[record['loc_x']]]
+            idx += 1
 
-    infile.close()
     if loc_array:
         loc_array = np.array(loc_array)
 
@@ -218,24 +221,26 @@ def get_tfrecord_length(tfrecord: str) -> int:
 
 def read_tfrecord_length(tfrecord: str) -> int:
     """Returns number of records stored in the given tfrecord file."""
-    infile = open(tfrecord, "rb")
     num_records = 0
-    while True:
-        infile.tell()
-        try:
-            byte_len = infile.read(8)
-            if len(byte_len) == 0:
-                break
-            infile.read(4)
-            proto_len = struct.unpack("q", byte_len)[0]
-            infile.read(proto_len)
-            infile.read(4)
-            num_records += 1
-        except Exception:
-            sf.log.error(f"Failed to parse TFRecord at {tfrecord}")
-            infile.close()
-            return 0
-    infile.close()
+    # Context manager handles cleanup on every path — the previous
+    # explicit close()/close() pair was correct for the two branches
+    # it handled but missed any exception escaping outside the inner
+    # try (e.g. KeyboardInterrupt, MemoryError).
+    with open(tfrecord, "rb") as infile:
+        while True:
+            infile.tell()
+            try:
+                byte_len = infile.read(8)
+                if len(byte_len) == 0:
+                    break
+                infile.read(4)
+                proto_len = struct.unpack("q", byte_len)[0]
+                infile.read(proto_len)
+                infile.read(4)
+                num_records += 1
+            except Exception:
+                sf.log.error(f"Failed to parse TFRecord at {tfrecord}")
+                return 0
     return num_records
 
 
@@ -273,53 +278,59 @@ def get_tfrecord_by_index(
         file = io.open(tfrecord, 'rb')  # type: ignore
     else:
         raise ValueError("compression_type should be 'gzip' or None")
-    if not os.path.getsize(tfrecord):
-        raise errors.EmptyTFRecordsError(f"{tfrecord} is empty.")
-
-    # Load the TFRecord index file.
-    if index:
-        idx = index_array if index_array is not None else load_index(tfrecord)
-        if idx is None:
-            raise ValueError(f"Could not find tfrecord index for {tfrecord}")
-        if index >= idx.shape[0]:
-            raise errors.InvalidTFRecordIndex(
-                f"Index {index} is invalid for tfrecord {tfrecord} "
-                f"(size: {idx.shape[0]})"
-            )
-        start_offset = idx[index, 0]
-        file.seek(start_offset)
-
-    # Read the designated record.
-    length_bytes = bytearray(8)
-    crc_bytes = bytearray(4)
-    datum_bytes = bytearray(1024 * 1024)
-    if file.readinto(length_bytes) != 8:
-        raise RuntimeError("Failed to read the record size.")
-    if file.readinto(crc_bytes) != 4:
-        raise RuntimeError("Failed to read the start token.")
-    length, = struct.unpack("<Q", length_bytes)
-    if length > len(datum_bytes):
-        try:
-            _fill = int(length * 1.5)
-            datum_bytes = datum_bytes.zfill(_fill)
-        except OverflowError:
-            raise OverflowError('Error reading tfrecords; please '
-                                'try regenerating index files')
-    datum_bytes_view = memoryview(datum_bytes)[:length]
-    if file.readinto(datum_bytes_view) != length:
-        raise RuntimeError("Failed to read the record.")
-    if file.readinto(crc_bytes) != 4:
-        raise RuntimeError("Failed to read the end token.")
-
-    # Process record bytes.
+    # Wrap the rest in try/finally so the file handle is released on
+    # every raise path; previously close() only ran on the success
+    # tail at the very end, leaking the handle on any RuntimeError /
+    # OverflowError / InvalidTFRecordIndex / TFRecordsError raised
+    # along the way.
     try:
-        record = process_record_from_bytes(datum_bytes_view)
-    except errors.TFRecordsError:
-        raise errors.TFRecordsError(
-            f'Unable to detect TFRecord format: {tfrecord}'
-        )
+        if not os.path.getsize(tfrecord):
+            raise errors.EmptyTFRecordsError(f"{tfrecord} is empty.")
 
-    file.close()
+        # Load the TFRecord index file.
+        if index:
+            idx = index_array if index_array is not None else load_index(tfrecord)
+            if idx is None:
+                raise ValueError(f"Could not find tfrecord index for {tfrecord}")
+            if index >= idx.shape[0]:
+                raise errors.InvalidTFRecordIndex(
+                    f"Index {index} is invalid for tfrecord {tfrecord} "
+                    f"(size: {idx.shape[0]})"
+                )
+            start_offset = idx[index, 0]
+            file.seek(start_offset)
+
+        # Read the designated record.
+        length_bytes = bytearray(8)
+        crc_bytes = bytearray(4)
+        datum_bytes = bytearray(1024 * 1024)
+        if file.readinto(length_bytes) != 8:
+            raise RuntimeError("Failed to read the record size.")
+        if file.readinto(crc_bytes) != 4:
+            raise RuntimeError("Failed to read the start token.")
+        length, = struct.unpack("<Q", length_bytes)
+        if length > len(datum_bytes):
+            try:
+                _fill = int(length * 1.5)
+                datum_bytes = datum_bytes.zfill(_fill)
+            except OverflowError:
+                raise OverflowError('Error reading tfrecords; please '
+                                    'try regenerating index files')
+        datum_bytes_view = memoryview(datum_bytes)[:length]
+        if file.readinto(datum_bytes_view) != length:
+            raise RuntimeError("Failed to read the record.")
+        if file.readinto(crc_bytes) != 4:
+            raise RuntimeError("Failed to read the end token.")
+
+        # Process record bytes.
+        try:
+            record = process_record_from_bytes(datum_bytes_view)
+        except errors.TFRecordsError:
+            raise errors.TFRecordsError(
+                f'Unable to detect TFRecord format: {tfrecord}'
+            )
+    finally:
+        file.close()
     return record
 
 

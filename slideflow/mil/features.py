@@ -58,6 +58,22 @@ class MILFeatures:
                     attention_pooling))
         self.attention_pooling = attention_pooling
 
+        # `from_df` constructs an empty shell via `cls(None, None)` and
+        # then populates slides/activations/predictions from the
+        # DataFrame directly. Short-circuit before `_find_bags` so
+        # iteration over a 0-d `np.array(None)` doesn't trip TypeError.
+        if model is None and bags is None:
+            self.slides = None
+            self.model = None
+            self.config = None
+            self.device = None
+            self.num_features = None
+            self.predictions = None
+            self.attentions = None
+            self.activations = None
+            self.locations = None
+            return
+
         # Find bags.
         bags = self._find_bags(bags, dataset, slides)
 
@@ -208,7 +224,7 @@ class MILFeatures:
                     y_att.append(att.cpu().numpy())
 
                 # FC MIL (CLAM implementation)
-                elif self.model.__class__.__name__ in ('MIL_fc, MIL_fc_mc'):
+                elif self.model.__class__.__name__ in ('MIL_fc', 'MIL_fc_mc'):
                     model_out = self.model(*model_args)
                     h = self.model.get_last_layer_activations(*model_args)  # type: ignore
                     y_att = None
@@ -231,6 +247,8 @@ class MILFeatures:
                 yp = torch.nn.functional.softmax(model_out, dim=1).cpu().numpy()
                 y_pred.append(yp)
 
+        if not y_pred:
+            return 0, {}, {}, {}
         yp = np.concatenate(y_pred, axis=0)
         num_features, acts = self._get_activations(hs)
         atts = self._get_attentions(y_att)

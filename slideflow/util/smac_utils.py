@@ -269,38 +269,42 @@ def create_search_space(
     cs = ConfigurationSpace()
 
     # --- Pre-processing ------------------------------------------------------
+    # Each list-typed search parameter uses `default_value=<list>[0]`, so
+    # tighten the existing `isinstance(..., list)` asserts with a
+    # length>0 check. Without it, an empty list passed by a caller would
+    # silently sail past the assert and IndexError at the [0] indexing.
     if tile_px is not None:
-        assert isinstance(tile_px, list)
+        assert isinstance(tile_px, list) and len(tile_px) > 0
         if all(isinstance(t, (int, float)) for t in tile_px):
             tile_px = sorted(tile_px)
             cs.add_hyperparameter(cs_hp.OrdinalHyperparameter("tile_px", tile_px, default_value=tile_px[0]))
         else:
             raise ValueError('Invalid values encountered in parameter "tile_px"')
     if tile_um is not None:
-        assert isinstance(tile_um, list)
+        assert isinstance(tile_um, list) and len(tile_um) > 0
         if all(isinstance(t, (int, float)) for t in tile_um):
             tile_um = sorted(tile_um)
             cs.add_hyperparameter(cs_hp.OrdinalHyperparameter("tile_um", tile_um, default_value=tile_um[0]))
         else:
             cs.add_hyperparameter(cs_hp.CategoricalHyperparameter("tile_um", tile_um, default_value=tile_um[0]))
     if augment is not None:
-        assert isinstance(augment, list)
+        assert isinstance(augment, list) and len(augment) > 0
         cs.add_hyperparameter(cs_hp.CategoricalHyperparameter("augment", augment, default_value=augment[0]))
     if normalizer is not None:
-        assert isinstance(normalizer, list)
+        assert isinstance(normalizer, list) and len(normalizer) > 0
         cs.add_hyperparameter(cs_hp.CategoricalHyperparameter("normalizer", normalizer, default_value=normalizer[0]))
     if normalizer_source is not None:
-        assert isinstance(normalizer_source, list)
+        assert isinstance(normalizer_source, list) and len(normalizer_source) > 0
         cs.add_hyperparameter(cs_hp.CategoricalHyperparameter("normalizer_source", normalizer_source, default_value=normalizer_source[0]))
 
     # --- Model/architecture hyperparameters ----------------------------------
     if model is not None:
-        assert isinstance(model, list)
+        assert isinstance(model, list) and len(model) > 0
         cs.add_hyperparameter(cs_hp.CategoricalHyperparameter("model", model, default_value=model[0]))
 
     # --- Training hyperparameters --------------------------------------------
     if batch_size is not None:
-        assert isinstance(batch_size, list)
+        assert isinstance(batch_size, list) and len(batch_size) > 0
         assert all([isinstance(b, int) for b in batch_size])
         batch_size = sorted(batch_size)
         cs.add_hyperparameter(cs_hp.OrdinalHyperparameter("batch_size", batch_size, default_value=batch_size[0]))
@@ -332,26 +336,32 @@ def create_search_space(
         decay_steps = cs_hp.UniformIntegerHyperparameter("learning_rate_decay_steps", lr_start, lr_end, log=True)
         cs.add_hyperparameter(decay_steps)
     if hidden_layers is not None:
-        assert isinstance(hidden_layers, (list, tuple))
+        assert isinstance(hidden_layers, (list, tuple)) and len(hidden_layers) > 0
         assert all([isinstance(b, int) for b in hidden_layers])
         hidden_layers = sorted(hidden_layers)
         hl = cs_hp.OrdinalHyperparameter("hidden_layers", hidden_layers, default_value=hidden_layers[0])
         cs.add_hyperparameter(hl)
     if hidden_layer_width is not None:
-        assert isinstance(hidden_layer_width, (list, tuple))
+        assert isinstance(hidden_layer_width, (list, tuple)) and len(hidden_layer_width) > 0
         assert all([isinstance(b, int) for b in hidden_layer_width])
         hidden_layer_width = sorted(hidden_layer_width)
         hl_width = cs_hp.OrdinalHyperparameter("hidden_layer_width", hidden_layer_width, default_value=hidden_layer_width[0])
         cs.add_hyperparameter(hl_width)
     if pooling is not None:
-        assert isinstance(pooling, list)
+        assert isinstance(pooling, list) and len(pooling) > 0
         cs.add_hyperparameter(cs_hp.CategoricalHyperparameter("pooling", pooling, default_value=pooling[0]))
     if trainable_layers is not None:
         assert isinstance(trainable_layers, (list, tuple)) and len(trainable_layers) == 2
         tl_start, tl_end = trainable_layers
         cs.add_hyperparameter(cs_hp.UniformIntegerHyperparameter("trainable_layers", tl_start, tl_end))
     if early_stop:
-        cs_hp.CategoricalHyperparameter("early_stop", [True, False], default_value=False)
+        # Wrap in cs.add_hyperparameter — the prior code instantiated the
+        # CategoricalHyperparameter but never added it to the search
+        # space, so SMAC silently never sampled `early_stop` even when
+        # the caller asked for it.
+        cs.add_hyperparameter(
+            cs_hp.CategoricalHyperparameter("early_stop", [True, False], default_value=False)
+        )
 
     # --- Conditions ----------------------------------------------------------
     # Only sample hyperparameter hidden_layer_width if hidden_layers > 0

@@ -56,7 +56,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         infinite: bool = True,
         prob_weights: Optional[Dict[str, float]] = None,
         normalizer: Optional["StainNormalizer"] = None,
-        clip: Optional[List[int]] = None,
+        clip: Optional[Dict[str, int]] = None,
         chunk_size: int = 1,
         use_labels: bool = True,
         model_type: str = 'classification',

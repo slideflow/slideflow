@@ -83,7 +83,14 @@ class ClassifierMetrics:
         with sf.util.matplotlib_backend('Agg'):
             import matplotlib.pyplot as plt
 
-            auroc_str = 'NA' if not self.auroc else f'{self.auroc:.2f}'
+            # Use explicit None / negative-sentinel checks instead of
+            # `not self.auroc` — the prior form treated a valid 0.0
+            # AUC (worst-case fully-inverted predictions) as 'NA' and
+            # printed the -1 error sentinel as '-1.00'.
+            auroc_str = (
+                'NA' if (self.auroc is None or self.auroc < 0)
+                else f'{self.auroc:.2f}'
+            )
             sf.stats.plot.roc(self.fpr, self.tpr, f'AUC = {auroc_str}')
             full_path = join(outdir, f'{name}.png')
             plt.savefig(full_path)
@@ -170,8 +177,13 @@ def basic_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
         specificity, precision, recall, f1_score, and kappa.
     """
     assert(len(y_true) == len(y_pred))
-    assert([y in (0, 1) for y in y_true])
-    assert([y in (0, 1) for y in y_pred])
+    # `assert([...])` always passes (a non-empty list is truthy
+    # regardless of element values); use `all(...)` so the binary-label
+    # check actually validates. Without this, non-binary inputs slipped
+    # past validation and the TP/TN/FP/FN loop below silently returned
+    # zeros for everything.
+    assert all(y in (0, 1) for y in y_true)
+    assert all(y in (0, 1) for y in y_pred)
 
     TP = 0  # True positive
     TN = 0  # True negative
@@ -287,7 +299,10 @@ def classification_metrics(
                     fit.save_prc(data_dir, f"{label_start}{outcome}_{level}_PRC{i}")
                 all_auc[outcome] += [fit.auroc]
                 all_ap[outcome] += [fit.ap]
-                auroc_str = 'NA' if not fit.auroc else f'{fit.auroc:.3f}'
+                auroc_str = (
+                    'NA' if (fit.auroc is None or fit.auroc < 0)
+                    else f'{fit.auroc:.3f}'
+                )
                 ap_str = 'NA' if not fit.ap else f'{fit.ap:.3f}'
                 thresh = 'NA' if not fit.opt_thresh else f'{fit.opt_thresh:.3f}'
                 log.info(
@@ -308,6 +323,13 @@ def classification_metrics(
             try:
                 yt_in_cat =  y_true_onehot(outcome_df, i)
                 n_in_cat = yt_in_cat.sum()
+                # Guard against categories with zero true samples — the
+                # surrounding `except IndexError` did not catch
+                # ZeroDivisionError, so the loop crashed when a class
+                # label never appeared in the dataset.
+                if not n_in_cat:
+                    log.warning(f"No samples in category # {i}; skipping")
+                    continue
                 correct = y_pred_onehot(outcome_df.loc[yt_in_cat == 1], i).sum()
                 category_accuracy = correct / n_in_cat
                 perc = category_accuracy * 100
@@ -321,7 +343,26 @@ def classification_metrics(
 
 
 def concordance_index(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    '''Calculates concordance index from a given y_true and y_pred.'''
+    '''Calculates concordance index from a given y_true and y_pred.
+
+    This is the post-evaluation c-index used to score saved survival
+    predictions (it ends up in results_log.csv as ``patient_c_index``,
+    ``slide_c_index``, ``tile_c_index``).
+
+    Convention: y_pred is interpreted as a "survival score" where HIGHER
+    values correspond to LONGER expected survival -- the
+    lifelines/Harrell convention used by the underlying
+    :func:`slideflow.stats.concordance.concordance_index`. This matches
+    the convention trained by
+    :func:`slideflow.model.tensorflow_utils.negative_log_likelihood`, so
+    no sign flip is applied here.
+
+    Note:
+        The training-time TF metric in ``tensorflow_utils.py`` uses the
+        opposite (Cox log-hazard) convention -- see its docstring. The
+        two metrics are not directly comparable; this one is the
+        authoritative score for trained models.
+    '''
     E = y_pred[:, -1]
     y_pred = y_pred[:, :-1]
     y_pred = y_pred.flatten()
@@ -369,7 +410,13 @@ def survival_metrics(
             df['time-y_true'].values,
             df[['time-y_pred', 'event-y_true']].values,
         )
-        c_str = 'NA' if not c_index else f'{c_index:.3f}'
+        # Same as the auroc formatter above: `not c_index` treated a
+        # valid 0.0 c-index as 'NA' and printed the -1 error sentinel
+        # below as '-1.000' instead of 'NA'.
+        c_str = (
+            'NA' if (c_index is None or c_index < 0)
+            else f'{c_index:.3f}'
+        )
         log.info(f"C-index ({level}-level): {c_str}")
     except ZeroDivisionError as e:
         log.error(f"Error calculating concordance index: {e}")
@@ -460,7 +507,7 @@ def df_from_pred(
 
 
 def eval_from_dataset(*args, **kwargs):
-    warnings.warning(
+    warnings.warn(
         "`sf.stats.metrics.eval_from_dataset() is deprecated. Please use "
         "`sf.stats.metrics.eval_dataset()` instead.",
         DeprecationWarning)
@@ -627,7 +674,6 @@ def group_reduce(
         method = 'mean'
 
     def _apply_reduce(_df, method, group):
-        nonlocal groups
         if method in ['mean', 'median', 'sum', 'min', 'max']:
             return _df.groupby(group, as_index=False).agg(method, numeric_only=True)
         elif callable(method):
@@ -861,14 +907,20 @@ def name_columns(
                 f"match y_true {n_outcomes}"
             )
 
-        # Rename columns
+        # Rename columns. Match the trailing index exactly via the full
+        # column name (`out0-{target}{oi}`) rather than `endswith(str(oi))`
+        # — the suffix form incorrectly matched columns like
+        # `out0-y_pred10` when `oi == 0`, breaking renames for regression
+        # models with 10+ continuous outcomes (the rename targets
+        # collided and overwrote each other in the dict).
         outcome_cols_to_replace = {}
         def replace_dict(target, oi, ending_not_needed=False):
+            expected = f'out0-{target}{oi}'
             return {
                 c: f'{outcome}-{target}'
                 for c in df.columns
-                if c.startswith(f'out0-{target}') and (c.endswith(str(oi))
-                                                        or ending_not_needed)
+                if (ending_not_needed and c.startswith(f'out0-{target}'))
+                or c == expected
             }
         for oi, outcome in enumerate(outcome_names):
             outcome_cols_to_replace.update(replace_dict(
@@ -889,7 +941,7 @@ def name_columns(
 
 
 def predict_from_dataset(*args, **kwargs):
-    warnings.warning(
+    warnings.warn(
         "`sf.stats.metrics.predict_from_dataset() is deprecated. Please use "
         "`sf.stats.metrics.predict_dataset()` instead.",
         DeprecationWarning)

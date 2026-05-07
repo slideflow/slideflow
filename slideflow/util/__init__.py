@@ -1402,13 +1402,14 @@ def location_heatmap(
     slide: str,
     tile_px: int,
     tile_um: Union[int, str],
-    filename: str,
+    filename: Optional[str] = None,
     *,
     interpolation: Optional[str] = 'bicubic',
     cmap: str = 'inferno',
     norm: Optional[str] = None,
-    background: str = 'min'
-) -> None:
+    background: str = 'min',
+    stride: Optional[int] = None,
+) -> np.ndarray:
     """Generate a heatmap for a slide.
 
     Args:
@@ -1448,7 +1449,7 @@ def location_heatmap(
     log.info(f'Generating heatmap for [green]{slide}[/]...')
     log.debug(f"Plotting {len(values)} values")
     wsi = sf.WSI(slide, tile_px, tile_um, verbose=False)
-    stride = infer_stride(locations, wsi)
+    stride = stride if stride is not None else infer_stride(locations, wsi)
     if stride > 32:
         # Large inferred strides are likely due to unaligned grid.
         # Rather than attempting to build a coordinate grid for verifying
@@ -1473,47 +1474,50 @@ def location_heatmap(
             locations, values, wsi, background=background
         )
 
-    import matplotlib.pyplot as plt
-    import matplotlib.colors as mcol
-    with matplotlib_backend('Agg'):
-        thumb = wsi.thumb(mpp=5)
-        fig = plt.figure(figsize=(18, 16))
-        ax = fig.add_subplot(111)
-        fig.subplots_adjust(bottom=0.25, top=0.95)
-        gca = plt.gca()
-        gca.tick_params(
-            axis='x',
-            top=True,
-            labeltop=True,
-            bottom=False,
-            labelbottom=False
-        )
-        ax.imshow(thumb, zorder=0)
-
-        # Calculate overlay offset
-        extent = sf.heatmap.calculate_heatmap_extent(wsi, thumb, masked_grid)
-
-        # Plot
-        if norm == 'two_slope':
-            norm = mcol.TwoSlopeNorm(
-                vmin=min(-0.01, min(values)),
-                vcenter=0,
-                vmax=max(0.01, max(values))
+    if filename is not None:
+        import matplotlib.pyplot as plt
+        import matplotlib.colors as mcol
+        with matplotlib_backend('Agg'):
+            thumb = wsi.thumb(mpp=5)
+            fig = plt.figure(figsize=(18, 16))
+            ax = fig.add_subplot(111)
+            fig.subplots_adjust(bottom=0.25, top=0.95)
+            gca = plt.gca()
+            gca.tick_params(
+                axis='x',
+                top=True,
+                labeltop=True,
+                bottom=False,
+                labelbottom=False
             )
-        ax.imshow(
-            masked_grid,
-            zorder=10,
-            alpha=0.6,
-            extent=extent,
-            interpolation=interpolation,
-            cmap=cmap,
-            norm=norm
-        )
-        ax.set_xlim(0, thumb.size[0])
-        ax.set_ylim(thumb.size[1], 0)
-        log.debug('Saving figure...')
-        plt.savefig(filename, bbox_inches='tight')
-        plt.close()
+            ax.imshow(thumb, zorder=0)
+
+            # Calculate overlay offset
+            extent = sf.heatmap.calculate_heatmap_extent(wsi, thumb, masked_grid)
+
+            # Plot
+            if norm == 'two_slope':
+                norm = mcol.TwoSlopeNorm(
+                    vmin=min(-0.01, min(values)),
+                    vcenter=0,
+                    vmax=max(0.01, max(values))
+                )
+            ax.imshow(
+                masked_grid,
+                zorder=10,
+                alpha=0.6,
+                extent=extent,
+                interpolation=interpolation,
+                cmap=cmap,
+                norm=norm
+            )
+            ax.set_xlim(0, thumb.size[0])
+            ax.set_ylim(thumb.size[1], 0)
+            log.debug('Saving figure...')
+            plt.savefig(filename, bbox_inches='tight')
+            plt.close()
+
+    return masked_grid
 
 
 def tfrecord_heatmap(

@@ -38,7 +38,6 @@ class RandomGaussianBlur:
 
     @staticmethod
     def calc_kernel(sigma: float) -> int:
-        sigma = 0.5
         opt_kernel = int((sigma * 4) + 1)
         if opt_kernel % 2 == 0:
             opt_kernel += 1
@@ -99,7 +98,20 @@ def random_jpeg_compression(
         torch.Tensor: Transformed image (C x W x H).
 
     """
-    q = (torch.rand(1)[0] * q_min) + (q_max - q_min)
+    q = q_min + torch.rand(1)[0] * (q_max - q_min)
+    return jpeg_compression(img, q=int(q))
+
+
+def jpeg_compression(img: torch.Tensor, q: int = 90):
+    """Perform JPEG compression on an image.
+
+    Args:
+        img (torch.Tensor): Image tensor, shape C x W x H.
+
+    Returns:
+        torch.Tensor: Transformed image (C x W x H).
+
+    """
     img = torchvision.io.encode_jpeg(img, quality=q)
     return torchvision.io.decode_jpeg(img)
 

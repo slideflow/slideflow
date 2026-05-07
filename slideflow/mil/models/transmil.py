@@ -41,8 +41,13 @@ class TransMIL(nn.Module):
         #---->Translayer x2
         att = self.layer2.calculate_attention(h) #[B, N, 512]
 
-        # Remove padding
-        return att[:,:H,:]
+        # Strip CLS (position 0) AND padding (positions H+1..end), keeping
+        # the H original-tile rows at positions 1..H. The historical slice
+        # `att[:, :H, :]` shifted every per-tile row left by one and
+        # dropped the last tile, because it forgot the CLS token prepended
+        # at line 33. This was a visualization-only bug — predictions were
+        # unaffected (forward() reads CLS via get_last_layer_activations).
+        return att[:, 1:H+1, :]
 
     def relocate(self):
         self.to(get_device())

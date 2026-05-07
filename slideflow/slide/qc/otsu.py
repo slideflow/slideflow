@@ -126,7 +126,9 @@ class Otsu:
         # If ROI is the ROI_issues, invert it
         if wsi.has_rois():
             ofact = 1 / wsi.slide.level_downsamples[level]
-            roi_mask = np.zeros((thumb.shape[0], thumb.shape[1]))
+            # Use uint8 (rasterio's native rasterize dtype) so the bitwise
+            # NOT below operates on integer data, not float64.
+            roi_mask = np.zeros((thumb.shape[0], thumb.shape[1]), dtype=np.uint8)
 
             # Scale ROIs to thumbnail size
             scaled_polys = wsi._scale_polys(
@@ -155,14 +157,22 @@ class Otsu:
                     roi_mask = np.minimum(roi_mask_issues, roi_mask)
                 else:
                     roi_mask = roi_mask_issues
-                
+
             if wsi.roi_method == 'outside':
-                roi_mask = ~roi_mask
-            thumb = cv2.bitwise_or(
-                thumb,
-                thumb,
-                mask=roi_mask.astype(np.uint8)
-            )
+                # Cast to bool first so `~` is logical NOT (not bitwise on
+                # whatever dtype rasterize/np.minimum produced); cast back
+                # for the cv2 mask. Avoids TypeError on float arrays.
+                roi_mask = (~roi_mask.astype(bool)).astype(np.uint8)
+            # If we have ROIs configured but every polygon was filtered out
+            # (e.g. only artifact-labelled ROIs and roi_method != 'outside'),
+            # the mask is all zeros and bitwise_or would zero the thumbnail
+            # before Otsu sees it. Skip masking in that case.
+            if np.any(roi_mask):
+                thumb = cv2.bitwise_or(
+                    thumb,
+                    thumb,
+                    mask=roi_mask.astype(np.uint8)
+                )
         # Only apply Otsu thresholding within areas not already removed
         # with other QC methods.
         if wsi.has_non_roi_qc():

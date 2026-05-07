@@ -74,6 +74,7 @@ class ROIWidget:
         self._vertex_editor             = None
         self._showing                   = False
         self._last_colored_list_hovered = None
+        self._roi_clipboard             = []
 
     @property
     def roi_filter_method(self) -> Union[str, float]:
@@ -251,6 +252,16 @@ class ROIWidget:
                and self._selected_rois
                and not (self.is_vertex_editing() and self._vertex_editor.any_vertex_selected)):
                 self.remove_rois(self._selected_rois)
+
+        if (key == glfw.KEY_C and action == glfw.PRESS and self.viz._control_down):
+            if (self.editing
+               and self.viz.viewer is not None
+               and self._selected_rois
+               and not (self.is_vertex_editing() and self._vertex_editor.any_vertex_selected)):
+                self.copy_rois(self._selected_rois)
+
+        if (key == glfw.KEY_V and action == glfw.PRESS and self.viz._control_down):
+            self.paste_rois()
 
         if self.is_vertex_editing() and self.editing:
             self._vertex_editor.keyboard_callback(key, action)
@@ -625,6 +636,10 @@ class ROIWidget:
             if label_menu.opened:
                 if self._draw_label_submenu(index):
                     return True
+        if imgui.menu_item(f"Edit##roi_{index}")[0]:
+            self.select_rois(index)
+            self.set_roi_vertex_editing(index)
+            return True
         if imgui.menu_item(f"Delete##roi_{index}")[0]:
             self.remove_rois(index)
             self.refresh_rois()
@@ -728,6 +743,51 @@ class ROIWidget:
             self._roi_ctx_menu_items = self._selected_rois
 
     # --- ROI tools -----------------------------------------------------------
+
+    def copy_rois(
+        self,
+        roi_indices: Union[int, List[int]]
+    ) -> None:
+        """Copy the given ROI(s) to the clipboard."""
+        if not self.viz.wsi:
+            return
+
+        if not isinstance(roi_indices, (list, np.ndarray, tuple)):
+            roi_indices = [roi_indices]
+
+        # Copy to the clipboard
+        self._roi_clipboard = [copy.deepcopy(self.viz.wsi.rois[idx]) for idx in roi_indices]
+        self.viz.create_toast('Copied {} ROIs.'.format(len(roi_indices)), icon='info')
+
+    def paste_rois(self, *, refresh_view: bool = True) -> Optional[List[int]]:
+        """Paste the ROIs from the clipboard."""
+        if not self.viz.wsi:
+            return
+
+        if not self._roi_clipboard:
+            return
+
+        # Paste the ROIs
+        new_roi_indices = []
+        for roi in self._roi_clipboard:
+            new_roi = copy.deepcopy(roi)
+            new_roi.name = self.viz.wsi.get_next_roi_name()
+            self.viz.wsi.rois.append(new_roi)
+            new_roi_indices.append(len(self.viz.wsi.rois) - 1)
+        self.viz.wsi.process_rois()
+
+        if refresh_view and isinstance(self.viz.viewer, SlideViewer):
+            # Update the ROI grid.
+            self.viz.viewer.refresh_rois()
+            self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
+
+            # Reset ROI colors.
+            self.viz.viewer.reset_roi_highlight()
+
+        self.viz.create_toast('Pasted {} ROIs.'.format(len(new_roi_indices)), icon='info')
+
+        return new_roi_indices
+
 
     def remove_rois(
         self,
@@ -896,6 +956,7 @@ class ROIWidget:
             self.viz.wsi.rois[roi_idx].add_hole(hole)
 
         # Update the view.
+        self.refresh_labels()
         if isinstance(self.viz.viewer, SlideViewer):
             self.viz.viewer.refresh_rois()
             self.roi_grid = self.viz.viewer.rasterize_rois_in_view()
@@ -949,7 +1010,7 @@ class ROIWidget:
         # Process the ROIs. This may convert some ROIs to holes.
         self.viz.wsi.process_rois()
         # Update the ROI selection, as the indices may have changed.
-        prior_selected_rois = [self.viz.wsi.rois[idx] for idx in self._selected_rois]
+        prior_selected_rois = [self.viz.wsi.rois[idx] for idx in self._selected_rois if idx < len(self.viz.wsi.rois)]
         self._selected_rois = [idx for idx, roi in enumerate(self.viz.wsi.rois)
                                if roi in prior_selected_rois]
         # Update the view. This will recalculate ROI scaling, determine
@@ -1636,7 +1697,7 @@ class VertexEditor:
             # The ROI is not in view.
             self._last_vertices['outer'] = None
             self._last_box_vertices['outer'] = None
-        if not (self.outer_vertices.shape == self._last_vertices['outer'].shape) or not (np.all(self.outer_vertices == self._last_vertices['outer'])):
+        elif not (self.outer_vertices.shape == self._last_vertices['outer'].shape) or not (np.all(self.outer_vertices == self._last_vertices['outer'])):
             # The ROI has changed since the last calculation.
             self.update_box_vertices(outer=True)  # This updates the ._last_box_vertices.
             self.update_box_vbo(outer=True, box_vertices=self._last_box_vertices)

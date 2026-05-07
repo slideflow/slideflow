@@ -158,7 +158,8 @@ setuptools.setup(
         'zarr',
         'gdown',
         'triangle',
-        'pyarrow'
+        'pyarrow',
+        'filetype'
     ],
     extras_require={
         'tf': [

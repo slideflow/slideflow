@@ -9,6 +9,8 @@ import numpy.typing as npt
 import torch
 from torch.utils.data import Dataset
 
+from . import utils
+
 # -----------------------------------------------------------------------------
 
 def build_dataset(bags, targets, encoder, bag_size, use_lens=False,  max_bag_size=None, dtype=torch.float32):
@@ -120,7 +122,9 @@ class BagDataset(Dataset):
         self.dtype = dtype
 
         if self.preload:
-            self.bags = [self._load(i) for i in range(len(self.bags))]
+            self.bags = [
+                utils._load_bag(b, dtype=self.dtype) for b in self.bags
+            ]
 
     def __len__(self):
         return len(self.bags)

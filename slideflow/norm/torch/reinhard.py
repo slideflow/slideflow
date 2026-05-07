@@ -154,11 +154,17 @@ def augmented_transform(
     """
     if means_stdev is None and stds_stdev is None:
         raise ValueError("Must supply either means_stdev and/or stds_stdev")
+    # Normalize to 1D before the (3, B) broadcast: presets give (3,)
+    # but `fit()` upgrades target_means/target_stds to (3, 1).
     if means_stdev is not None:
+        tgt_mean = tgt_mean.squeeze()
+        means_stdev = means_stdev.squeeze()
         tgt_mean = tgt_mean[:, None].repeat(1, I.shape[0])
         means_stdev = means_stdev[:, None].repeat(1, I.shape[0])
         tgt_mean = torch.normal(tgt_mean, means_stdev.to(tgt_mean.device))
     if stds_stdev is not None:
+        tgt_std = tgt_std.squeeze()
+        stds_stdev = stds_stdev.squeeze()
         tgt_std = tgt_std[:, None].repeat(1, I.shape[0])
         stds_stdev = stds_stdev[:, None].repeat(1, I.shape[0])
         tgt_std = torch.normal(tgt_std, stds_stdev.to(tgt_std.device))

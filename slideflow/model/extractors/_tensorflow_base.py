@@ -39,5 +39,10 @@ class TensorflowFeatureExtractor(BaseFeatureExtractor):
                 f"{self.__class__.__name__} does not accept keyword arguments "
                 "when extracting features from a batch of images."
             )
-        assert obj.dtype in (tf.float32, tf.uint8)
+        # Normalize via tf.as_dtype before comparing — `obj` may be a
+        # numpy array whose .dtype is a numpy dtype object, and direct
+        # membership tests against (tf.float32, tf.uint8) are fragile
+        # across numpy versions (older numpy returns False rather than
+        # NotImplemented from dtype.__eq__, blocking TF's __eq__ fallback).
+        assert tf.as_dtype(obj.dtype) in (tf.float32, tf.uint8)
         return self._predict(obj)

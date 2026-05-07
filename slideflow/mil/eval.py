@@ -304,11 +304,18 @@ def predict_multimodal_mil(
 
     # Inference.
     model.eval()
-    y_pred, y_att = config.predict(model, bags, attention=attention, **kwargs)
+    pred_out = config.predict(model, bags, attention=attention, **kwargs)
+    if kwargs.get('uq'):
+        y_pred, y_att, y_uq = pred_out
+    else:
+        y_pred, y_att = pred_out
 
     # Update dataframe with predictions.
     for i in range(y_pred.shape[-1]):
         df_dict[f'y_pred{i}'] = y_pred[:, i]
+    if kwargs.get('uq'):
+        for i in range(y_uq.shape[-1]):
+            df_dict[f'uncertainty{i}'] = y_uq[:, i]
     df = pd.DataFrame(df_dict)
 
     if attention:
@@ -710,7 +717,7 @@ def run_inference(
     else:
         kw = forward_kwargs
 
-    # Check if the model can return attention during inference. 
+    # Check if the model can return attention during inference.
     # If so, this saves us a forward pass through the model.
     if attention and 'return_attention' in inspect.signature(model.forward).parameters:
         model_out, y_att = model(*model_args, return_attention=True, **kw)
@@ -907,9 +914,9 @@ def get_mil_tile_predictions(
 
     # Ensure slide names are sorted according to the bags.
     slides = [path_to_name(b) for b in bags]
-    
+
     log.info("Generating predictions for {} slides and {} bags.".format(len(slides), len(bags)))
-    
+
     # Set model to eval, and prepare bags.
     use_attention, uq = utils._validate_model(model, True, uq, allow_errors=True)
 
@@ -1151,7 +1158,7 @@ def generate_attention_heatmaps(
                     f"Unable to find locations index file for {slidename}"
                 )
                 continue
-            
+
             # Handle the case of multiple attention values at each tile location.
             heatmap_kwargs = dict(
                 locations=locations,

@@ -140,8 +140,13 @@ def build_learner(
         counts = pd.value_counts(targets[train_idx])
         weights = counts.sum() / counts
         weights /= weights.sum()
+        # Fall back to weight 1.0 for classes that appear in encoder.categories_
+        # but have zero samples in train_idx (e.g., a stratified split that
+        # misses a rare class). Without this, weights.get returns None and the
+        # subsequent torch.tensor(...) raises TypeError on a None entry.
         weights = torch.tensor(
-            list(map(weights.get, encoder.categories_[0])), dtype=torch.float32
+            [weights.get(c, 1.0) for c in encoder.categories_[0]],
+            dtype=torch.float32
         ).to(device)
         loss_kw = {"weight": weights}
     else:

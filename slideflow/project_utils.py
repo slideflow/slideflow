@@ -2,6 +2,7 @@
 
 import re
 import os
+import json
 import requests
 import tempfile
 import logging
@@ -33,15 +34,28 @@ def auto_dataset(method: Callable):
     return _impl
 
 
+_DATASET_UNSET = object()
+
+
 def auto_dataset_allow_none(method: Callable):
     """Wrapper function to convert filter arguments to a dataset, allowing
     errors."""
     @wraps(method)
-    def _impl(obj, model=None, dataset=None, *args, **kwargs):
+    def _impl(obj, model=None, dataset=_DATASET_UNSET, *args, **kwargs):
+        # Use a sentinel so we can distinguish "caller omitted dataset"
+        # from "caller explicitly passed dataset=None". Without this, an
+        # explicit `dataset` always binds to the named param (never appears
+        # in `**kwargs`), so the previous `'dataset' not in kwargs` check
+        # was always true and the `else: raise` branch was unreachable.
+        caller_supplied_dataset = dataset is not _DATASET_UNSET
+        forwarded_dataset = None if dataset is _DATASET_UNSET else dataset
         try:
-            return _filters_to_dataset(obj, method, model, *args, dataset=dataset, **kwargs)
+            return _filters_to_dataset(
+                obj, method, model, *args,
+                dataset=forwarded_dataset, **kwargs
+            )
         except errors.ModelParamsNotFoundError:
-            if 'dataset' not in kwargs:
+            if not caller_supplied_dataset:
                 return method(obj, model, dataset=None, *args, **kwargs)
             else:
                 raise
@@ -216,6 +230,16 @@ def _setup_input_labels(
                     _label = _label[0]
                 model_inputs[slide] += [_label]
         else:
+            # Harmonize categorical labels with val_dts so one-hot
+            # vectors account for categories that only appear in the
+            # validation set. Append val-only categories to keep dts's
+            # existing label indices valid.
+            unique = list(unique)
+            if val_dts is not None:
+                _, val_unique = val_dts.labels(inpt, use_float=False)
+                for u in val_unique:
+                    if u not in unique:
+                        unique.append(u)
             feature_len[inpt] = len(unique)
             inpt_classes[inpt] = dict(zip(range(len(unique)), unique))
             for slide in slides:
@@ -319,7 +343,9 @@ def add_source(
 
     try:
         datasets_data = sf.util.load_json(path)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        datasets_data = {}
+    if not isinstance(datasets_data, dict):
         datasets_data = {}
     datasets_data.update({name: {
         'slides': slides,
@@ -333,13 +359,16 @@ def add_source(
 
 def load_sources(path: str) -> Tuple[Dict, List]:
     """Loads datasets configuration dictionaries from a datasets.json file."""
+    sources_data: Dict = {}
+    sources: List = []
     try:
         sources_data = sf.util.load_json(path)
         sources = list(sources_data.keys())
         sources.sort()
     except FileNotFoundError:
-        sources_data = {}
-        sources = []
+        pass
+    except (json.JSONDecodeError, ValueError, AttributeError) as e:
+        log.warning(f"Could not parse sources at {path}: {e}")
     return sources_data, sources
 
 
@@ -634,7 +663,7 @@ def ensemble_train_predictions(ensemble_path: str) -> None:
         for epoch in epochs:
             for member_id, member_path in enumerate(member_paths):
                 kfold_path = join(member_path, kfold_dir)
-                kfold_int = int(re.findall(r'\d', kfold_dir)[-1])
+                kfold_int = int(re.findall(r'\d+', kfold_dir)[-1])
 
                 # Create (or add to) the ensemble dataframe.
                 for level in ('tile', 'slide', 'patient'):
@@ -703,6 +732,9 @@ def save_dataframe(df: pd.DataFrame, filename: str, format: str):
         None
 
     """
+    parent_dir = dirname(filename)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
     if format == "csv":
         df.to_csv(f"{filename}.csv", index=False)
     elif format == "parquet":
@@ -726,21 +758,28 @@ def detect_predictions_format(path: str):
         str: format of predictions file (e.g. 'csv', 'parquet', 'feather')
 
     """
-    if path.endswith("csv"):
+    # Normalize case so .CSV / .Parquet etc. don't fall through. The
+    # ``gzip`` literal matches the project's own ``.parquet.gzip``
+    # convention from save_dataframe.
+    lowered = path.lower()
+    if lowered.endswith(".csv"):
         return 'csv'
-    elif path.endswith("parquet") or path.endswith("gzip"):
+    elif lowered.endswith(".parquet") or lowered.endswith("gzip"):
         return 'parquet'
-    elif path.endswith("feather"):
+    elif lowered.endswith(".feather"):
         return 'feather'
     else:
         return sf.util.path_to_ext(path)
 
 
 def predict_file_type(path: str) -> str:
-    """ \To return the format of a given predictions dataframe.
+    """Return the format of the predictions dataframe in a directory.
+
+    Searches ``path`` for a file whose name contains ``"predictions"`` and
+    returns the detected format from its extension.
 
     Args:
-        path (str): Path to predictions file.
+        path (str): Path to the directory containing the predictions file.
 
     Returns:
         str: format of predictions file (e.g. 'csv', 'parquet', 'feather')
@@ -969,7 +1008,8 @@ class _ProjectConfig:
             log.info(f"Downloading {cls.config_url}")
             r = requests.get(cls.config_url, allow_redirects=True)
             config_dest = join(temp_dir, 'config.json')
-            open(config_dest, 'wb').write(r.content)
+            with open(config_dest, 'wb') as f:
+                f.write(r.content)
             if sf.util.md5(config_dest) != cls.config_md5:
                 raise errors.ChecksumError("Remote config URL failed MD5 checksum.")
             config = sf.util.load_json(config_dest)

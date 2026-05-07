@@ -1,11 +1,11 @@
 from __future__ import absolute_import
 
-import imghdr
 import io
 import os
 import struct
 import sys
 import numpy as np
+import filetype
 from typing import List, Optional, Tuple, Any, Union, TYPE_CHECKING
 
 from slideflow import errors, log
@@ -39,8 +39,8 @@ def _is_tf_uint8(img):
 
 def _is_tf_float(img):
     import tensorflow as tf
-    return (isinstance(img, tf.Tensor) and
-            img.dtype == tf.float16 or img.dtype == tf.float32)
+    return (isinstance(img, tf.Tensor)
+            and (img.dtype == tf.float16 or img.dtype == tf.float32))
 
 
 def _is_torch_uint8(img):
@@ -50,9 +50,15 @@ def _is_torch_uint8(img):
 
 def _is_torch_float(img):
     import torch
-    return (isinstance(img, torch.Tensor) and
-            img.dtype == torch.float16 or img.dtype == torch.float32)
+    return (isinstance(img, torch.Tensor)
+            and (img.dtype == torch.float16 or img.dtype == torch.float32))
 
+def _detect_img_type(img_str):
+    kind = filetype.guess(img_str)
+    img_type = kind.extension if kind else None
+    if img_type == 'jpg':
+        img_type = 'jpeg'
+    return img_type
 
 def detect_tfrecord_format(tfr: str) -> Tuple[Optional[List[str]],
                                               Optional[str]]:
@@ -73,7 +79,7 @@ def detect_tfrecord_format(tfr: str) -> Tuple[Optional[List[str]],
     except errors.EmptyTFRecordsError:
         log.debug(f"Unable to detect format for {tfr}; file empty.")
         return None, None
-    img_type = imghdr.what('', record['image_raw'])
+    img_type = _detect_img_type(record['image_raw'])
     return list(record.keys()), img_type
 
 

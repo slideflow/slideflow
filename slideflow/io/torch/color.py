@@ -294,6 +294,9 @@ def simulate_adjusted_bezier_handles_mapped(
     segments_start = x[:-1]
     segments_end = x[1:]
     segments_mask = np.logical_and(x_mapped >= segments_start[:, np.newaxis], x_mapped < segments_end[:, np.newaxis])
+    # Include the right endpoint in the last segment so x == segments_end[-1]
+    # (typically 255) maps correctly instead of falling through argmax to 0.
+    segments_mask[-1] |= (x_mapped == segments_end[-1])
     segment_indices = np.argmax(segments_mask, axis=0)
 
     p0 = np.column_stack((x[:-1], y[:-1]))

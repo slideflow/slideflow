@@ -175,6 +175,7 @@ class SegmentModel(pl.LightningModule):
             "tn": tn,
         }
         self.outputs[stage].append(output)
+        self.log(f"{stage}_loss", loss, prog_bar=False, on_epoch=True, on_step=False)
         return output
 
     def shared_epoch_end(self, stage):
@@ -202,7 +203,7 @@ class SegmentModel(pl.LightningModule):
             f"{stage}_dataset_iou": dataset_iou.to(self.device).float(),
         }
 
-        self.log_dict(metrics, prog_bar=True, sync_dist=True)
+        self.log_dict(metrics, prog_bar=True, sync_dist=False)
         self.outputs[stage].clear()
 
     def training_step(self, batch, batch_idx):
@@ -224,7 +225,7 @@ class SegmentModel(pl.LightningModule):
         return self.shared_epoch_end(outputs, "test")
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
+        return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
     def run_tiled_inference(self, img: np.ndarray):
         """Run inference on an image, with tiling."""

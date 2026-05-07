@@ -512,7 +512,7 @@ class StainNormalizer:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
         cv_image = cv2.imdecode(
-            np.fromstring(jpeg_string, dtype=np.uint8),
+            np.frombuffer(jpeg_string, dtype=np.uint8),
             cv2.IMREAD_COLOR
         )
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)

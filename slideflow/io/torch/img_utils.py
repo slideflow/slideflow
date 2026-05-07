@@ -137,7 +137,7 @@ def decode_image(
 
     """
     if img_type != 'numpy':
-        np_data = torch.from_numpy(np.fromstring(image, dtype=np.uint8))
+        np_data = torch.from_numpy(np.frombuffer(image, dtype=np.uint8))
         image = cwh_to_whc(torchvision.io.decode_image(np_data))
         # Alternative method using PIL decoding:
         # image = np.array(Image.open(BytesIO(img_string)))

@@ -153,7 +153,10 @@ def vips_padded_crop(image, x, y, width, height):
         vips.Image: Cropped image.
 
     """
-    bg = [255]
+    # Match the background list length to the image band count so RGB(A)
+    # images don't trip pyvips' broadcasting in any version. Single-element
+    # `[255]` worked by accident on most versions but was fragile.
+    bg = [255] * image.bands
     if x+width <= image.width and y+height <= image.height:
         return image.crop(x, y, width, height)
     elif x+width > image.width and y+height <= image.height:
@@ -570,9 +573,12 @@ class _VIPSReader:
         elif 'n-pages' in self.properties and OPS_LEVEL_COUNT not in self.properties:
             log.debug("Attempting to read non-standard multi-page TIFF")
             # This is a multipage tiff without openslide metadata.
-            # Ignore the last 2 pages, which per our experimentation,
-            # are likely to be the slide label and image thumbnail.
-            self.level_count = min(int(self.properties['n-pages']) - 3, 1)
+            # Ignore the last few pages (label + thumbnail). The historical
+            # `min(N - 3, 1)` capped level_count at 1 regardless of how many
+            # pyramid levels the TIFF actually had — flip to `max(...)` so we
+            # expose all available pyramid levels (matches the convention
+            # used elsewhere in this module, e.g. line ~1109).
+            self.level_count = max(int(self.properties['n-pages']) - 3, 1)
             # Calculate level metadata
             self.levels = []
             for lev in range(self.level_count):

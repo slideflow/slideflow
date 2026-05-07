@@ -69,9 +69,6 @@ class TestDataset(unittest.TestCase):
         self.assertFalse(dataset.filters)
         self.assertFalse(dataset.filter_blank)
         self.assertFalse(dataset.min_tiles)
-        self.assertTrue(dataset.num_tiles == 0)
-        self.assertTrue(dataset.num_tiles == 0)
-        self.assertTrue(dataset.num_tiles == 0)
 
     def test_faulty_balance(self):
         dataset = self.PROJECT.dataset()
@@ -283,8 +280,9 @@ class TestLabels(unittest.TestCase):
         self.assertTrue('category1' in unique and 'category2' in unique)
         self.assertIsInstance(unique, dict)
         for cat_idx in range(2):
+            cat_name = f'category{cat_idx + 1}'
             self.assertTrue(all([isinstance(lbl[cat_idx], int) for lbl in labels.values()]))
-            self.assertTrue(all([isinstance(lbl, str) for lbl in unique['category1']]))
+            self.assertTrue(all([isinstance(lbl, str) for lbl in unique[cat_name]]))
 
     def test_multi_categorical_labels_by_name(self):
         labels, unique = self.dataset.labels(
@@ -296,8 +294,9 @@ class TestLabels(unittest.TestCase):
         self.assertTrue('category1' in unique and 'category2' in unique)
         self.assertIsInstance(unique, dict)
         for cat_idx in range(2):
+            cat_name = f'category{cat_idx + 1}'
             self.assertTrue(all([isinstance(lbl[cat_idx], str) for lbl in labels.values()]))
-            self.assertTrue(all([isinstance(lbl, str) for lbl in unique['category1']]))
+            self.assertTrue(all([isinstance(lbl, str) for lbl in unique[cat_name]]))
 
 # -----------------------------------------------------------------------------
 

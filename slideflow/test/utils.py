@@ -184,6 +184,12 @@ def test_multithread_throughput(
             infinite=True,
             normalizer=normalizer,
         )
+    else:
+        # _backend.py validates SF_BACKEND today, so this is defensive:
+        # a future backend addition that misses this dispatcher would
+        # otherwise leave `dts` unbound and trip UnboundLocalError on
+        # the next line.
+        raise ValueError(f"Unsupported backend: {sf.backend()}")
     return test_throughput(dts, s=s)
 
 

@@ -64,8 +64,10 @@ def activations_tester(
     assert len(l_pred) == len(df.activations)
 
     umap = SlideMap.from_features(df)
-    if not exists(join(project.root, 'stats')):
-        os.makedirs(join(project.root, 'stats'))
+    # exist_ok=True instead of an exists() guard — avoids the TOCTOU
+    # window where another process or thread could create the dir
+    # between the check and the makedirs call.
+    os.makedirs(join(project.root, 'stats'), exist_ok=True)
     umap.save_plot(join(project.root, 'stats', '2d_umap.png'))
     tile_stats, pt_stats, cat_stats = df.stats()
     top_features_by_tile = sorted(
@@ -292,6 +294,12 @@ def wsi_prediction_tester(
     sf.setLoggingLevel(verbosity)
     dataset = project.dataset()
     slide_paths = dataset.slide_paths(source='TEST')
+    if not slide_paths:
+        # Surface a clearer message than `IndexError: list index out of
+        # range` when the TEST source has no slides configured.
+        raise RuntimeError(
+            "No slides found in 'TEST' source; cannot run wsi prediction."
+        )
     patient_name = sf.util.path_to_name(slide_paths[0])
     project.predict_wsi(
         model,

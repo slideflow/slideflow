@@ -245,31 +245,46 @@ def rebuild_extractor(
     extractor_class = extractor_name[-1]
     extractor_kwargs = bags_config['extractor']['kwargs']
     try:
-        module = importlib.import_module('.'.join(extractor_name[:-1]))
+        # Guard against unqualified class names (single-element split):
+        # importlib.import_module('') raises ValueError, and the previous
+        # code would then crash on extractor_name[-2] inside the except,
+        # bypassing allow_errors entirely.
+        module_path = '.'.join(extractor_name[:-1])
+        if not module_path:
+            raise ValueError(
+                f"Extractor class '{extractor_class}' has no qualifying "
+                "module path; cannot import."
+            )
+        module = importlib.import_module(module_path)
         extractor = getattr(module, extractor_class)(**extractor_kwargs)
     except Exception:
-        submodule_name = extractor_name[-2]
+        submodule_name = (
+            extractor_name[-2] if len(extractor_name) > 1 else None
+        )
         if submodule_name in _extras_extractors:
             raise errors.InvalidFeatureExtractor(
                 "{} requires the package {}, please install with 'pip install {}'".format(
-                    submodule_name, 
-                    _extras_extractors[submodule_name], 
+                    submodule_name,
+                    _extras_extractors[submodule_name],
                     _extras_extractors[submodule_name]
             ))
         if allow_errors:
-            return None
+            return None, None
         else:
             raise ValueError(
                 f'Could not rebuild extractor from configuration at {bags_or_model}.'
             )
 
-    # Rebuild stain normalizer
-    if bags_config['normalizer'] is not None:
+    # Rebuild stain normalizer. Older bags_config.json files may omit the
+    # 'normalizer' key entirely — use .get() instead of indexing so the
+    # absent case folds into the no-normalizer branch.
+    normalizer_cfg = bags_config.get('normalizer')
+    if normalizer_cfg is not None:
         normalizer = sf.norm.autoselect(
-            bags_config['normalizer']['method'],
+            normalizer_cfg['method'],
             backend=(extractor.backend if native_normalizer else 'opencv')
         )
-        normalizer.set_fit(**bags_config['normalizer']['fit'])
+        normalizer.set_fit(**normalizer_cfg['fit'])
     else:
         normalizer = None
     if (hasattr(extractor, 'normalizer')

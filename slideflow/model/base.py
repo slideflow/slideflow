@@ -4,7 +4,7 @@ import json
 import pandas as pd
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
-from pandas.api.types import is_float_dtype, is_integer_dtype
+from pandas.api.types import is_float_dtype
 
 import numpy as np
 import slideflow as sf
@@ -195,6 +195,8 @@ class _ModelParams:
         return json.dumps(arg_dict, indent=2)
 
     def __eq__(self, other):
+        if not isinstance(other, _ModelParams):
+            return NotImplemented
         return self.to_dict() == other.to_dict()
 
     @classmethod
@@ -294,10 +296,11 @@ class _ModelParams:
         for key, value in hp_dict.items():
             if not hasattr(self, key):
                 log.error(f'Unrecognized hyperparameter {key}; unable to load')
+                continue
             try:
                 setattr(self, key, value)
             except Exception:
-                log.error(f'Error setting hyperparameter {key} to {value}; unable to hyperparameters')
+                log.error(f'Error setting hyperparameter {key} to {value}; unable to load')
         self.validate()
 
     def _detect_classes_from_labels(
@@ -313,25 +316,19 @@ class _ModelParams:
             if self.model_type() == 'classification':
                 return {i: np.unique(outcome_labels[:, i]).shape[0] for i in range(outcome_labels.shape[1])}
             else:
-                try:
-                    return outcome_labels.shape[1]
-                except TypeError:
-                    raise errors.ModelParamsError('Incorrect formatting of outcomes for regression model; expected ndarray.')
+                return outcome_labels.shape[1]
         elif isinstance(labels, pd.DataFrame):
             if 'label' not in labels.columns:
                 raise errors.ModelError("Expected DataFrame with 'label' "
                                         "column.")
-            if is_float_dtype(labels.label):
+            if self.model_type() == 'classification':
+                # len(unique) handles non-zero-indexed integer labels
+                # (e.g. [1, 2, 3] → 3 classes, not 4) and non-integer
+                # categorical labels uniformly.
+                return {0: len(labels.label.unique())}
+            elif is_float_dtype(labels.label):
                 return 1
-
-            elif self.model_type() == 'classification':
-                unique = labels.label.unique()
-                if is_integer_dtype(labels.label):
-                    return {0: unique.max()+1}
-                else:
-                    return {0: len(unique)}
             else:
-                print(self.model_type)
                 raise errors.ModelError(
                     "Expected integer or float labels. Got: {}".format(
                         labels.label.dtype
@@ -353,10 +350,11 @@ class _ModelParams:
         assert isinstance(self.epochs, (int, list))
         if isinstance(self.epochs, list):
             assert all([isinstance(t, int) for t in self.epochs])
-        assert self.pooling in ['max', 'avg', 'none']
+        # __init__ canonicalizes 'none' -> None, so accept None here too.
+        assert self.pooling in ['max', 'avg', None]
         assert isinstance(self.learning_rate, float)
         assert isinstance(self.learning_rate_decay, (int, float))
-        assert isinstance(self.learning_rate_decay_steps, (int))
+        assert isinstance(self.learning_rate_decay_steps, (int, float))
         assert isinstance(self.batch_size, int)
         assert isinstance(self.hidden_layers, int)
         assert isinstance(self.manual_early_stop_batch, int) or self.manual_early_stop_batch is None
@@ -370,7 +368,9 @@ class _ModelParams:
         assert isinstance(self.trainable_layers, int)
         assert isinstance(self.l1, (int, float))
         assert isinstance(self.l2, (int, float))
-        assert isinstance(self.dropout, (int, float))
+        # dropout is Optional[float] per the type hint; treat None as
+        # "no dropout" rather than asserting a numeric type.
+        assert self.dropout is None or isinstance(self.dropout, (int, float))
         assert isinstance(self.uq, bool)
         assert isinstance(self.augment, (bool, str))
         assert isinstance(self.drop_images, bool)
@@ -379,7 +379,7 @@ class _ModelParams:
         assert 0 <= self.learning_rate_decay <= 1
         assert 0 <= self.l1 <= 1
         assert 0 <= self.l2 <= 1
-        assert 0 <= self.dropout <= 1
+        assert self.dropout is None or 0 <= self.dropout <= 1
 
         if self.l1_dense is not None:
             assert isinstance(self.l1_dense, (int, float))
@@ -413,7 +413,7 @@ class _ModelParams:
                 log.warn(
                     "'l2_dense' is not implemented in PyTorch backend. "
                     "L2 regularization must be applied to the whole model "
-                    "by setting 'l2' instead. 'l1_dense' will be ignored.")
+                    "by setting 'l2' instead. 'l2_dense' will be ignored.")
             if self.l1_dense or self.l1:
                 log.warn(
                     "L1 regularization is not implemented in PyTorch backend "
@@ -446,9 +446,9 @@ class _ModelParams:
 
     def model_type(self) -> str:
         """Returns either 'regression', 'classification', or 'survival' depending on the loss type."""
-        #check if loss is custom_[type] and returns type
-        if self.loss.startswith('custom'):
-            return self.loss[7:]
+        # check if loss is custom_[type] and return [type]
+        if self.loss.startswith('custom_'):
+            return self.loss[len('custom_'):]
         elif self.loss == 'negative_log_likelihood':
             return 'survival'
         elif self.loss in self.RegressionLossDict:
@@ -477,6 +477,17 @@ class BaseFeatureExtractor:
     license = ''
     citation = ''
 
+    # Optional: sha1 hex digest of this extractor's canonical pretrained
+    # weights. Useful as a stable identity tag when ``weights=None``
+    # (HuggingFace auto-download path) -- avoids re-hashing a 1+GB
+    # checkpoint to identify the model. When set, the value MUST equal
+    # ``hashlib.sha1(open(<path>, 'rb').read()).hexdigest()`` for the
+    # exact published file the extractor downloads, so an explicit
+    # ``weights=<path>`` matches a ``weights=None`` invocation across
+    # machines. Leave as None for extractors without a single canonical
+    # pretrained file (ImageNet wrappers, custom-trained variants).
+    weights_hash: Optional[str] = None
+
     def __init__(self, backend: str, include_preds: bool = False) -> None:
         """Initialize the base feature extractor.
 
@@ -489,7 +500,6 @@ class BaseFeatureExtractor:
         """
 
         assert backend in ('tensorflow', 'torch')
-        self.include_preds = include_preds
 
         # ---------------------------------------------------------------------
         self.num_classes = 0

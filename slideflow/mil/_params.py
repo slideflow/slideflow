@@ -248,6 +248,10 @@ class TrainerConfig:
                     'build_model',
                     'is_multimodal'
                 ) and not k.startswith('_')}
+        # _aggregation_level is stored privately and exposed via a property,
+        # so the underscore-filter above drops it from vars(); re-attach
+        # explicitly so save/load round-trips preserve a 'patient' setting.
+        d['aggregation_level'] = self.aggregation_level
         if self.model_config is None:
             return d
         else:
@@ -747,7 +751,7 @@ class MILModelConfig:
             if self.use_lens:
                 n_in = [b[0].shape[-1] for b in batch[:-1]]
             else:
-                n_in = [b.shape[-1] for b in batch[:-1][0]]
+                n_in = [b.shape[-1] for b in batch[:-1]]
         else:
             n_in = batch[0].shape[-1]
         targets = batch[-1]

@@ -55,8 +55,12 @@ class DeepFocus(StridedDL):
             kwargs (Any): All remaining keyword arguments are passed to
                 :meth:`slideflow.WSI.build_generator()`.
         """
-        model = deepfocus_v3()
+        # Set the mixed-precision policy BEFORE building the model;
+        # tf.keras.mixed_precision.set_global_policy only affects layers
+        # constructed after the policy is set, so the previous order left
+        # every layer in float32 and the policy was effectively a no-op.
         self.enable_mixed_precision()
+        model = deepfocus_v3()
         load_checkpoint(model, ckpt)
         super().__init__(
             model=model,
@@ -180,12 +184,33 @@ def load_checkpoint(model, ckpt=None, verbose=False):
             if verbose:
                 print("Working on layer {}".format(layer_name))
             ckpt_vals = []
+            missing_vars = []
             for varname in [w.name for w in layer.weights]:
                 varname = varname.split(':0')[0]
                 varname = transform_variable_name(varname)
-                ckpt_vals.append(reader.get_tensor(varname))
+                # Tolerate variables that are present in the model but not
+                # in the checkpoint (e.g. from a model architecture that has
+                # diverged slightly from the saved weights). Skip the layer
+                # rather than raising an opaque KeyError mid-load.
+                try:
+                    tensor = reader.get_tensor(varname)
+                except Exception as e:
+                    missing_vars.append((varname, e))
+                    continue
+                ckpt_vals.append(tensor)
                 if verbose:
                     print("\tWorking on varname", varname, ckpt_vals[-1].shape)
+            if missing_vars:
+                from slideflow import log
+                log.warning(
+                    "Skipping layer {} during checkpoint load; "
+                    "{} variable(s) missing from checkpoint: {}".format(
+                        layer_name,
+                        len(missing_vars),
+                        ", ".join(v for v, _ in missing_vars),
+                    )
+                )
+                continue
             layer.set_weights(ckpt_vals)
             if verbose:
                 print("\tSet {} variables to layer {}".format(

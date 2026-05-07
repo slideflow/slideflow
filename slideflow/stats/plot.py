@@ -82,7 +82,12 @@ def histogram(
     # Subsample
     if subsample and y_pred.shape[0] > subsample:
         idx = np.arange(y_pred.shape[0])
-        idx = np.random.choice(idx, subsample)
+        # replace=False so the subsample doesn't contain duplicate
+        # indices (the np.random.choice default is replace=True, which
+        # skewed the plotted histogram by repeating points). The size
+        # guard above ensures we always have enough to draw without
+        # replacement.
+        idx = np.random.choice(idx, subsample, replace=False)
         y_pred = y_pred[idx]
         y_true = y_true[idx]
 
@@ -169,9 +174,9 @@ def scatter(
         raise errors.StatsError("Only one observation provided, need >1")
     r_squared = []
 
-    # Subsample to n=1000 for plotting
+    # Subsample to n=1000 for plotting (replace=False — see histogram).
     if y_true.shape[0] > 1000:
-        idx = np.random.choice(range(y_true.shape[0]), 1000)
+        idx = np.random.choice(range(y_true.shape[0]), 1000, replace=False)
         yt_sub = y_true[idx]
         yp_sub = y_pred[idx]
     else:

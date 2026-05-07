@@ -321,26 +321,47 @@ class ExtractionReport:
             image_rows = [r.image_row() for r in reports]
 
         if meta is not None and hasattr(meta, 'ws_frac'):
-            n_tiles = np.array([r.num_tiles for r in reports if r is not None])
-            bb = np.array([r.blur_burden for r in reports if r is not None])
-            bb_names = [r.path for r in reports if r is not None]
+            # Filter out None values before constructing the array; otherwise
+            # np.array becomes object-dtype with embedded None and np.any(...)
+            # raises TypeError on NumPy >= 1.20.
+            n_tiles = np.array(
+                [r.num_tiles for r in reports
+                 if r is not None and r.num_tiles is not None]
+            )
+            bb = np.array(
+                [r.blur_burden for r in reports
+                 if r is not None and r.blur_burden is not None]
+            )
+            bb_names = [r.path for r in reports
+                        if r is not None and r.blur_burden is not None]
             self.warn_txt = ''
             for slide, b in zip(bb_names, bb):
                 if b is not None and b > self.bb_threshold:
                     self.warn_txt += f'{slide},{b}\n'
 
             with sf.util.matplotlib_backend('Agg'):
+                # delete=False so the file can be reopened by pdf.image on
+                # Windows (NamedTemporaryFile holds an exclusive lock there);
+                # we explicitly unlink in a finally block to avoid leaks.
                 if np.any(n_tiles) and self.num_tiles_chart(n_tiles):
-                    with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                    temp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                    try:
+                        temp.close()
                         plt.savefig(temp.name)
                         pdf.image(temp.name, 107, pdf.y, w=50)
                         plt.close()
+                    finally:
+                        os.unlink(temp.name)
 
                 if np.any(bb) and self.blur_chart(bb):
-                    with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                    temp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                    try:
+                        temp.close()
                         plt.savefig(temp.name)
                         pdf.image(temp.name, 155, pdf.y, w=50)
                         plt.close()
+                    finally:
+                        os.unlink(temp.name)
 
             # Bounding box
             pdf.set_x(20)
@@ -399,9 +420,11 @@ class ExtractionReport:
                     # Create a new row every 2 slides
                     if n_images % 2 == 0:
                         pdf.cell(50, 90, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-                    # Slide thumbnail
-                    with tempfile.NamedTemporaryFile() as temp:
+                    # Slide thumbnail. delete=False for Windows compatibility.
+                    temp = tempfile.NamedTemporaryFile(delete=False)
+                    try:
                         thumb.save(temp, format="JPEG", quality=75)
+                        temp.close()
                         thumb_w, thumb_h = thumb.size
                         x = pdf.get_x()+((n_images+1) % 2 * 100)
                         y = pdf.get_y()-85
@@ -412,6 +435,8 @@ class ExtractionReport:
                             offset = (80 - calc_w) / 2
                             pdf.image(temp.name, x+offset+5, y, h=80)
                         n_images += 1
+                    finally:
+                        os.unlink(temp.name)
 
                     # Slide label
                     y = pdf.get_y()
@@ -440,8 +465,13 @@ class ExtractionReport:
             if image_row:
                 pdf.set_font('Arial', '', 7)
                 pdf.cell(10, 10, report.path, 0, 1)
-                with tempfile.NamedTemporaryFile() as temp:
+                # delete=False for Windows compatibility (re-opening a
+                # NamedTemporaryFile by path with the original handle still
+                # open raises PermissionError on Windows).
+                temp = tempfile.NamedTemporaryFile(delete=False)
+                try:
                     temp.write(image_row)
+                    temp.close()
                     x = pdf.get_x()
                     y = pdf.get_y()
                     try:
@@ -455,6 +485,8 @@ class ExtractionReport:
                         )
                     except (RuntimeError, UnidentifiedImageError) as e:
                         log.error(f"Error writing image to PDF: {e}")
+                finally:
+                    os.unlink(temp.name)
             pdf.ln(20)
         self.pdf = pdf
 
@@ -509,10 +541,11 @@ class ExtractionReport:
             return None
         if exists(filename):
             ex_df = pd.read_csv(filename)
-            ex_df.set_index('slide')
         else:
             ex_df = None
-        assert self.meta is not None
+        if self.meta is None:
+            log.debug("Skipping CSV update; report has no meta information.")
+            return None
         if not self.meta.qc:
             qc_str = 'None'
         elif isinstance(self.meta.qc, str):
@@ -521,12 +554,17 @@ class ExtractionReport:
             qc_str = ', '.join([str(s) for s in self.meta.qc])
         else:
             qc_str = str(self.meta.qc)
+        # Reports built without a `data` dict (e.g. from extraction failures
+        # or skipped slides) would previously KeyError on `r.data['num_tiles']`.
+        # Fall back to 0 / None for missing data.
+        def _get(r, key, default=None):
+            return r.data.get(key, default) if r.data else default
         df = pd.DataFrame({
             'slide':        pd.Series([path_to_name(r.path) for r in self.reports]),
-            'num_tiles':    pd.Series([r.data['num_tiles'] for r in self.reports]),
+            'num_tiles':    pd.Series([_get(r, 'num_tiles', 0) for r in self.reports]),
             'tile_px':      pd.Series([self.meta.tile_px for r in self.reports]),
             'tile_um':      pd.Series([self.meta.tile_um for r in self.reports]),
-            'rois':         pd.Series([r.data['num_rois'] for r in self.reports]),
+            'rois':         pd.Series([_get(r, 'num_rois', 0) for r in self.reports]),
             'stride':       pd.Series([self.meta.stride for r in self.reports]),
             'qc':           pd.Series([qc_str for r in self.reports]),
             'gs_fraction':  pd.Series([self.meta.gs_frac for r in self.reports]),
@@ -539,7 +577,6 @@ class ExtractionReport:
             'backend':      pd.Series([sf.slide_backend() for r in self.reports]),
             'slideflow_version': pd.Series([sf.__version__ for r in self.reports])
         })
-        df.set_index('slide')
         if ex_df is not None:
             df = pd.concat([df, ex_df[~ex_df.slide.isin(df.slide.unique())]])
         df.to_csv(filename, index=False)

@@ -119,6 +119,20 @@ class AsyncRenderManager:
             is_async (bool): Whether to set the renderer to asynchronous mode.
 
         """
+        if is_async == self._is_async:
+            return
+        if self._is_async and self._process is not None:
+            # Tearing down async worker before switching to sync.
+            self._set_args_async(quit=True)
+            self._process.join(timeout=2)
+            if self._process.is_alive():
+                self._process.terminate()
+            self._process = None
+            self._args_queue = None
+            self._result_queue = None
+        elif not self._is_async:
+            # Drop the sync renderer; the worker will create its own.
+            self._renderer_obj = None
         self._is_async = is_async
 
     def set_args(self, **args):
@@ -247,7 +261,7 @@ class AsyncRenderManager:
                     renderer_obj = Renderer(device=device)
                 if 'set_renderer' in args:
                     renderer_class, kwargs = args['set_renderer']
-                    renderer_obj = renderer_class(**kwargs)
+                    renderer_obj = renderer_class(device=device, **kwargs)
                 if 'load_model' in args:
                     renderer_obj.load_model(args['load_model'], device=device)
                 if 'quit' in args:

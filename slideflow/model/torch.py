@@ -386,9 +386,9 @@ class ModelParams(_base._ModelParams):
 
     def model_type(self) -> str:
         """Returns 'regression', 'classification', or 'survival', reflecting the loss."""
-        #check if loss is custom_[type] and returns type
-        if self.loss.startswith('custom'):
-            return self.loss[7:]
+        # check if loss is custom_[type] and return [type]
+        if self.loss.startswith('custom_'):
+            return self.loss[len('custom_'):]
         elif self.loss == 'NLL':
             return 'survival'
         elif self.loss in self.RegressionLossDict:
@@ -1357,8 +1357,14 @@ class Trainer:
         else:
             self.dataloaders = {}
         if val_dts is not None:
-            if not self.validation_batch_size:
-                validation_batch_size = self.hp.batch_size
+            # Initialize unconditionally — the previous form only assigned
+            # validation_batch_size inside the falsy branch, leaving it
+            # UnboundLocalError-prone whenever Trainer.train was given an
+            # explicit validation_batch_size (which gets stored on self
+            # at line 1891).
+            validation_batch_size = (
+                self.validation_batch_size or self.hp.batch_size
+            )
             self.dataloaders['val'] = val_dts.torch(
                 infinite=False,
                 batch_size=validation_batch_size,
@@ -2602,7 +2608,10 @@ class UncertaintyInterface(Features):
         uncertainty = torch.unsqueeze(uncertainty, axis=-1)
 
         if self.layers:
-            for n in range(self.layers):
+            # self.layers is a list (string inputs are wrapped at __init__);
+            # range() requires an int, so iterate over its length to match
+            # the sibling loops at lines ~2589 / ~2609.
+            for n in range(len(self.layers)):
                 out_act_drop[n] = torch.stack(out_act_drop[n], axis=0)
             reduced_activations = [
                 torch.mean(out_act_drop[n], dim=0)

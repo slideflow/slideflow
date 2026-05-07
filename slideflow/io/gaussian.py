@@ -195,7 +195,8 @@ def _pad(image, filter_shape, mode="CONSTANT", constant_values=0):
       constant_values: A `scalar`, the pad value to use in "CONSTANT"
         padding mode.
     """
-    if mode.upper() not in {"REFLECT", "CONSTANT", "SYMMETRIC"}:
+    mode = mode.upper()
+    if mode not in {"REFLECT", "CONSTANT", "SYMMETRIC"}:
         raise ValueError(
             'padding should be one of "REFLECT", "CONSTANT", or "SYMMETRIC".'
         )
@@ -246,8 +247,8 @@ def gaussian_filter2d(image, filter_shape=(3, 3), sigma=1.0, padding="REFLECT", 
         else:
             sigma = (sigma,) * 2
 
-        if not isinstance(sigma[0], (tf.Tensor)) and any(s < 0 for s in sigma):
-            raise ValueError("sigma should be greater than or equal to 0.")
+        if not isinstance(sigma[0], (tf.Tensor)) and any(s <= 0 for s in sigma):
+            raise ValueError("sigma should be greater than 0.")
 
         image = tf.convert_to_tensor(image, name="image")
         sigma = tf.convert_to_tensor(sigma, name="sigma")

@@ -77,11 +77,17 @@ def normalize_layout(
     maxs += relative_margin * (maxs - mins)
     # `clip` broadcasts, `[None]`s added only for readability
     clipped = np.clip(layout, mins, maxs)
-    # embed within [0,1] along both axes
+    # embed within [0,1] along both axes. Replace zero denominators
+    # with 1 so a degenerate axis (all values identical after percentile
+    # clipping) leaves the centered values at 0 instead of producing
+    # inf/nan that propagates into the saved range/clip and into the
+    # downstream UMAP plot.
     _min = clipped.min(axis=0)
     _max = clipped.max(axis=0)
+    denom = _max - _min
+    denom = np.where(denom == 0, 1, denom)
     clipped -= _min
-    clipped /= (_max - _min)
+    clipped /= denom
     return clipped, (_min, _max), (mins, maxs)
 
 def normalize(
@@ -93,8 +99,12 @@ def normalize(
     _min, _max = norm_range
     mins, maxs = norm_clip
     clipped = np.clip(array, mins, maxs)
+    # Same divide-by-zero guard as normalize_layout above — degenerate
+    # axes produce inf/nan otherwise.
+    denom = _max - _min
+    denom = np.where(denom == 0, 1, denom)
     clipped -= _min
-    clipped /= (_max - _min)
+    clipped /= denom
     return clipped
 
 def denormalize(

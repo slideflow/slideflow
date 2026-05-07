@@ -31,8 +31,15 @@ def list_torch_extractors():
 
 def is_extractor(name):
     """Checks if a given name is a valid feature extractor."""
-    _valid_extractors = list_extractors()
-    return (name in _valid_extractors or name+'_imagenet' in _valid_extractors)
+    # Direct dict lookups (O(1)) instead of materializing list_extractors();
+    # also tolerates non-string `name` by short-circuiting to False rather
+    # than crashing on `name+'_imagenet'`.
+    if not isinstance(name, str):
+        return False
+    return (name in _tf_extractors
+            or name + '_imagenet' in _tf_extractors
+            or name in _torch_extractors
+            or name + '_imagenet' in _torch_extractors)
 
 def is_tensorflow_extractor(name):
     """Checks if a given name is a valid Tensorflow feature extractor."""

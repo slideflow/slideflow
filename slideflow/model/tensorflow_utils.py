@@ -56,12 +56,24 @@ def batch_loss_crossentropy(
         first_mean = tf.math.reduce_mean(first, axis=0)
         rest_mean = tf.math.reduce_mean(rest, axis=0)
 
-        # Variance
-        A = tf.math.reduce_sum(tf.math.square(first - first_mean), axis=0) / (first_mean.shape[0] - 1)
-        B = tf.math.reduce_sum(tf.math.square(rest - rest_mean), axis=0) / (rest_mean.shape[0] - 1)
+        # Variance and SE for the per-feature t-statistic between the
+        # split and the rest. The divisor for both must be the *sample*
+        # count (rows in the split), i.e. first.shape[0] / rest.shape[0].
+        # Slideflow <= 3 used first_mean.shape[0] / rest_mean.shape[0]
+        # — i.e. the feature dimension after reduce_mean collapsed the
+        # row axis — so the variance was divided by num_features instead
+        # of n_samples. That miscalibrates this auxiliary regularizer
+        # (added via model.add_loss in
+        # _build_classification_or_regression_model) by a factor of
+        # roughly num_features / batch_per_split, so models trained on
+        # earlier versions saw a different effective regularizer scale.
+        n_first = tf.cast(first.shape[0], tf.float32)
+        n_rest = tf.cast(rest.shape[0], tf.float32)
+        A = tf.math.reduce_sum(tf.math.square(first - first_mean), axis=0) / (n_first - 1)
+        B = tf.math.reduce_sum(tf.math.square(rest - rest_mean), axis=0) / (n_rest - 1)
 
         # Not performing square root of SE for computational reasons
-        se = tf.math.sqrt((A / first_mean.shape[0]) + (B / rest_mean.shape[0]))
+        se = tf.math.sqrt((A / n_first) + (B / n_rest))
         t_square = tf.math.square((first_mean - rest_mean - diff) / se)
         return tf.math.reduce_mean(t_square)
 
@@ -94,7 +106,30 @@ def negative_log_likelihood(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
     pred_hr = tf.reshape(y_pred[:, 0], [-1])  # y_pred
     time = tf.reshape(y_true, [-1])           # y_true
 
-    order = tf.argsort(time)  # direction='DESCENDING'
+    # CONVENTION NOTE (do not "fix" to direction='DESCENDING'):
+    #
+    # Slideflow's survival models output y_pred as a "survival score"
+    # where HIGHER values correspond to LONGER expected survival -- i.e.
+    # the lifelines/Harrell convention -- *not* a Cox log-hazard ratio
+    # (despite the local name `pred_hr`). Ascending sort puts shortest-
+    # time patients at index 0, so cumsum[k] accumulates exp(eta) over
+    # patients with t_j <= t_k. Combined with the (sorted_predictions
+    # - log_cumsum_h) term, gradient descent on this objective drives
+    # eta UP for long-time events and DOWN for shorter-time / censored
+    # patients, producing the survival-score relationship.
+    #
+    # Switching to descending sort flips the model to the Cox log-hazard
+    # convention (high eta = high hazard = short survival). That breaks
+    # downstream consumers that expect the survival-score convention --
+    # in particular slideflow.stats.metrics.concordance_index (the
+    # authoritative post-eval c-index), which does NOT negate y_pred
+    # before scoring. Empirically, training under descending sort
+    # produces patient c-indexes ~ (1 - true c-index).
+    #
+    # The Breslow variant below DOES use descending sort / Cox-hazard
+    # convention; the two losses are therefore not interchangeable
+    # without adjusting the rest of the pipeline.
+    order = tf.argsort(time)
     sorted_events = tf.gather(events, order)            # pylint: disable=no-value-for-parameter
     sorted_predictions = tf.gather(pred_hr, order)      # pylint: disable=no-value-for-parameter
 
@@ -176,12 +211,28 @@ def concordance_index(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
 
     Returns:
         tf.Tensor: Concordance index.
+
+    Note:
+        This is the *training-time* c-index used as a Keras metric. It
+        assumes y_pred is a Cox log-hazard (high = short survival) and
+        negates it before scoring -- the OPPOSITE convention to
+        :func:`negative_log_likelihood` above and to the post-eval
+        :func:`slideflow.stats.metrics.concordance_index`, both of which
+        treat y_pred as a survival score (high = long survival).
+
+        The displayed value is therefore *anti-concordant* relative to
+        the loss being optimized: under correct fitting it drifts toward
+        ``1 - true_c_index`` (i.e. below 0.5 with a strong signal). For
+        an authoritative score, use the post-eval c-index in
+        ``slideflow.stats.metrics``.
     """
     E = y_pred[:, -1]
     y_pred = y_pred[:, :-1]
     E = tf.reshape(E, [-1])
     y_pred = tf.reshape(y_pred, [-1])
-    y_pred = -y_pred  # negative of log hazard ratio to have correct relationship with survival
+    # Negation makes this a Cox-hazard-style c-index. See the docstring
+    # above for why this is inconsistent with the rest of the pipeline.
+    y_pred = -y_pred
     g = tf.subtract(tf.expand_dims(y_pred, -1), y_pred)
     g = tf.cast(g == 0.0, tf.float32) * 0.5 + tf.cast(g > 0.0, tf.float32)
     f = tf.subtract(tf.expand_dims(y_true, -1), y_true) > 0.0
@@ -212,15 +263,23 @@ def add_regularization(
     # When we change the layers attributes, the change only happens in the model config file
     model_json = model.to_json()
 
-    # Save the weights before reloading the model.
-    tmp_weights_path = os.path.join(tempfile.gettempdir(), 'tmp_weights.h5')
-    model.save_weights(tmp_weights_path)
+    # Save the weights before reloading the model. Use a per-call unique
+    # temp path; the prior shared 'tmp_weights.h5' in tempfile.gettempdir()
+    # raced between concurrent callers and could corrupt each other's
+    # weights round-trip.
+    tmp_fd, tmp_weights_path = tempfile.mkstemp(suffix='.h5')
+    os.close(tmp_fd)
+    try:
+        model.save_weights(tmp_weights_path)
 
-    # load the model from the config
-    model = tf.keras.models.model_from_json(model_json)
+        # load the model from the config
+        model = tf.keras.models.model_from_json(model_json)
 
-    # Reload the model weights
-    model.load_weights(tmp_weights_path, by_name=True)
+        # Reload the model weights
+        model.load_weights(tmp_weights_path, by_name=True)
+    finally:
+        if os.path.exists(tmp_weights_path):
+            os.remove(tmp_weights_path)
     return model
 
 

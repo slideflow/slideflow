@@ -275,17 +275,21 @@ def build_multimodal_learner(
         )
 
     # Print a multi-modal dataset summary.
-    log.info(
-        "[bold]Multi-modal MIL training summary:[/]"
-        + "\n  - [blue]Modes[/]: {}".format(num_modes)
-        + "\n  - [blue]Slides with bags[/]: {}".format(len(np.unique(all_slides)))
-        + "\n  - [blue]Multi-modal bags[/]: {}".format(all_bags.shape[0])
-        + "\n  - [blue]Unique categories[/]: {}".format(len(unique))
-        + "\n  - [blue]Training multi-modal bags[/]: {}".format(len(train_idx))
-        + "\n  - [blue]Training slides[/]: {}".format(len(np.unique(train_slides)))
-        + "\n  - [blue]Validation multi-modal bags[/]: {}".format(len(val_idx))
-        + "\n  - [blue]Validation slides[/]: {}".format(len(np.unique(val_slides)))
-    )
+    summary_lines = [
+        "[bold]Multi-modal MIL training summary:[/]",
+        "  - [blue]Modes[/]: {}".format(num_modes),
+        "  - [blue]Slides with bags[/]: {}".format(len(np.unique(all_slides))),
+        "  - [blue]Multi-modal bags[/]: {}".format(all_bags.shape[0]),
+    ]
+    if unique is not None:
+        summary_lines.append("  - [blue]Unique categories[/]: {}".format(len(unique)))
+    summary_lines += [
+        "  - [blue]Training multi-modal bags[/]: {}".format(len(train_idx)),
+        "  - [blue]Training slides[/]: {}".format(len(np.unique(train_slides))),
+        "  - [blue]Validation multi-modal bags[/]: {}".format(len(val_idx)),
+        "  - [blue]Validation slides[/]: {}".format(len(np.unique(val_slides))),
+    ]
+    log.info("\n".join(summary_lines))
 
     # Print a detailed summary of each mode.
     for i, mode in enumerate(bags):

@@ -31,6 +31,7 @@ class VirchowFeatures(TorchFeatureExtractor):
     """
 
     tag = 'virchow'
+    weights_hash = '352358bb58d4dee164b1662b8eeb3a4c9c344aa2'
     license = """CC-BY-NC-ND 4.0 (non-commercial use only). Please see the original license at https://huggingface.co/paige-ai/Virchow."""
     citation = """
 @misc{vorontsov2024virchowmillionslidedigitalpathology,

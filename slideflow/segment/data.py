@@ -327,6 +327,28 @@ class TileMaskDataset(torch.utils.data.Dataset):
         C = sa.scale(B, xfact=scale, yfact=scale, origin=(0, 0))
         return C
 
+    def split(self, train_size: float = 0.8, seed: int = 42):
+        """Split the dataset into training and validation sets."""
+        np.random.seed(seed)
+
+        # Find training & validation slides
+        slides = set([c[0] for c in self.coords])
+        train_slides = set(np.random.choice(list(slides), int(train_size * len(slides)), replace=False))
+        val_slides = slides - train_slides
+
+        # Get coordinates for each set
+        train_idx = [i for i, c in enumerate(self.coords) if c[0] in train_slides]
+        val_idx = [i for i, c in enumerate(self.coords) if c[0] in val_slides]
+
+        # Return a new dataset/subset for each set
+        train = torch.utils.data.Subset(self, train_idx)
+        val = torch.utils.data.Subset(self, val_idx)
+
+        print("Training set: {} slides, {} tiles".format(len(train_slides), len(train_idx)))
+        print("Validation set: {} slides, {} tiles".format(len(val_slides), len(val_idx)))
+
+        return train, val
+
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get an image and mask for a given index."""
         slide, gx, gy = self.coords[index]
