@@ -83,13 +83,6 @@ silent bugs in 3.0.2; the fix changes the *correct* output.
 
 #### Math / training-objective fixes
 
-- **Cox negative-log-likelihood survival loss in TensorFlow** was
-  sorting time *ascending* — wrong direction for the Cox risk-set
-  cumulative-sum semantics. Now sorts *descending*, matching the
-  sibling Breslow variant and the pycox reference. **Every TF survival
-  model trained with Slideflow ≤3.0.2 was trained against an incorrect
-  objective.** Re-running training under 3.1.0 will produce different
-  (correct) results.
 - **`batch_loss_crossentropy` regularizer divisor** was dividing
   variance/SE by feature count (post-`reduce_mean` collapse) instead
   of sample count. Magnitude of change depends on `num_features` vs
@@ -99,6 +92,53 @@ silent bugs in 3.0.2; the fix changes the *correct* output.
   slots when `prediction_filter` skipped classes (e.g., `[0, 2]`
   populated slots 0 and 1). Users with class-skipping filters should
   re-run inference.
+
+#### Survival / Cox NLL — convention clarified, no behavior change
+
+Slideflow 3 documentation was unclear about the convention used by
+`'negative_log_likelihood'` survival loss. The convention has been
+confirmed and documented in-code:
+
+- The default `'negative_log_likelihood'` loss treats the model output
+  as a **survival score** (higher value = longer expected survival;
+  lifelines / Harrell convention), **not** a Cox log-hazard.
+  Mathematically, this requires *ascending* sort by time inside the
+  loss — the implementation in 3.0.2 is correct as written. Earlier
+  drafts of this changelog incorrectly described the ascending sort
+  as a bug; that mischaracterization has been retracted.
+- A pre-release commit on the 3.1.0 branch briefly flipped the sort to
+  descending under the same misreading. That change has been reverted.
+  **Behavior of `'negative_log_likelihood'` in 3.1.0 is identical to
+  3.0.2.** Survival models trained on Slideflow 3.0.x do not need to
+  be retrained.
+- The variant `'negative_log_likelihood_breslow'` does use the
+  opposite (Cox log-hazard, descending sort) convention; the two
+  losses are not directly interchangeable. Multi-paragraph in-code
+  comments in `model/tensorflow_utils.py` and `stats/metrics.py`
+  document the convention difference for future contributors.
+
+#### Training-time concordance index displays anti-concordantly
+
+Independent of any behavior change, this 3.1.0 release surfaces a
+long-standing quirk that was never documented:
+
+- Slideflow has **two** `concordance_index` implementations with
+  **opposite** conventions:
+  - `slideflow.stats.metrics.concordance_index` (post-evaluation;
+    appears as `patient_c_index`, `slide_c_index`, `tile_c_index` in
+    `results_log.csv`) follows the survival-score convention. **This
+    is the authoritative metric.**
+  - `slideflow.model.tensorflow_utils.concordance_index` (the
+    training-time Keras metric shown live during `fit()`) negates
+    `y_pred` internally (Cox log-hazard convention) and is therefore
+    *anti-concordant* relative to the loss being optimized. Under
+    correct fitting with a strong signal it drifts toward
+    `1 - true_c_index` (i.e. *below* 0.5).
+- **If the live training c-index appears below 0.5 on a survival
+  model, your training is likely fine.** Trust the post-eval
+  `patient_c_index` in `results_log.csv` for a faithful score.
+- Resolving this internal inconsistency is tracked separately and is
+  out of scope for 3.1.0.
 
 #### Augmentation distributions (training reproducibility)
 

@@ -201,6 +201,33 @@ Models can also be trained to a time series outcome using Cox Proportional Hazar
 .. note::
     Survival models are currently only available with the Tensorflow backend. PyTorch support for survival outcomes is in development.
 
+.. note::
+    **Output convention.** With ``loss='negative_log_likelihood'``, the
+    model output is a *survival score* (the lifelines / Harrell
+    convention) where **higher value = longer expected survival**, not
+    a Cox log-hazard ratio. The post-evaluation concordance index
+    reported in ``results_log.csv`` (``patient_c_index``,
+    ``slide_c_index``, ``tile_c_index``) is computed against this
+    convention without any sign flip and is the authoritative score
+    for a trained model.
+
+    The variant ``loss='negative_log_likelihood_breslow'`` uses the
+    *opposite* (Cox log-hazard) convention internally; the two loss
+    functions are not interchangeable without adjusting downstream
+    metrics.
+
+.. warning::
+    **The live training concordance index can appear below 0.5 — this
+    is expected.** The ``c_index`` Keras metric shown during
+    ``fit()`` (and any per-epoch logs printed by the trainer) uses the
+    *opposite* convention to ``negative_log_likelihood`` itself. Under
+    correct fitting with a strong signal, the displayed value drifts
+    toward ``1 - true_c_index`` and so will read *anti-concordant*
+    (typically < 0.5). This is a known display-only quirk in the
+    Keras-side metric; the **post-evaluation** c-index in
+    ``results_log.csv`` is the trustworthy score and will read
+    correctly (> 0.5 for a discriminative model).
+
 Multimodal models
 *****************
 
