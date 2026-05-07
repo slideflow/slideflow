@@ -106,19 +106,30 @@ def negative_log_likelihood(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
     pred_hr = tf.reshape(y_pred[:, 0], [-1])  # y_pred
     time = tf.reshape(y_true, [-1])           # y_true
 
-    # Sort by descending time so the cumsum below correctly represents
-    # the Cox risk set R(t_i) = {j : time_j >= t_i} at each event:
-    # position k holds the k-th-longest survival time, and cumsum[k]
-    # accumulates exp(pred_j) over indices 0..k, which is exactly the
-    # set of patients still at risk at time t_k. See
-    # negative_log_likelihood_breslow below and pycox's cox_ph_loss for
-    # the same convention. Slideflow <= 3 omitted the direction kwarg
-    # here (the trailing comment was the only hint at intent), so
-    # tf.argsort defaulted to ascending — making the cumsum represent
-    # the complement of the risk set and producing mathematically
-    # incorrect loss values / gradients for survival models. Models
-    # trained on earlier versions optimized the wrong objective.
-    order = tf.argsort(time, direction='DESCENDING')
+    # CONVENTION NOTE (do not "fix" to direction='DESCENDING'):
+    #
+    # Slideflow's survival models output y_pred as a "survival score"
+    # where HIGHER values correspond to LONGER expected survival -- i.e.
+    # the lifelines/Harrell convention -- *not* a Cox log-hazard ratio
+    # (despite the local name `pred_hr`). Ascending sort puts shortest-
+    # time patients at index 0, so cumsum[k] accumulates exp(eta) over
+    # patients with t_j <= t_k. Combined with the (sorted_predictions
+    # - log_cumsum_h) term, gradient descent on this objective drives
+    # eta UP for long-time events and DOWN for shorter-time / censored
+    # patients, producing the survival-score relationship.
+    #
+    # Switching to descending sort flips the model to the Cox log-hazard
+    # convention (high eta = high hazard = short survival). That breaks
+    # downstream consumers that expect the survival-score convention --
+    # in particular slideflow.stats.metrics.concordance_index (the
+    # authoritative post-eval c-index), which does NOT negate y_pred
+    # before scoring. Empirically, training under descending sort
+    # produces patient c-indexes ~ (1 - true c-index).
+    #
+    # The Breslow variant below DOES use descending sort / Cox-hazard
+    # convention; the two losses are therefore not interchangeable
+    # without adjusting the rest of the pipeline.
+    order = tf.argsort(time)
     sorted_events = tf.gather(events, order)            # pylint: disable=no-value-for-parameter
     sorted_predictions = tf.gather(pred_hr, order)      # pylint: disable=no-value-for-parameter
 
@@ -200,12 +211,28 @@ def concordance_index(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
 
     Returns:
         tf.Tensor: Concordance index.
+
+    Note:
+        This is the *training-time* c-index used as a Keras metric. It
+        assumes y_pred is a Cox log-hazard (high = short survival) and
+        negates it before scoring -- the OPPOSITE convention to
+        :func:`negative_log_likelihood` above and to the post-eval
+        :func:`slideflow.stats.metrics.concordance_index`, both of which
+        treat y_pred as a survival score (high = long survival).
+
+        The displayed value is therefore *anti-concordant* relative to
+        the loss being optimized: under correct fitting it drifts toward
+        ``1 - true_c_index`` (i.e. below 0.5 with a strong signal). For
+        an authoritative score, use the post-eval c-index in
+        ``slideflow.stats.metrics``.
     """
     E = y_pred[:, -1]
     y_pred = y_pred[:, :-1]
     E = tf.reshape(E, [-1])
     y_pred = tf.reshape(y_pred, [-1])
-    y_pred = -y_pred  # negative of log hazard ratio to have correct relationship with survival
+    # Negation makes this a Cox-hazard-style c-index. See the docstring
+    # above for why this is inconsistent with the rest of the pipeline.
+    y_pred = -y_pred
     g = tf.subtract(tf.expand_dims(y_pred, -1), y_pred)
     g = tf.cast(g == 0.0, tf.float32) * 0.5 + tf.cast(g > 0.0, tf.float32)
     f = tf.subtract(tf.expand_dims(y_true, -1), y_true) > 0.0

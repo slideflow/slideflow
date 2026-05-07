@@ -343,7 +343,26 @@ def classification_metrics(
 
 
 def concordance_index(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    '''Calculates concordance index from a given y_true and y_pred.'''
+    '''Calculates concordance index from a given y_true and y_pred.
+
+    This is the post-evaluation c-index used to score saved survival
+    predictions (it ends up in results_log.csv as ``patient_c_index``,
+    ``slide_c_index``, ``tile_c_index``).
+
+    Convention: y_pred is interpreted as a "survival score" where HIGHER
+    values correspond to LONGER expected survival -- the
+    lifelines/Harrell convention used by the underlying
+    :func:`slideflow.stats.concordance.concordance_index`. This matches
+    the convention trained by
+    :func:`slideflow.model.tensorflow_utils.negative_log_likelihood`, so
+    no sign flip is applied here.
+
+    Note:
+        The training-time TF metric in ``tensorflow_utils.py`` uses the
+        opposite (Cox log-hazard) convention -- see its docstring. The
+        two metrics are not directly comparable; this one is the
+        authoritative score for trained models.
+    '''
     E = y_pred[:, -1]
     y_pred = y_pred[:, :-1]
     y_pred = y_pred.flatten()
