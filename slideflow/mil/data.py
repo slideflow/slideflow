@@ -9,6 +9,8 @@ import numpy.typing as npt
 import torch
 from torch.utils.data import Dataset
 
+from . import utils
+
 # -----------------------------------------------------------------------------
 
 def build_dataset(bags, targets, encoder, bag_size, use_lens=False,  max_bag_size=None, dtype=torch.float32):

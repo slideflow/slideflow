@@ -674,7 +674,6 @@ def group_reduce(
         method = 'mean'
 
     def _apply_reduce(_df, method, group):
-        nonlocal groups
         if method in ['mean', 'median', 'sum', 'min', 'max']:
             return _df.groupby(group, as_index=False).agg(method, numeric_only=True)
         elif callable(method):

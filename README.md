@@ -193,6 +193,23 @@ P.train(
 
 Slideflow includes a host of additional tools, including model [evaluation and prediction](https://slideflow.dev/evaluation), [heatmaps](https://slideflow.dev/evaluation#heatmaps), analysis of [layer activations](https://slideflow.dev/posthoc), [mosaic maps](https://slideflow.dev/posthoc#mosaic-maps), and more. See our [full documentation](https://slideflow.dev) for more details and tutorials.
 
+## 🛠️ Development
+
+If you are building from source and plan to contribute, install the pre-commit hooks so the same `flake8` checks that run in CI are enforced before commits leave your machine:
+
+```
+pip install pre-commit
+pre-commit install
+```
+
+Subsequent `git commit` invocations will run `flake8` with the strict CI selection (`E9,F63,F7,F82`). To run the checks manually across the repo:
+
+```
+pre-commit run --all-files
+```
+
+The hook configuration lives in `.pre-commit-config.yaml`; `flake8` excludes are in `setup.cfg` under `[flake8]`.
+
 ## 📚 Publications
 
 Slideflow has been used by:

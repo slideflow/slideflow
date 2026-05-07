@@ -1,0 +1,27 @@
+# Pre-commit hooks for slideflow.
+#
+# Setup (one-time, per contributor):
+#   pip install pre-commit
+#   pre-commit install
+#
+# Manual run across the repo:
+#   pre-commit run --all-files
+#
+# The flake8 hook mirrors the CI strict selection in
+# .github/workflows/python-app.yml so that the build-blocking lint
+# step is enforced before commits leave the machine.
+
+repos:
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        name: flake8 (CI strict selection)
+        args:
+          - .
+          - --count
+          - --select=E9,F63,F7,F82
+          - --show-source
+          - --statistics
+        pass_filenames: false
+        always_run: true

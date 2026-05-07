@@ -108,8 +108,6 @@ class _StridedQC:
 
         # Thread for generating predictions from images in queue.
         def queue_runner():
-            nonlocal qc_mask
-
             while True:
                 next_batch = q.get()
                 if next_batch is None:

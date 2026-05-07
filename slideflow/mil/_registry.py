@@ -93,7 +93,6 @@ def register_trainer(tag=None):
     """Decorate to register a new trainer."""
     
     def decorator(fn):
-        nonlocal tag
         name = tag or fn.__name__
         _mil_trainers[name] = fn
         return fn
@@ -110,7 +109,7 @@ def register_model(tag=None, config=None):
     """Decorator to register a PyTorch feature extractor."""
 
     def decorator(fn):
-        nonlocal tag, config
+        nonlocal config
         # Use the custom key name if provided, otherwise use the function's name
         from slideflow.mil import MILModelConfig
 
