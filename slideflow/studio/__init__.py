@@ -118,6 +118,17 @@ class Studio(ImguiWindow):
         self._status_message            = None
         self._force_enable_tile_preview = False
 
+        # Git branch shown in status bar.
+        try:
+            import subprocess
+            self._git_branch = subprocess.check_output(
+                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                cwd=os.path.dirname(__file__),
+                stderr=subprocess.DEVNULL
+            ).decode().strip()
+        except Exception:
+            self._git_branch = None
+
         # Interface.
         self._show_about                = False
         self._show_tile_preview         = True
@@ -636,6 +647,11 @@ class Studio(ImguiWindow):
             imgui.text(backend)
         if imgui.is_item_hovered():
             imgui.set_tooltip("Slide backend")
+
+        # Git branch
+        if self._git_branch:
+            imgui.same_line()
+            imgui.text_colored(f'[{self._git_branch}]', 0.8, 0.6, 1, 1)
 
         # Low memory mode
         if self.low_memory:
@@ -1845,6 +1861,7 @@ class Studio(ImguiWindow):
             ignore_errors (bool): Do not fail if an error is encountered.
                 Defaults to False.
         """
+        print(f"[Studio] Opening slide: {slide}")
         self.slide_widget.load(slide, **kwargs)
 
         # Trigger user widgets

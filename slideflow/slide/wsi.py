@@ -481,19 +481,27 @@ class WSI:
             grid_scale_x = grid_scale
             grid_scale_y = grid_scale
 
-        # Rasterize polygons for ROIs individually, to keep track of
-        # which ROI each tile belongs to, then merge.
-        roi_grid = np.stack([
-            rasterio.features.rasterize(
-                [poly],
-                out_shape=(int(np.round(self.grid.shape[1] * grid_scale_y)),
-                           int(np.round(self.grid.shape[0] * grid_scale_x))),
-                all_touched=False).astype(bool).astype(int) * (i + 1)
-            for i, poly in enumerate(polys)
-        ], axis=0)
+        h = int(np.round(self.grid.shape[1] * grid_scale_y))
+        w = int(np.round(self.grid.shape[0] * grid_scale_x))
+
         if intersection == 'max':
-            return roi_grid.max(axis=0).T
+            # Single rasterize call with all polygons. Values are 1..N
+            # (strictly increasing), so the default merge_alg (last shape
+            # wins) produces the same result as stacking N grids and taking
+            # the per-pixel max — at a fraction of the memory and compute cost.
+            return rasterio.features.rasterize(
+                [(poly, i + 1) for i, poly in enumerate(polys)],
+                out_shape=(h, w),
+                all_touched=False
+            ).T
         elif intersection == 'min':
+            roi_grid = np.stack([
+                rasterio.features.rasterize(
+                    [poly],
+                    out_shape=(h, w),
+                    all_touched=False).astype(bool).astype(np.uint8) * (i + 1)
+                for i, poly in enumerate(polys)
+            ], axis=0)
             return roi_grid.min(axis=0).T
         else:
             raise ValueError(
