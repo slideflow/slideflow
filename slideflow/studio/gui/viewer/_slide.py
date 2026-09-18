@@ -507,7 +507,20 @@ class SlideViewer(Viewer):
         self._scaled_roi_ind    = {}
         self._scaled_roi_holes_ind = defaultdict(dict)
 
+        # Pre-compute view bounds in base (slide) coordinates for fast culling.
+        # Inverse of _scale_roi_to_view: base = (view - view_offset - panel_offset) * zoom + origin
+        ox = self.view_offset[0] + self.x_offset
+        oy = self.view_offset[1] + self.y_offset
+        vbx0 = self.origin[0] - ox * self.view_zoom
+        vbx1 = self.origin[0] + (self.width + self.x_offset - ox) * self.view_zoom
+        vby0 = self.origin[1] - oy * self.view_zoom
+        vby1 = self.origin[1] + (self.height + self.y_offset - oy) * self.view_zoom
+
         for roi_idx, roi in enumerate(self.wsi.rois):
+            bbox = roi.bbox
+            if bbox is not None and (bbox[2] < vbx0 or bbox[0] > vbx1
+                                     or bbox[3] < vby0 or bbox[1] > vby1):
+                continue
             c, ind = self._scale_roi_to_view(roi.coordinates)
             if c is not None:
                 c = c.astype(np.float32)

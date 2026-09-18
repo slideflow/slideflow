@@ -71,6 +71,7 @@ class ROI:
         self.holes = holes if holes else {}
         self._poly = None
         self._triangles = None
+        self._bbox = None
         self.coordinates = np.array(coordinates)
         self.validate()
 
@@ -115,6 +116,18 @@ class ROI:
             self._triangles = self.create_triangles()
         return self._triangles
 
+    @property
+    def bbox(self):
+        """Bounding box as (min_x, min_y, max_x, max_y) in base coordinates."""
+        if self._bbox is None and self.coordinates is not None and len(self.coordinates):
+            self._bbox = (
+                float(self.coordinates[:, 0].min()),
+                float(self.coordinates[:, 1].min()),
+                float(self.coordinates[:, 0].max()),
+                float(self.coordinates[:, 1].max()),
+            )
+        return self._bbox
+
     def make_polygon(self) -> sg.Polygon:
         """Create a shapely polygon from the coordinates.
 
@@ -141,6 +154,7 @@ class ROI:
         """Update the shapely polygon object."""
         self._poly = self.make_polygon()
         self._triangles = None
+        self._bbox = None
 
     def scaled_poly(self, scale: float) -> sg.Polygon:
         """Create a scaled polygon."""
