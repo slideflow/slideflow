@@ -600,16 +600,28 @@ class SlideViewer(Viewer):
                 poly = poly.difference(hole_poly)
             return poly
 
-        polygons = {_id: get_polygon(_id) for _id in self.scaled_rois_in_view}
+        ids = list(self.scaled_rois_in_view.keys())
+        labeled_polys = []
+        for i, roi_id in enumerate(ids):
+            poly = get_polygon(roi_id)
+            if poly is not None:
+                labeled_polys.append(
+                    (sa.translate(poly, -self.x_offset, -self.y_offset), i + 1)
+                )
+        if not labeled_polys:
+            return None
 
-        return np.stack([
-            rasterize(
-                [sa.translate(polygons[roi_id], -self.x_offset, -self.y_offset)],
-                out_shape=(self.height, self.width),
-                all_touched=False).astype(bool).astype(int).T * (roi_id + 1)
-            for roi_id in self.scaled_rois_in_view
-            if polygons[roi_id] is not None
-        ], axis=-1)
+        flat = rasterize(
+            labeled_polys,
+            out_shape=(self.height, self.width),
+            all_touched=False,
+        )
+        result = np.zeros((self.width, self.height, len(ids)), dtype=np.int32)
+        for i, roi_id in enumerate(ids):
+            mask = flat == (i + 1)
+            if mask.any():
+                result[:, :, i] = mask.T * (roi_id + 1)
+        return result
 
     def get_roi_colors(
         self,
