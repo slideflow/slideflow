@@ -204,6 +204,10 @@ class ROIWidget:
         if view is None or self.viz.wsi is None:
             return
 
+        if not (self.capturing or self.subtracting):
+            self.roi_grid = None
+            return
+
         if not view.is_moving() and (view.view_params != self._last_view_params):
             _t = time.perf_counter()
             _n = len(view.scaled_rois_in_view)
