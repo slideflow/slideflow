@@ -1,4 +1,5 @@
 import imgui
+import time
 import numpy as np
 import glfw
 import os
@@ -204,7 +205,11 @@ class ROIWidget:
             return
 
         if not view.is_moving() and (view.view_params != self._last_view_params):
+            _t = time.perf_counter()
+            _n = len(view.scaled_rois_in_view)
             self.roi_grid = view.rasterize_rois_in_view()
+            _dt = time.perf_counter() - _t
+            print(f"[TIMING] _update_grid->rasterize_rois_in_view: {_dt:.3f}s  ({_n} ROIs in view)")
             self._last_view_params = view.view_params
         elif view.is_moving():
             self.roi_grid = None

@@ -439,7 +439,11 @@ class Studio(ImguiWindow):
             self.mouse_x, self.mouse_y = self.viewer.display_coords_to_wsi_coords(inp.cx, inp.cy, offset=False)
 
         # Render slide view.
+        _t_render = time.perf_counter()
         self.viewer.render(max_w, max_h)
+        _dt_render = time.perf_counter() - _t_render
+        if _dt_render > 0.05:
+            print(f"[FRAME] viewer.render: {_dt_render:.3f}s")
 
         # Render overlay heatmap.
         if self.overlay is not None and self.show_overlay:
@@ -477,7 +481,11 @@ class Studio(ImguiWindow):
             gl.glLineWidth(1)
 
         # Render ROIs.
+        _t_late = time.perf_counter()
         self.viewer.late_render()
+        _dt_late = time.perf_counter() - _t_late
+        if _dt_late > 0.05:
+            print(f"[FRAME] viewer.late_render (ROIs): {_dt_late:.3f}s")
 
     def _draw_menu_bar(self) -> None:
         """Draw the main menu bar (File, View, Help)"""
@@ -1468,6 +1476,7 @@ class Studio(ImguiWindow):
     def draw_frame(self) -> None:
         """Main draw loop."""
 
+        _t_frame = time.perf_counter()
         self.begin_frame()
 
         self.args = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
@@ -1487,7 +1496,12 @@ class Studio(ImguiWindow):
             self.autoload(paths[0], ignore_errors=True)
 
         self._clear_textures()
+        _t0 = time.perf_counter()
         self._draw_control_pane()
+        _dt = time.perf_counter() - _t0
+        if _dt > 0.05:
+            print(f"[FRAME] _draw_control_pane: {_dt:.3f}s")
+
         self._draw_menu_bar()
         self._draw_about_dialog()
         self._draw_mpp_zoom_dialog()
@@ -1507,8 +1521,16 @@ class Studio(ImguiWindow):
 
         # Main display.
         if self.viewer:
+            _t_update = time.perf_counter()
             self.viewer.update(**self._viewer_kwargs())
+            _dt_update = time.perf_counter() - _t_update
+            if _dt_update > 0.05:
+                print(f"[FRAME] viewer.update(): {_dt_update:.3f}s  (window_changed={window_changed})")
+            _t_main = time.perf_counter()
             self._draw_main_view(user_input, window_changed)
+            _dt_main = time.perf_counter() - _t_main
+            if _dt_main > 0.05:
+                print(f"[FRAME] _draw_main_view: {_dt_main:.3f}s")
         else:
             self._draw_empty_background()
 
@@ -1602,10 +1624,18 @@ class Studio(ImguiWindow):
         # Render user widgets.
         for widget in self.widgets:
             if hasattr(widget, 'render'):
+                _t_w = time.perf_counter()
                 widget.render()
+                _dt_w = time.perf_counter() - _t_w
+                if _dt_w > 0.05:
+                    print(f"[FRAME] widget.render {type(widget).__name__}: {_dt_w:.3f}s")
 
         # Render slide widget tile boxes (for tile extraction preview)
+        _t_early = time.perf_counter()
         self.slide_widget.early_render()
+        _dt_early = time.perf_counter() - _t_early
+        if _dt_early > 0.05:
+            print(f"[FRAME] slide_widget.early_render: {_dt_early:.3f}s")
 
         # Render the tile view and status bar.
         self._draw_tile_view()
@@ -1632,7 +1662,12 @@ class Studio(ImguiWindow):
         if self._should_close_slide:
             self.close_slide(True)
 
+        _t_ef = time.perf_counter()
         self.end_frame()
+        _dt_ef = time.perf_counter() - _t_ef
+        _dt_frame = time.perf_counter() - _t_frame
+        if _dt_frame > 0.05:
+            print(f"[FRAME] total={_dt_frame:.3f}s  end_frame={_dt_ef:.3f}s")
 
     @staticmethod
     def get_default_widgets() -> List[Any]:
@@ -1861,13 +1896,20 @@ class Studio(ImguiWindow):
             ignore_errors (bool): Do not fail if an error is encountered.
                 Defaults to False.
         """
+        import time as _time
         print(f"[Studio] Opening slide: {slide}")
+        _t_open = _time.perf_counter()
         self.slide_widget.load(slide, **kwargs)
 
         # Trigger user widgets
         for widget in self.widgets:
             if hasattr(widget, '_on_slide_load'):
+                _t_w = _time.perf_counter()
                 widget._on_slide_load()
+                _dt = _time.perf_counter() - _t_w
+                if _dt > 0.01:
+                    print(f"[TIMING] _on_slide_load {type(widget).__name__}: {_dt:.3f}s")
+        print(f"[TIMING] load_slide() total (before first render): {_time.perf_counter() - _t_open:.3f}s")
 
     def print_error(self, error: str) -> None:
         """Print the given error message."""
