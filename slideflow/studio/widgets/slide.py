@@ -1,5 +1,4 @@
 import os
-import time
 import cv2
 import imgui
 import numpy as np
@@ -485,11 +484,8 @@ class SlideWidget:
             if stride is not None:
                 self.stride = stride
 
-            _t_load_start = time.perf_counter()
-
             # Load the slide.
             try:
-                _t_wsi = time.perf_counter()
                 success = viz.reload_wsi(
                     slide,
                     stride=self.stride,
@@ -497,7 +493,6 @@ class SlideWidget:
                     ignore_missing_mpp=False,
                     **kwargs
                 )
-                print(f"[TIMING] reload_wsi (WSI + SlideViewer): {time.perf_counter() - _t_wsi:.3f}s")
                 if not success:
                     return
             except sf.errors.SlideMissingMPPError:
@@ -516,31 +511,23 @@ class SlideWidget:
             viz.heatmap_widget.reset()
 
             # Generate WSI thumbnail.
-            _t_thumb = time.perf_counter()
             hw_ratio = (viz.wsi.dimensions[0] / viz.wsi.dimensions[1])
             max_width = int(min(800 - viz.spacing*2, (800 - viz.spacing*2) / hw_ratio))
             viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width, low_res=True))
-            print(f"[TIMING] wsi.thumb: {time.perf_counter() - _t_thumb:.3f}s")
             viz.clear_message(f'Loading {name}...')
             if not viz.sidebar.expanded:
                 viz.sidebar.selected = 'slide'
                 viz.sidebar.expanded = True
 
             # Load tile coordinates.
-            _t_coords = time.perf_counter()
             self._update_tile_coords()
-            print(f"[TIMING] _update_tile_coords: {time.perf_counter() - _t_coords:.3f}s")
 
             # Update the slide filter.
             if self.apply_slide_filter:
                 self.update_slide_filter(method=self._get_qc())
 
             # Update ROI colors.
-            _t_labels = time.perf_counter()
             self.roi_widget.refresh_labels()
-            print(f"[TIMING] refresh_labels: {time.perf_counter() - _t_labels:.3f}s")
-
-            print(f"[TIMING] slide.load() total (before first render): {time.perf_counter() - _t_load_start:.3f}s")
 
         except Exception as e:
             self.cur_slide = None

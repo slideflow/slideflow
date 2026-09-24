@@ -617,19 +617,14 @@ class WSI:
 
             # Rasterize ROIs to the grid
             if len(rois):
-                _t_rast = time.perf_counter()
                 self.roi_grid = self._rasterize_rois_to_grid(rois, **rasterize_kw)
-                print(f"[TIMING]     rasterize {len(rois)} ROIs: {time.perf_counter() - _t_rast:.3f}s")
             else:
                 self.roi_grid = None
 
             # If there are artifact ROIs, rasterize these to the grid
             # and subtract them from the main ROI grid.
             if len(artifacts):
-                _t_rast_art = time.perf_counter()
                 roi_grid_issues = self._rasterize_rois_to_grid(artifacts, invert=True, **rasterize_kw)
-                print(f"[TIMING]     rasterize {len(artifacts)} artifact ROIs: "
-                      f"{time.perf_counter() - _t_rast_art:.3f}s")
                 if self.roi_grid is None:
                     self.roi_grid = roi_grid_issues
                 else:
@@ -640,7 +635,6 @@ class WSI:
         else:
             self.roi_mask = None
 
-        _t_coord = time.perf_counter()
         for yi, y in enumerate(y_range):
             for xi, x in enumerate(x_range):
                 y = int(y)
@@ -677,8 +671,6 @@ class WSI:
         if self.coord.ndim == 1 and self.coord.shape[0] > 0:
             self.coord = self.coord[np.newaxis, :]
         self.estimated_num_tiles = int(self.grid.sum())
-        print(f"[TIMING]     coord grid loop: {time.perf_counter() - _t_coord:.3f}s  "
-              f"(grid={self.grid.shape}, tiles={self.estimated_num_tiles})")
         log.debug(f"Set up coordinate grid, shape={self.grid.shape}")
 
     def _configure_downsample(
@@ -2698,13 +2690,10 @@ class WSI:
             scale (int): Scale factor to apply to ROI coordinates. Defaults to 1.
 
         """
-        from tqdm import tqdm
-
         # Clear any previously loaded ROIs.
         self.rois = []
 
         roi_dict = {}
-        _t0 = time.perf_counter()
         with open(path, "r") as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             try:
@@ -2734,37 +2723,25 @@ class WSI:
                     }
                 roi_dict[roi_name]['coords'].append((x_coord, y_coord))
 
-        _t_csv = time.perf_counter()
-        print(f"[TIMING] CSV parse: {_t_csv - _t0:.3f}s  ({len(roi_dict)} ROIs read)")
-
-        for roi_name in tqdm(roi_dict, desc="Building ROI polygons", unit="roi"):
-            try:
-                roi = ROI(
-                    roi_name,
-                    np.array(roi_dict[roi_name]['coords']),
-                    label=roi_dict[roi_name]['label']
-                )
-            except errors.InvalidROIError as e:
-                if skip_invalid:
-                    log.warn("Skipping invalid ROI ({}): {}".format(roi_name, e))
-                    continue
+            for roi_name in roi_dict:
+                try:
+                    roi = ROI(
+                        roi_name,
+                        np.array(roi_dict[roi_name]['coords']),
+                        label=roi_dict[roi_name]['label']
+                    )
+                except errors.InvalidROIError as e:
+                    if skip_invalid:
+                        log.warn("Skipping invalid ROI ({}): {}".format(roi_name, e))
+                        continue
+                    else:
+                        raise
                 else:
-                    raise
-            else:
-                if simplify_tolerance is not None:
-                    roi.simplify(simplify_tolerance)
-                self.rois.append(roi)
-
-        _t_build = time.perf_counter()
-        _n_valid = len(self.rois)
-        _ms_per = (_t_build - _t_csv) / max(1, _n_valid) * 1000
-        print(f"[TIMING] ROI polygon construction: {_t_build - _t_csv:.3f}s  "
-              f"({_n_valid} valid, {_ms_per:.2f} ms/roi)")
-
+                    if simplify_tolerance is not None:
+                        roi.simplify(simplify_tolerance)
+                    self.rois.append(roi)
         if process:
             self.process_rois()
-
-        print(f"[TIMING] load_csv_roi total: {time.perf_counter() - _t0:.3f}s")
         log.debug(f"Loaded ROIs from {path}")
         return len(self.rois)
 
@@ -2990,39 +2967,25 @@ class WSI:
             int: Number of ROIs processed.
 
         """
-        _t0 = time.perf_counter()
-        print(f"[TIMING] process_rois start: {len(self.rois)} ROIs, roi_method={self.roi_method!r}")
-
         # Load annotations as shapely.geometry objects.
         if self.roi_method != 'ignore':
-            _t1 = time.perf_counter()
             self._find_and_process_holes()
-            print(f"[TIMING]   _find_and_process_holes: {time.perf_counter() - _t1:.3f}s  "
-                  f"({len(self.rois)} outer ROIs remain)")
 
         # Regenerate the grid to reflect the newly-loaded ROIs.
-        _t2 = time.perf_counter()
         self._build_coord()
-        print(f"[TIMING]   _build_coord: {time.perf_counter() - _t2:.3f}s")
 
         # Re-apply any existing QC mask, now that the coordinates have changed.
         if self.has_non_roi_qc():
-            _t3 = time.perf_counter()
             self.apply_qc_mask()
-            print(f"[TIMING]   apply_qc_mask: {time.perf_counter() - _t3:.3f}s")
 
-        print(f"[TIMING] process_rois total: {time.perf_counter() - _t0:.3f}s")
         return len(self.rois)
 
     def _find_and_process_holes(self):
         """Find and process holes in ROIs."""
 
         from shapely.strtree import STRtree
-        from tqdm import tqdm
 
-        _t0 = time.perf_counter()
         self.rois.sort(key=lambda x: x.poly.area, reverse=True)
-        print(f"[TIMING]     sort by area: {time.perf_counter() - _t0:.3f}s")
 
         outer_rois = []
 
@@ -3033,14 +2996,9 @@ class WSI:
             rois = [roi for roi in self.rois if roi.label == label]
             polygons = [roi.poly for roi in self.rois if roi.label == label]
 
-            _t1 = time.perf_counter()
             strtree = STRtree(polygons)
-            print(f"[TIMING]     STRtree build (label={label!r}, n={len(polygons)}): "
-                  f"{time.perf_counter() - _t1:.3f}s")
 
-            _t2 = time.perf_counter()
-            for roi, poly in tqdm(zip(rois, polygons), total=len(rois),
-                                  desc=f"Hole detection (label={label!r})", unit="roi"):
+            for roi, poly in zip(rois, polygons):
 
                 if version.parse(shapely_version) < version.parse('2.0.0'):
                     possible_containers = strtree.query(poly)
@@ -3072,8 +3030,6 @@ class WSI:
                     else:
                         # Otherwise, add the polygon to the immediate outer as a hole
                         immediate_outer_roi.add_hole(roi)
-
-            print(f"[TIMING]     containment loop (label={label!r}): {time.perf_counter() - _t2:.3f}s")
 
         # Restrict the ROIs to only outer polygons, which have now had the holes applied.
         self.rois = outer_rois
