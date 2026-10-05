@@ -642,7 +642,14 @@ class ProjectWidget:
                     imgui_utils.padded_text('No slides found.', vpad=[int(viz.font_size/2), int(viz.font_size)])
                 else:
                     self.draw_slide_search()
+                    imgui.begin_child(
+                        '##slide_list',
+                        width=0,
+                        height=viz.content_height * 0.6,
+                        border=False
+                    )
                     self.draw_slide_list()
+                    imgui.end_child()
 
             if viz.collapsing_header('Models', default=False):
                 if not self.recursive_model_scan():
