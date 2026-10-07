@@ -25,7 +25,7 @@ def mil_config(model: Union[str, Callable], trainer: str = 'fastai', **kwargs):
     Args:
         model (str, Callable): Either the name of a model, or a custom torch
             module. Valid model names include ``"attention_mil"``,
-            ``"transmil"``, and ``"bistro.transformer"``.
+            ``"transmil"``, ``"nnmil"``, and ``"bistro.transformer"``.
         trainer (str): Type of MIL trainer to use. Only 'fastai' is available,
             unless additional trainers are installed.
         **kwargs: All additional keyword arguments are passed to
@@ -66,7 +66,7 @@ class TrainerConfig:
         Args:
             model (str, Callable): Either the name of a model, or a custom torch
                 module. Valid model names include ``"attention_mil"``,
-                ``"transmil"``, and ``"bistro.transformer"``.
+                ``"transmil"``, ``"nnmil"``, and ``"bistro.transformer"``.
 
         Keyword args:
             aggregation_level (str): When equal to ``'slide'`` each bag
@@ -906,3 +906,69 @@ class MILModelConfig:
 
 # -----------------------------------------------------------------------------
 
+
+class NNMILModelConfig(MILModelConfig):
+
+    def __init__(
+        self,
+        model: Union[str, Callable] = 'nnmil',
+        *,
+        balanced_batches: bool = True,
+        n_strata: int = 4,
+        **kwargs
+    ) -> None:
+        """Model configuration for an nnMIL model.
+
+        Args:
+            model (str, Callable): Model name or class. Defaults to 'nnmil'.
+
+        Keyword args:
+            balanced_batches (bool): Build every training batch with the same
+                outcome mix as the whole training set, instead of shuffling
+                at random. For classification the strata are the classes; for
+                regression they are quantile bins of the first outcome.
+                Defaults to True.
+            n_strata (int): Number of quantile bins used as strata for
+                regression outcomes. Defaults to 4.
+            **kwargs: All additional keyword arguments are passed to
+                :class:`slideflow.mil.MILModelConfig`.
+
+        """
+        if not isinstance(n_strata, int) or n_strata < 1:
+            raise ValueError('n_strata must be a positive integer')
+        self.balanced_batches = balanced_batches
+        self.n_strata = n_strata
+        super().__init__(model, **kwargs)
+
+    def _strata(self, targets) -> np.ndarray:
+        targets = np.asarray(targets)
+        if self.is_classification():
+            return np.unique(targets.reshape(len(targets), -1)[:, 0], return_inverse=True)[1]
+        values = targets.reshape(len(targets), -1)[:, 0].astype(float)
+        if not np.isfinite(values).all():
+            raise ValueError('regression strata require finite targets')
+        edges = np.quantile(values, np.linspace(0, 1, self.n_strata + 1)[1:-1])
+        return np.digitize(values, edges)
+
+    def _build_dataloader(
+        self,
+        bags,
+        targets,
+        encoder,
+        *,
+        dataset_kwargs = None,
+        dataloader_kwargs = None
+    ) -> "torch.utils.DataLoader":
+        dataloader_kwargs = dict(dataloader_kwargs or dict())
+        if self.balanced_batches and dataloader_kwargs.get('shuffle'):
+            from slideflow.mil.data import StratifiedShuffle
+            dataloader_kwargs['shuffle_fn'] = StratifiedShuffle(self._strata(targets))
+        return super()._build_dataloader(
+            bags,
+            targets,
+            encoder,
+            dataset_kwargs=dataset_kwargs,
+            dataloader_kwargs=dataloader_kwargs
+        )
+
+# -----------------------------------------------------------------------------

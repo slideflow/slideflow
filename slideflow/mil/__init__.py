@@ -5,6 +5,7 @@ from .train import (
     build_fastai_learner,
     build_multimodal_learner
 )
+from .train._lora import train_lora, predict_lora
 from .eval import (
     eval_mil,
     predict_mil,
@@ -20,7 +21,8 @@ from .eval import (
 from ._params import (
     mil_config,
     TrainerConfig,
-    MILModelConfig
+    MILModelConfig,
+    NNMILModelConfig
 )
 from .utils import load_model_weights, load_mil_config
 from ._registry import (
@@ -51,6 +53,11 @@ def mm_attention_mil():
 def transmil():
     from .models import TransMIL
     return TransMIL
+
+@register_model('nnmil', config=NNMILModelConfig)
+def nnmil():
+    from .models import NNMIL
+    return NNMIL
 
 @register_model('bistro.transformer')
 def bistro_transformer():

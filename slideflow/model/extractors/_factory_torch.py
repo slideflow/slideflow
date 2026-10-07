@@ -31,6 +31,11 @@ def hoptimus0(**kwargs):
     return Hoptimus0Features(**kwargs)
 
 @register_torch
+def mettle(weights, **kwargs):
+    from .mettle import MettleFeatures
+    return MettleFeatures(weights, **kwargs)
+
+@register_torch
 def virchow(weights, **kwargs):
     from .virchow import VirchowFeatures
     return VirchowFeatures(weights, **kwargs)

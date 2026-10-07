@@ -3,7 +3,7 @@
 Multiple-Instance Learning (MIL)
 ================================
 
-In addition to standard tile-based neural networks, Slideflow also supports training multiple-instance learning (MIL) models. Several architectures are available, including `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), `TransMIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``), and `HistoBistro Transformer <https://github.com/peng-lab/HistoBistro>`_ (``"bistro.transformer"``). Custom architectures can also be trained. MIL training requires PyTorch.
+In addition to standard tile-based neural networks, Slideflow also supports training multiple-instance learning (MIL) models. Several architectures are available, including `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``), `TransMIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``), `nnMIL <https://arxiv.org/abs/2511.14907>`_ (``"nnmil"``), and `HistoBistro Transformer <https://github.com/peng-lab/HistoBistro>`_ (``"bistro.transformer"``). Custom architectures can also be trained. MIL training requires PyTorch.
 
 Skip to :ref:`tutorial8` for a complete example of MIL training.
 
@@ -31,13 +31,86 @@ The first argument to this function is the model architecture (which can be a na
 
     config = mil_config('attention_mil', lr=1e-3)
 
-Available models out-of-the-box include `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``), and `HistoBistro Transformer <https://github.com/peng-lab/HistoBistro>`_ (``"bistro.transformer"``). `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``) models are available through ``slideflow-gpl``:
+Available models out-of-the-box include `attention-based MIL <https://github.com/AMLab-Amsterdam/AttentionDeepMIL>`_ (``"Attention_MIL"``), `transformer MIL <https://github.com/szc19990412/TransMIL>`_ (``"TransMIL"``), `nnMIL <https://arxiv.org/abs/2511.14907>`_ (``"nnmil"``), and `HistoBistro Transformer <https://github.com/peng-lab/HistoBistro>`_ (``"bistro.transformer"``). `CLAM <https://github.com/mahmoodlab/CLAM>`_ (``"CLAM_SB",`` ``"CLAM_MB"``, ``"MIL_fc"``, ``"MIL_fc_mc"``) models are available through ``slideflow-gpl``:
 
 .. code-block:: bash
 
     pip install slideflow-gpl
 
 Custom MIL models can also be trained with this API, as discussed :ref:`below <custom_mil>`.
+
+nnMIL
+*****
+
+``"nnmil"`` is a gated attention model whose attention network sees a random subset of the feature dimensions at each training step, and averages its predictions over a fixed set of overlapping feature subsets at inference. By default, training batches approximately preserve the outcome mix of the training set (``balanced_batches=True``); for regression, quantile bins of the outcome (``n_strata``) are used. Patch sampling comes from ``bag_size``, which draws a new random subset of tiles from each bag every epoch. Model options are passed through ``model_kwargs``:
+
+.. code-block:: python
+
+    config = mil_config(
+        'nnmil',
+        lr=3e-4,
+        bag_size=512,
+        model_kwargs=dict(hidden_dim=256, dropout_p=0.25)
+    )
+
+With ``uq=True`` at inference, the model reports the spread of its predictions across the feature subsets as an uncertainty estimate.
+
+A focused example in ``examples/nnmil_subtype/README.md`` shows how to train a lobular-versus-ductal head and score it from the same encoder features as an RS head.
+
+Training nnMIL with LoRA
+***********************
+
+``sf.mil.train_lora`` trains an nnMIL head together with query/value adapters in the last blocks of a H-Optimus-0 or Mettle encoder. It reads raw tile bags, since saved feature bags cannot update the encoder. Each batch must contain uint8 tiles shaped ``(patients, tiles, height, width, 3)`` and one binary label per patient. The extractor supplies the tile transform.
+
+.. code-block:: python
+
+    import slideflow as sf
+    from slideflow.mil.models import NNMIL
+
+    extractor = sf.build_feature_extractor('hoptimus0', weights='base/pytorch_model.bin')
+    head = NNMIL(1536, 1)
+    history = sf.mil.train_lora(
+        extractor, head, train_batches,
+        val_batches=validation_batches,
+        first_block=32, rank=8, alpha=16,
+        outdir='runs/fold0'
+    )
+
+The output contains ``adapters.pt`` in the format accepted by the extractor's ``lora`` argument, ``head.pt``, and ``history.json``. Use a fresh extractor and ``adapt=False`` for a matched frozen-encoder control. Patient-grouped folds and tile sampling are supplied by the caller; this raw-tile API is separate from :func:`slideflow.Project.train_mil`, which trains on saved feature bags. Use a re-iterable loader for multiple epochs. ``seed`` covers adapter initialization and training randomness; seed the caller's head construction separately.
+
+For joint RS classification and regression, use a three-output head and provide measured RS as the third element of each batch:
+
+.. code-block:: python
+
+    head = NNMIL(1536, 3)
+    history = sf.mil.train_lora(
+        extractor, head, train_batches,
+        objective='joint', positive_weight=training_negative_count / training_positive_count,
+        first_block=32, rank=8, alpha=16, seed=42,
+        outdir='runs/fold0_joint'
+    )
+
+The joint loss combines class-weighted cross entropy for RS >=26 with MSE on ``(RS-18)/10``. The backbone weights stay frozen while adapters and the head update together. A final head may subsequently be fitted on saved features from the frozen adapted encoder.
+
+Load saved adapters into a fresh extractor and load the corresponding head for prediction:
+
+.. code-block:: python
+
+    import torch
+
+    extractor = sf.build_feature_extractor(
+        'hoptimus0', weights='base/pytorch_model.bin',
+        lora='runs/fold0_joint/adapters.pt',
+        lora_first_block=32, lora_rank=8, lora_alpha=16
+    )
+    head = NNMIL(1536, 3)
+    head.load_state_dict(torch.load('runs/fold0_joint/head.pt', map_location='cpu', weights_only=True))
+    head.to(extractor.device).eval()
+    predictions = sf.mil.predict_lora(extractor, head, validation_batches, objective='joint')
+
+``predict_lora`` returns the class-logit difference and the regression output transformed back to RS units. These outputs are from the joint training head and differ from a separately refitted soft-label head's standardized image score.
+
+Mettle uses the same adapter arguments and requires a locally authorized base checkpoint; the extractor does not download model weights. The adapter implementation supports timm ViTs with packed query/key/value projections. Validation covers H-Optimus-0 and Mettle; other encoder architectures require separate compatibility checks.
 
 
 Classification & Regression

@@ -294,3 +294,33 @@ class EncodedDataset(MapDataset):
         return torch.tensor(
             self.encode.transform(np.array(x).reshape(1, -1)), dtype=torch.float32
         )
+# -----------------------------------------------------------------------------
+
+class StratifiedShuffle:
+    def __init__(self, strata: npt.NDArray) -> None:
+        """Epoch ordering that approximately preserves the overall stratum mix.
+
+        Used as the ``shuffle_fn`` of a FastAI DataLoader. Items are shuffled
+        within each stratum and then interleaved at evenly spaced positions
+        (with jitter), so any run of consecutive items, and therefore any
+        batch, contains each stratum in close to its overall proportion.
+        Every item is used exactly once per epoch.
+
+        Args:
+            strata (np.ndarray): Integer stratum for each item in the dataset.
+
+        """
+        self.strata = np.asarray(strata)
+
+    def __call__(self, idxs: List[int]) -> List[int]:
+        rng = np.random.default_rng(np.random.randint(0, 2**31 - 1))
+        idxs = np.asarray(idxs, dtype=int)
+        if not len(idxs):
+            return []
+        keys, items = [], []
+        for s in np.unique(self.strata[idxs]):
+            members = rng.permutation(idxs[self.strata[idxs] == s])
+            keys.append((np.arange(len(members)) + rng.uniform(size=len(members))) / len(members))
+            items.append(members)
+        order = np.argsort(np.concatenate(keys), kind='stable')
+        return np.concatenate(items)[order].tolist()

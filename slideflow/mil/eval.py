@@ -717,6 +717,11 @@ def run_inference(
     else:
         kw = forward_kwargs
 
+    uq_probabilities = False
+    if uq and getattr(model, 'uq_uses_softmax', False):
+        kw.setdefault('uq_softmax', bool(apply_softmax))
+        uq_probabilities = kw['uq_softmax']
+
     # Check if the model can return attention during inference.
     # If so, this saves us a forward pass through the model.
     if attention and 'return_attention' in inspect.signature(model.forward).parameters:
@@ -741,7 +746,7 @@ def run_inference(
         if len(y_att.shape) == 2:
             y_att = torch.moveaxis(y_att, -1, 0)
 
-    if apply_softmax:
+    if apply_softmax and not uq_probabilities:
         y_pred = torch.nn.functional.softmax(y_pred, dim=1)
     return y_pred, y_att, y_uncertainty
 
