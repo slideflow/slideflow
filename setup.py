@@ -1,18 +1,18 @@
 import versioneer
 import setuptools
-import pkg_resources
+from importlib.metadata import PackageNotFoundError, version as _dist_version
 
 
 # Check for existing OpenCV installation
 opencv_pkg = None
 try:
-    pkg_resources.get_distribution("opencv-python-headless")
+    _dist_version("opencv-python-headless")
     opencv_pkg = "opencv-python-headless"
-except pkg_resources.DistributionNotFound:
+except PackageNotFoundError:
     try:
-        pkg_resources.get_distribution("opencv-python")
+        _dist_version("opencv-python")
         opencv_pkg = "opencv-python"
-    except pkg_resources.DistributionNotFound:
+    except PackageNotFoundError:
         opencv_pkg = "opencv-python-headless"  # Default to headless if neither is installed
 
 
