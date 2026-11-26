@@ -5,7 +5,7 @@ on: push
 jobs:
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 TestPyPI
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     
     steps:
     - uses: actions/checkout@master
